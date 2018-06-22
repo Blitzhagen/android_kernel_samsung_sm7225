@@ -1080,4 +1080,9 @@ static inline void fuse_freezer_count(void) {}
 	__ret;									\
 })
 
+/**
+ * Get the next unique ID for a request
+ */
+u64 fuse_get_unique(struct fuse_iqueue *fiq);
+
 #endif /* _FS_FUSE_I_H */
