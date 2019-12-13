@@ -41,7 +41,7 @@ struct task_security_struct {
 #ifdef CONFIG_KDP_CRED
 	void *bp_cred;
 #endif
-};
+}; __randomize_layout;
 
 /*
  * get the subjective security ID of the current task
