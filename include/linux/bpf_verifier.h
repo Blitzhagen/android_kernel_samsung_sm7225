@@ -238,6 +238,7 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
 	u16 stack_depth; /* max. stack depth used by this function */
+	bool has_tail_call;
 };
 
 /* single container for all structs
