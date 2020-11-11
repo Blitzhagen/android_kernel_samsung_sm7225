@@ -1401,7 +1401,8 @@ static bool l2cap_check_enc_key_size(struct hci_conn *hcon,
 	int min_key_size = HCI_MIN_ENC_KEY_SIZE;
 
 	/* On FIPS security level, key size must be 16 bytes */
-	if (chan->sec_level == BT_SECURITY_FIPS)
+	if (chan->sec_level == BT_SECURITY_FIPS ||
+	    hcon->sec_level == BT_SECURITY_FIPS)
 		min_key_size = 16;
 
 	return (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags) ||
