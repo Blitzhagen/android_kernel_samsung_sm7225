@@ -665,10 +665,9 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 		if (!p)
 			return -ENOMEM;
 	}
-	if (ctl->limit == 1) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid limit");
+	if (ctl->limit == 1)
 		return -EINVAL;
-	}
+
 	sch_tree_lock(sch);
 	if (ctl->quantum) {
 		q->quantum = ctl->quantum;
@@ -700,7 +699,6 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->limit = min_t(u32, ctl->limit, q->maxdepth * q->maxflows);
 		q->maxflows = min_t(u32, q->maxflows, q->limit);
 	}
-
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > q->limit) {
 		dropped += sfq_drop(sch, &to_free);
