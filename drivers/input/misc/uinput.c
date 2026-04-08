@@ -38,8 +38,10 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/lockdep.h>
 #include <linux/miscdevice.h>
 #include <linux/overflow.h>
+#include <linux/spinlock.h>
 #include <linux/input/mt.h>
 #include "../input-compat.h"
 
@@ -86,6 +88,8 @@ static int uinput_dev_event(struct input_dev *dev,
 {
 	struct uinput_device	*udev = input_get_drvdata(dev);
 	struct timespec64	ts;
+
+	lockdep_assert_held(&dev->event_lock);
 
 	ktime_get_ts64(&ts);
 
@@ -158,6 +162,7 @@ static void uinput_request_release_slot(struct uinput_device *udev,
 static int uinput_request_send(struct uinput_device *udev,
 			       struct uinput_request *request)
 {
+	unsigned long flags;
 	int retval;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
@@ -175,7 +180,9 @@ static int uinput_request_send(struct uinput_device *udev,
 	 * Tell our userspace application about this new request
 	 * by queueing an input event.
 	 */
+	spin_lock_irqsave(&udev->dev->event_lock, flags);
 	uinput_dev_event(udev->dev, EV_UINPUT, request->code, request->id);
+	spin_unlock_irqrestore(&udev->dev->event_lock, flags);
 
  out:
 	mutex_unlock(&udev->mutex);
