@@ -28,6 +28,10 @@
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include <linux/osq_lock.h>
+#include <linux/delay.h>
+#ifdef CONFIG_KPERFMON
+#include <linux/ologk.h>
+#endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
 # include "mutex-debug.h"
@@ -46,6 +50,12 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 #endif
 
 	debug_mutex_init(lock, name, key);
+
+#ifdef CONFIG_KPERFMON
+	if (lock != 0) {
+		lock->time = 0;
+	}
+#endif
 }
 EXPORT_SYMBOL(__mutex_init);
 
@@ -653,6 +663,17 @@ mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 		 * values at the cost of a few extra spins.
 		 */
 		cpu_relax();
+
+		/*
+		 * On arm systems, we must slow down the waiter's repeated
+		 * aquisition of spin_mlock and atomics on the lock count, or
+		 * we risk starving out a thread attempting to release the
+		 * mutex. The mutex slowpath release must take spin lock
+		 * wait_lock. This spin lock can share a monitor with the
+		 * other waiter atomics in the mutex data structure, so must
+		 * take care to rate limit the waiters.
+		 */
+		udelay(1);
 	}
 
 	if (!waiter)
@@ -706,11 +727,27 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  */
 void __sched mutex_unlock(struct mutex *lock)
 {
+#ifdef CONFIG_KPERFMON
+	unsigned long lock_jiffies = 0;
+
+	if (lock != 0) {
+		lock_jiffies = lock->time;
+	}
+#endif
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 	if (__mutex_unlock_fast(lock))
 		return;
 #endif
 	__mutex_unlock_slowpath(lock, _RET_IP_);
+#ifdef CONFIG_KPERFMON
+	if (lock != 0 && lock_jiffies > 0 && jiffies > lock_jiffies) {
+		unsigned long diff_jiffies = jiffies - lock_jiffies;
+
+		if (diff_jiffies > PERFLOG_MUTEX_THRESHOLD) {
+			perflog_evt(PERFLOG_UNKNOWN, diff_jiffies);
+		}
+	}
+#endif
 }
 EXPORT_SYMBOL(mutex_unlock);
 
@@ -906,6 +943,12 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	int ret;
 
 	might_sleep();
+
+#ifdef CONFIG_KPERFMON
+	if(lock != 0) {
+		lock->time = jiffies;
+	}
+#endif
 
 	ww = container_of(lock, struct ww_mutex, base);
 	if (use_ww_ctx && ww_ctx) {
