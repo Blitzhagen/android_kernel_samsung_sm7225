@@ -7403,6 +7403,10 @@ int samsung_panel_initialize(char *panel_string, unsigned int ndx)
 	else if (!strncmp(panel_string, "ss_dsi_panel_HX83121_PPC357DB11_WQXGA", strlen(panel_string)))
 		vdd->panel_func.samsung_panel_init = HX83121_PPC357DB11_WQXGA_init;
 #endif
+#if defined(CONFIG_PANEL_FT8203_TS124QDM_WQXGA)
+	else if (!strncmp(panel_string, "ss_dsi_panel_FT8203_TS124QDM_WQXGA", strlen(panel_string)))
+		vdd->panel_func.samsung_panel_init = FT8203_TS124QDM_WQXGA_init;
+#endif
 	else {
 		LCD_ERR("%s not found\n", panel_string);
 		return -1;

@@ -1297,6 +1297,7 @@ void S6E3HAD_AMB681XV01_WQHD_init(struct samsung_display_driver_data *vdd);
 void S6E8FC1_AMS660XR01_HD_init(struct samsung_display_driver_data *vdd);
 void HX83102_TV104WUM_WUXGA_init(struct samsung_display_driver_data *vdd);
 void HX83121_PPC357DB11_WQXGA_init(struct samsung_display_driver_data *vdd);
+void FT8203_TS124QDM_WQXGA_init(struct samsung_display_driver_data *vdd);
 void PBA_BOOTING_FHD_init(struct samsung_display_driver_data *vdd);
 
 struct panel_func {
