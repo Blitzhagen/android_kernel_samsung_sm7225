@@ -19,8 +19,11 @@ else ifdef CONFIG_SEC_A42XUQ_PROJECT
 fw-external-$(CONFIG_SENSORS_A96T3X6) += abov/a96t356_a42xuq.bin
 fw-external-$(CONFIG_SENSORS_A96T3X6_SUB) += abov/a96t356_a42xuq_sub.bin
 else ifdef CONFIG_SEC_GTS7XLLITE_PROJECT
-fw-external-$(CONFIG_SENSORS_A96T3X6) += abov/a96t356_gts7xl_main1.bin
-fw-external-$(CONFIG_SENSORS_A96T3X6_WIFI) += abov/a96t356_gts7xl_wifi1.bin
+fw-external-$(CONFIG_SENSORS_A96T3X6) += abov/a96t356_gts7l_5g_main1_usa.bin	abov/a96t356_gts7l_5g_main1.bin 	abov/a96t356_gts7l_lte_main1.bin
+fw-external-$(CONFIG_SENSORS_A96T3X6_WIFI) += abov/a96t356_gts7l_5g_wifi1_usa.bin	abov/a96t356_gts7l_5g_wifi1.bin 	abov/a96t356_gts7l_lte_wifi1.bin
+else ifdef CONFIG_SEC_GTS7XLLITEWIFI_PROJECT
+fw-external-$(CONFIG_SENSORS_A96T3X6) += 	abov/a96t356_gts7l_wifi_main1.bin
+fw-external-$(CONFIG_SENSORS_A96T3X6_WIFI) += 	abov/a96t356_gts7l_wifi_wifi1.bin
 else
 fw-external-$(CONFIG_SENSORS_A96T3X6) += abov/a96t356_a42xq.bin
 fw-external-$(CONFIG_SENSORS_A96T3X6_SUB) += abov/a96t356_a42xq_sub.bin
@@ -32,9 +35,10 @@ fw-external-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT7650) += tsp_zinitix/zt7650_a52xq.bin
 fw-external-$(CONFIG_TOUCHSCREEN_STM_FTS5CU56A) += tsp_stm/fts5cu56a_a52xq.bin
 fw-external-$(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83102) += tsp_himax/hx83102e_gta4xl.bin
 fw-external-$(CONFIG_TOUCHSCREEN_HIMAX_IC_HX83121) += tsp_himax/hx83121a_gts7xllite.bin
+fw-external-$(CONFIG_TOUCHSCREEN_FTS_FT820X) += tsp_focaltech/ft8203_gts7xllite.bin
 fw-external-$(CONFIG_KEYBOARD_STM32_POGO) += keyboard_stm/stm32_gts7llite.bin
 
-fw-external-$(CONFIG_EPEN_WACOM_WEZ01) += epen/wez01_gts7xllite_00.bin epen/wez01_gts7xllite.bin
+fw-external-$(CONFIG_EPEN_WACOM_WEZ01) += epen/wez01_gts7xllite_00.bin epen/wez01_gts7xllite.bin epen/w9021_gts7xllite.bin
 
 # FIVE
 ifeq ($(CONFIG_FIVE_TEE_DRIVER),y)
