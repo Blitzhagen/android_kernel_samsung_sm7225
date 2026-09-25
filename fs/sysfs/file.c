@@ -54,6 +54,12 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	}
 	memset(buf, 0, PAGE_SIZE);
 
+	if (!ops) {
+		pr_err("sysfs: no sysfs_ops for '%s' (parent '%s'), write/read rejected\n",
+		       of->kn->name, of->kn->parent ? of->kn->parent->name : "?");
+		return -EIO;
+	}
+
 	/*
 	 * Invoke show().  Control may reach here via seq file lseek even
 	 * if @ops->show() isn't implemented.
@@ -115,6 +121,11 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	 */
 	if (WARN_ON_ONCE(buf != of->prealloc_buf))
 		return 0;
+	if (!ops) {
+		pr_err("sysfs: no sysfs_ops for '%s' (parent '%s'), read rejected\n",
+		       of->kn->name, of->kn->parent ? of->kn->parent->name : "?");
+		return -EIO;
+	}
 	len = ops->show(kobj, of->kn->priv, buf);
 	if (len < 0)
 		return len;
@@ -136,6 +147,12 @@ static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 
 	if (!count)
 		return 0;
+
+	if (!ops) {
+		pr_err("sysfs: no sysfs_ops for '%s' (parent '%s'), write rejected\n",
+		       of->kn->name, of->kn->parent ? of->kn->parent->name : "?");
+		return -EIO;
+	}
 
 	return ops->store(kobj, of->kn->priv, buf, count);
 }
