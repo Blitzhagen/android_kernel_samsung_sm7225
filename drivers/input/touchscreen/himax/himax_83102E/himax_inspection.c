@@ -2656,8 +2656,8 @@ static int himax_fw_update_kernel(struct himax_ts_data *ts)
 		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_128k(
 				(unsigned char *) firmware->data, firmware->size, false);
 		break;
-	case FW_SIZE_256k:
-		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_256k(
+	case FW_SIZE_255k:
+		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_255k(
 				(unsigned char *) firmware->data, firmware->size, false);
 		break;
 	default:
@@ -2790,8 +2790,8 @@ static int himax_fw_update_from_storage(bool signing, const char *file_path)
 		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_128k(
 					upgrade_fw, fsize, false);
 		break;
-	case FW_SIZE_256k:
-		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_256k(
+	case FW_SIZE_255k:
+		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_255k(
 					upgrade_fw, fsize, false);
 		break;
 	default:
@@ -2976,7 +2976,7 @@ static void get_checksum_data(void *dev_data)
 	sec_cmd_set_default_result(sec);
 
 	if (strcmp(HX_83121A_SERIES_PWON, private_ts->chip_name) == 0) {
-		chksum_size = FW_SIZE_256k;
+		chksum_size = FW_SIZE_255k;
 	} else if ((strcmp(HX_83102D_SERIES_PWON, private_ts->chip_name) == 0) ||
 		(strcmp(HX_83102E_SERIES_PWON, private_ts->chip_name) == 0)) {
 		chksum_size = FW_SIZE_128k;

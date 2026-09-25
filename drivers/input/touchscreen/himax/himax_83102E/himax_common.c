@@ -961,8 +961,8 @@ update_retry:
 		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_124k(i_CTPM_FW, i_CTPM_FW_len, false);
 	else if (i_CTPM_FW_len == FW_SIZE_128k)
 		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_128k(i_CTPM_FW, i_CTPM_FW_len, false);
-	else if (i_CTPM_FW_len == FW_SIZE_256k)
-		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_256k(i_CTPM_FW, i_CTPM_FW_len, false);
+	else if (i_CTPM_FW_len == FW_SIZE_255k)
+		ret = g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_255k(i_CTPM_FW, i_CTPM_FW_len, false);
 
 	if (ret == 0) {
 		upgrade_times++;

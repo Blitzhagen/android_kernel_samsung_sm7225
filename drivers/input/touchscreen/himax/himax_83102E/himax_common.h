@@ -191,7 +191,7 @@ static void himax_ts_late_resume(struct early_suspend *h);
 #define FW_SIZE_64k		65536
 #define FW_SIZE_124k	126976
 #define FW_SIZE_128k	131072
-#define FW_SIZE_256k    262144
+#define FW_SIZE_255k    261120
 
 #define NO_ERR 0
 #define READY_TO_SERVE 1

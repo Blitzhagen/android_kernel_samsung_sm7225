@@ -1217,10 +1217,11 @@ static int himax_mcu_read_i2c_status(void)
 static void himax_mcu_read_FW_ver(void)
 {
 	uint8_t data[12];
-	uint8_t data_2[DATA_LEN_4];
+	uint8_t data_2[DATA_LEN_4] = { 0 };
 	int retry = 200;
 	int reload_status = 0;
 
+	g_core_fp.fp_register_write(pdriver_op->addr_fw_define_2nd_flash_reload, DATA_LEN_4, data_2, 0);
 	g_core_fp.fp_sense_on(0x00);
 
 	while (reload_status == 0) {
@@ -1920,12 +1921,12 @@ static int himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_128k(unsigned char *fw, int
 	return burnFW_success;
 }
 
-static int himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_256k(unsigned char *fw, int len, bool change_iref)
+static int himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_255k(unsigned char *fw, int len, bool change_iref)
 {
 	int burnFW_success = 0;
 
-	if (len != FW_SIZE_256k) {
-		E("%s: The file size is not 256K bytes\n", __func__);
+	if (len != FW_SIZE_255k) {
+		E("%s: The file size is not 255K bytes\n", __func__);
 		return false;
 	}
 
@@ -1936,11 +1937,11 @@ static int himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_256k(unsigned char *fw, int
 #endif
 	g_core_fp.fp_sense_off(true);
 	himax_flash_speed_set(HX_FLASH_SPEED_12p5M);
-	g_core_fp.fp_block_erase(0x00, FW_SIZE_256k);
-	g_core_fp.fp_flash_programming(fw, FW_SIZE_256k);
+	g_core_fp.fp_block_erase(0x00, FW_SIZE_255k);
+	g_core_fp.fp_flash_programming(fw, FW_SIZE_255k);
 
-	if ((g_core_fp.fp_check_CRC(pfw_op->addr_program_reload_from, FW_SIZE_256k) == 0) 
-		&& (g_core_fp.fp_flash_lastdata_check(FW_SIZE_256k, fw, len) == 0))
+	if ((g_core_fp.fp_check_CRC(pfw_op->addr_program_reload_from, FW_SIZE_255k) == 0)
+		&& (g_core_fp.fp_flash_lastdata_check(FW_SIZE_255k, fw, len) == 0))
 		burnFW_success = 1;
 
 	/*RawOut select initial*/
@@ -3508,7 +3509,7 @@ static void himax_mcu_fp_init(void)
 	g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_64k = himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_64k;
 	g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_124k = himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_124k;
 	g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_128k = himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_128k;
-	g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_256k = himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_256k;
+	g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_255k = himax_mcu_fts_ctpm_fw_upgrade_with_sys_fs_255k;
 	g_core_fp.fp_flash_dump_func = himax_mcu_flash_dump_func;
 	g_core_fp.fp_flash_lastdata_check = himax_mcu_flash_lastdata_check;
 	g_core_fp._diff_overlay_flash = hx_mcu_diff_overlay_flash;

@@ -22,19 +22,19 @@ static void hx83121a_chip_init(void)
 	KI("%s:IC cell type = %d\n", __func__, (*kp_private_ts)->chip_cell_type);
 	(*kp_IC_CHECKSUM)	=	HX_TP_BIN_CHECKSUM_CRC;
 	/*Himax: Set FW and CFG Flash Address*/
-	(*kp_CID_VER_MAJ_FLASH_ADDR)	= 0x1A202;  /*0x00E802*/
+	(*kp_CID_VER_MAJ_FLASH_ADDR)	= 0x21402;  /*0x00E802*/
 	(*kp_CID_VER_MAJ_FLASH_LENG)	= 1;
-	(*kp_CID_VER_MIN_FLASH_ADDR)	= 0x1A203;  /*0x00E803*/
+	(*kp_CID_VER_MIN_FLASH_ADDR)	= 0x21403;  /*0x00E803*/
 	(*kp_CID_VER_MIN_FLASH_LENG)	= 1;
-	(*kp_PANEL_VERSION_ADDR)		= 0x1A204;  /*0x00E804*/
+	(*kp_PANEL_VERSION_ADDR)		= 0x21404;  /*0x00E804*/
 	(*kp_PANEL_VERSION_LENG)		= 1;
-	(*kp_FW_VER_MAJ_FLASH_ADDR)		= 0x1A205;  /*0x00E805*/
+	(*kp_FW_VER_MAJ_FLASH_ADDR)		= 0x21405;  /*0x00E805*/
 	(*kp_FW_VER_MAJ_FLASH_LENG)		= 1;
-	(*kp_FW_VER_MIN_FLASH_ADDR)		= 0x1A206;  /*0x00E806*/
+	(*kp_FW_VER_MIN_FLASH_ADDR)		= 0x21406;  /*0x00E806*/
 	(*kp_FW_VER_MIN_FLASH_LENG)		= 1;
-	(*kp_CFG_VER_MAJ_FLASH_ADDR)	= 0x1A300;  /*0x00E900*/
+	(*kp_CFG_VER_MAJ_FLASH_ADDR)	= 0x21500;  /*0x00E900*/
 	(*kp_CFG_VER_MAJ_FLASH_LENG)	= 1;
-	(*kp_CFG_VER_MIN_FLASH_ADDR)	= 0x1A301;  /*0x00E901*/
+	(*kp_CFG_VER_MIN_FLASH_ADDR)	= 0x21501;  /*0x00E901*/
 	(*kp_CFG_VER_MIN_FLASH_LENG)	= 1;
 }
 

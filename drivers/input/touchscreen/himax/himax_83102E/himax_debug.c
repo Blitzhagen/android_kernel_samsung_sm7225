@@ -2447,8 +2447,8 @@ static ssize_t himax_debug_write(struct file *file, const char *buff,
 				fw_update_complete = true;
 			}
 			break;
-		case 256:
-			if (g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_256k(
+		case 255:
+			if (g_core_fp.fp_fts_ctpm_fw_upgrade_with_sys_fs_255k(
 			  (unsigned char *)fw->data, fw->size, false) == 0) {
 				E("%s: TP upgrade error, line: %d\n",
 				  __func__, __LINE__);

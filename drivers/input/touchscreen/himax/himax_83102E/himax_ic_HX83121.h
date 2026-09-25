@@ -32,7 +32,7 @@
 //#define hx83121a_data_df_x_res		1600
 //#define hx83121a_data_df_y_res		2560
 
-#define HX83121A_FLASH_SZIE 131072//262144
+#define HX83121A_FLASH_SZIE 261120
 
 #ifdef HX_ESD_RECOVERY
 	extern u8 HX_ESD_RESET_ACTIVATE;
