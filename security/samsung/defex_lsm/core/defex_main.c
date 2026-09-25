@@ -43,11 +43,7 @@
 #include <linux/sched/task.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 #define is_task_used(tsk)	refcount_read(&(tsk)->usage)
-#else
-#define is_task_used(tsk)	atomic_read(&(tsk)->usage)
-#endif
 
 
 __visible_for_testing struct task_struct *get_parent_task(const struct task_struct *p)
