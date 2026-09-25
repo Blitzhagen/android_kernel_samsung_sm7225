@@ -30,9 +30,11 @@ struct ps5169_data {
 	struct i2c_client *i2c;
 	struct mutex i2c_mutex;
 	int redriver_en;
+	int is_DFP;
 	int con_sel;
 };
 
 extern int ps5169_config(int config, int is_DFP);
 extern int ps5169_i2c_read(u8 command);
+extern void ps5169_notify_dplink(u8 eq0, u8 eq1);
 #endif
