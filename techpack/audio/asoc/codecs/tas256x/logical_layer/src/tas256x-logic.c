@@ -639,12 +639,12 @@ void tas256x_load_config(struct tas256x_priv *p_tas256x)
 	if (ret < 0)
 		goto end;
 	if (p_tas256x->mn_fmt_mode == 2) {
-		ret |= tas256x_set_tdm_rx_slot(p_tas256x, p_tas256x->mn_slots,
+		ret |= tas256x_set_tdm_rx_slot(p_tas256x, p_tas256x->mn_rx_slots,
 			p_tas256x->mn_rx_width);
 		if (ret < 0)
 			goto end;
-		ret |= tas256x_set_tdm_tx_slot(p_tas256x, p_tas256x->mn_slots,
-			p_tas256x->mn_rx_width);
+		ret |= tas256x_set_tdm_tx_slot(p_tas256x, p_tas256x->mn_tx_slots,
+			p_tas256x->mn_tx_width);
 		if (ret < 0)
 			goto end;
 	} else { /*I2S Mode*/
@@ -705,12 +705,12 @@ void tas256x_reload(struct tas256x_priv *p_tas256x, int chn)
 	 * It needs to be differentiated here
 	 */
 	if (p_tas256x->mn_fmt_mode == 2) {
-		ret |= tas256x_set_tdm_rx_slot(p_tas256x, p_tas256x->mn_slots,
+		ret |= tas256x_set_tdm_rx_slot(p_tas256x, p_tas256x->mn_rx_slots,
 			p_tas256x->mn_rx_width);
 		if (ret < 0)
 			goto end;
-		ret |= tas256x_set_tdm_tx_slot(p_tas256x, p_tas256x->mn_slots,
-			p_tas256x->mn_rx_width);
+		ret |= tas256x_set_tdm_tx_slot(p_tas256x, p_tas256x->mn_tx_slots,
+			p_tas256x->mn_tx_width);
 		if (ret < 0)
 			goto end;
 	} else { /*I2S Mode*/
@@ -1485,7 +1485,7 @@ int tas256x_iv_vbat_slot_config(struct tas256x_priv *p_tas256x,
 	return ret;
 }
 
-/* tas256x_set_bitwidth function is redesigned to accomodate change in
+/* tas256x_set_bitwidth function is redesigned to accommodate change in
  * tas256x_iv_vbat_slot_config()
  */
 int tas256x_set_bitwidth(struct tas256x_priv *p_tas256x,
@@ -1516,7 +1516,7 @@ int tas256x_set_bitwidth(struct tas256x_priv *p_tas256x,
 	return n_result;
 }
 
-/* tas256x_set_tdm_rx_slot function is redesigned to accomodate change in
+/* tas256x_set_tdm_rx_slot function is redesigned to accommodate change in
  * tas256x_iv_vbat_slot_config()
  */
 int tas256x_set_tdm_rx_slot(struct tas256x_priv *p_tas256x,
@@ -1529,7 +1529,7 @@ int tas256x_set_tdm_rx_slot(struct tas256x_priv *p_tas256x,
 		pr_err("Invalid Slots %d\n", slots);
 		return ret;
 	}
-	p_tas256x->mn_slots = slots;
+	p_tas256x->mn_rx_slots = slots;
 
 	if ((slot_width != 16) &&
 		(slot_width != 24) &&
@@ -1554,7 +1554,7 @@ int tas256x_set_tdm_rx_slot(struct tas256x_priv *p_tas256x,
 	return ret;
 }
 
-/* tas256x_set_tdm_tx_slot function is redesigned to accomodate change in
+/* tas256x_set_tdm_tx_slot function is redesigned to accommodate change in
  * tas256x_iv_vbat_slot_config()
  */
 int tas256x_set_tdm_tx_slot(struct tas256x_priv *p_tas256x,
@@ -1574,7 +1574,8 @@ int tas256x_set_tdm_tx_slot(struct tas256x_priv *p_tas256x,
 		pr_err("Invalid Slots %d\n", slots);
 		return ret;
 	}
-	p_tas256x->mn_slots = slots;
+	p_tas256x->mn_tx_slots = slots;
+	p_tas256x->mn_tx_width = slot_width;
 
 	ret = tas256x_iv_vbat_slot_config(p_tas256x, slot_width);
 

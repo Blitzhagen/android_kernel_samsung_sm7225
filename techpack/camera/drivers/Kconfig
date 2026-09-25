@@ -137,6 +137,13 @@ config S5K3L6_SENSOR
 	---help---
 	Enables support for SENSOR
 
+config HI1336_SENSOR
+	tristate "Sensor hi1336 support"
+	depends on SPECTRA_CAMERA
+	default n
+	---help---
+	Enables support for SENSOR
+
 config SAMSUNG_CAMERA_OTP
 	tristate "Sensor OTP support"
 	depends on SPECTRA_CAMERA

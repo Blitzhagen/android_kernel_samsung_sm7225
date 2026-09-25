@@ -2087,6 +2087,8 @@ static void dp_panel_convert_to_dp_mode(struct dp_panel *dp_panel,
  */
 static void secdp_get_max_timing(struct dp_panel *dp_panel)
 {
+	struct dp_link_params *link_params;
+	struct dp_panel_private *panel;
 	struct drm_device *dev;
 	struct drm_connector *conn;
 	struct drm_display_mode *mode, *temp;
@@ -2096,12 +2098,17 @@ static void secdp_get_max_timing(struct dp_panel *dp_panel)
 
 	conn = dp_panel->connector;
 	dev = conn->dev;
+	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
 
 	mutex_lock(&dev->mode_config.mutex);
 
 	pinfo = &dp_panel->max_timing_info;
 	memset(pinfo, 0, sizeof(*pinfo));
 	memset(&dp_mode, 0, sizeof(dp_mode));
+
+	link_params = &panel->link->link_params;
+	link_params->bw_code = drm_dp_link_rate_to_bw_code(dp_panel->link_info.rate);
+	link_params->lane_count = dp_panel->link_info.num_lanes;
 
 	rc = dp_panel_get_modes(dp_panel, conn, &dp_mode);
 	if (!rc) {
@@ -2156,7 +2163,11 @@ static int dp_panel_read_edid(struct dp_panel *dp_panel,
 
 	if (panel->custom_edid) {
 		DP_DEBUG("skip edid read in debug mode\n");
+#ifndef CONFIG_SEC_DISPLAYPORT
 		goto end;
+#else
+		goto opt;
+#endif
 	}
 
 	sde_get_edid(connector, &panel->aux->drm_aux->ddc,
@@ -2168,6 +2179,7 @@ static int dp_panel_read_edid(struct dp_panel *dp_panel,
 	}
 
 #ifdef CONFIG_SEC_DISPLAYPORT
+opt:
 	secdp_get_max_timing(dp_panel);
 #endif
 end:
@@ -2353,10 +2365,11 @@ static int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 			dp_panel->dsc_en, dp_panel->widebus_en);
 
 #ifdef CONFIG_SEC_DISPLAYPORT
-	DP_INFO("dpcd_rev: 0x%02x\n", dp_panel->dpcd[DP_DPCD_REV]);
-	DP_INFO("vendor_id: <%s>\n", dp_panel->edid_ctrl->vendor_id);
 	drm_edid_get_monitor_name(dp_panel->edid_ctrl->edid, dp_panel->monitor_name, 14);
-	DP_INFO("monitor_name: <%s>\n", dp_panel->monitor_name);
+	DP_INFO("dpcd_rev:0x%02x, vendor:%s, monitor:%s\n",
+		dp_panel->dpcd[DP_DPCD_REV],
+		dp_panel->edid_ctrl->vendor_id,
+		dp_panel->monitor_name);
 #ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
 	secdp_bigdata_save_item(BD_SINK_NAME, dp_panel->monitor_name);
 	secdp_bigdata_save_item(BD_EDID, (char *)(dp_panel->edid_ctrl->edid));
@@ -2507,11 +2520,11 @@ static int dp_panel_get_modes(struct dp_panel *dp_panel,
 	}
 
 	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
-#ifdef CONFIG_SEC_DISPLAYPORT
-	DP_INFO("video_test:%d\n", dp_panel->video_test);
-#endif
 
 	if (dp_panel->video_test) {
+#ifdef CONFIG_SEC_DISPLAYPORT
+		DP_INFO("video_test!");
+#endif
 		dp_panel_set_test_mode(panel, mode);
 		return 1;
 	} else if (dp_panel->edid_ctrl->edid) {
@@ -2958,7 +2971,7 @@ bool secdp_panel_hdr_supported(void)
 
 	hdr = dp_panel_hdr_supported(dp_panel);
 
-	DP_DEBUG("dsp_type:%s, hdr_support: %d\n",
+	DP_INFO("dsp_type:%s, hdr:%d\n",
 		mdss_dp_dsp_type_to_string(dp_panel->dsp_type), hdr);
 
 	return ((dp_panel->dsp_type == DSP_TYPE_DP) && hdr);

@@ -43,9 +43,11 @@ struct dp_power_private {
 	bool strm1_clks_on;
 #ifdef CONFIG_SEC_DISPLAYPORT
 	bool aux_pullup_on;
+	struct mutex dp_clk_lock;
 
 	void (*redrv_onoff)(bool enable, int lane);
 	void (*redrv_aux_ctrl)(int cross);
+	void (*redrv_notify_linkinfo)(u32 bw_code, u8 v_level, u8 p_level);
 #endif
 };
 
@@ -158,7 +160,7 @@ static int secdp_aux_pullup_vreg_enable(bool on)
 			goto unset_vdd33;
 		}
 
-		DP_INFO("on success\n");
+		DP_INFO("[AUX_PU] on success\n");
 		power->aux_pullup_on = true;
 	} else {
 
@@ -178,7 +180,7 @@ put_vdda33_lpm:
 			DP_ERR("Unable to set 0 HPM of vdda33: %d\n", rc);
 
 		if (!rc)
-			DP_INFO("off success\n");
+			DP_INFO("[AUX_PU] off success\n");
 
 		power->aux_pullup_on = false;
 	}
@@ -351,7 +353,11 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 {
 	int rc = 0;
 	struct dss_module_power *mp;
+#if defined(CONFIG_SEC_DISPLAYPORT)
+	static bool prev[DP_MAX_PM];
 
+	mutex_lock(&power->dp_clk_lock);
+#endif
 	if (!power) {
 		DP_ERR("invalid power data\n");
 		rc = -EINVAL;
@@ -359,6 +365,13 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 	}
 
 	mp = &power->parser->mp[module];
+
+#if defined(CONFIG_SEC_DISPLAYPORT)
+	if (prev[module] == enable) {
+		DP_DEBUG("%d clk already %s\n", module, enable ? "enabled" : "disabled");
+		goto exit;
+	}
+#endif
 
 	if (enable) {
 		rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk);
@@ -379,7 +392,14 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 				goto exit;
 		}
 	}
+
+#if defined(CONFIG_SEC_DISPLAYPORT)
+	prev[module] = enable;
+#endif
 exit:
+#if defined(CONFIG_SEC_DISPLAYPORT)
+	mutex_unlock(&power->dp_clk_lock);
+#endif
 	return rc;
 }
 
@@ -440,40 +460,6 @@ static int dp_power_clk_enable(struct dp_power *dp_power,
 			return 0;
 		}
 	}
-
-#ifdef CONFIG_SEC_DISPLAYPORT
-	if (!enable) {
-		/* consider below abnormal sequence :
-		 * CCIC_NOTIFY_ATTACH
-		 * -> no CCIC_NOTIFY_ID_DP_LINK_CONF, no CCIC_NOTIFY_ID_DP_HPD
-		 * -> CCIC_NOTIFY_DETACH
-		 */
-		if ((pm_type == DP_CORE_PM) && (!power->core_clks_on)) {
-			DP_DEBUG("core clks already disabled\n");
-			return 0;
-		}
-
-		if ((pm_type == DP_CTRL_PM) && (!power->link_clks_on)) {
-			DP_DEBUG("links clks already disabled\n");
-			return 0;
-		}
-
-		if ((pm_type == DP_STREAM0_PM) && (!power->strm0_clks_on)) {
-			DP_DEBUG("strm0 clks already disabled\n");
-			return 0;
-		}
-
-		if ((pm_type == DP_STREAM1_PM) && (!power->strm1_clks_on)) {
-			DP_DEBUG("strm1 clks already disabled\n");
-			return 0;
-		}
-
-		if (pm_type == DP_LINK_PM && !power->link_clks_on) {
-			DP_DEBUG("links clks already disabled\n");
-			return 0;
-		}
-	}
-#endif
 
 	rc = dp_power_clk_set_rate(power, pm_type, enable);
 	if (rc) {
@@ -663,6 +649,13 @@ static void secdp_ptn36502_onoff(bool enable, int lane)
 exit:
 	return;
 }
+
+static void secdp_ptn36502_notify_linkinfo(u32 bw_code, u8 v_level, u8 p_level)
+{
+	DP_DEBUG("+++ 0x%x,%d,%d, do nothing!\n", bw_code, v_level, p_level);
+
+	//.TODO:
+}
 #elif IS_ENABLED(CONFIG_COMBO_REDRIVER_PS5169)
 static void secdp_ps5169_aux_ctrl(int cross)
 {
@@ -699,6 +692,13 @@ static void secdp_ps5169_onoff(bool enable, int lane)
 exit:
 	return;
 }
+
+static void secdp_ps5169_notify_linkinfo(u32 bw_code, u8 v_level, u8 p_level)
+{
+	DP_DEBUG("+++ 0x%x,%d,%d\n", bw_code, v_level, p_level);
+
+//	ps5169_notify_dplink(bw_code, v_level, p_level);
+}
 #endif
 
 void secdp_redriver_onoff(bool enable, int lane)
@@ -715,6 +715,14 @@ static void secdp_redriver_aux_ctrl(int cross)
 
 	if (power && power->redrv_aux_ctrl)
 		power->redrv_aux_ctrl(cross);
+}
+
+void secdp_redriver_linkinfo(u32 rate, u8 v_level, u8 p_level)
+{
+	struct dp_power_private *power = g_secdp_power;
+
+	if (power && power->redrv_notify_linkinfo)
+		power->redrv_notify_linkinfo(rate, v_level, p_level);
 }
 
 static void secdp_redriver_register(struct dp_power_private *power)
@@ -737,10 +745,12 @@ static void secdp_redriver_register(struct dp_power_private *power)
 #if IS_ENABLED(CONFIG_COMBO_REDRIVER_PTN36502)
 	power->redrv_onoff = secdp_ptn36502_onoff;
 	power->redrv_aux_ctrl = secdp_ptn36502_aux_ctrl;
+	power->redrv_notify_linkinfo = secdp_ptn36502_notify_linkinfo;
 	DP_INFO("ptn36502 API registered!\n");
 #elif IS_ENABLED(CONFIG_COMBO_REDRIVER_PS5169)
 	power->redrv_onoff = secdp_ps5169_onoff;
 	power->redrv_aux_ctrl = secdp_ps5169_aux_ctrl;
+	power->redrv_notify_linkinfo = secdp_ps5169_notify_linkinfo;
 	DP_INFO("ps5169 API registered!\n");
 #endif
 
@@ -881,7 +891,7 @@ enum plug_orientation secdp_get_plug_orientation(void)
 	struct dp_parser *parser;
 
 	parser = power->parser;
-	DP_INFO("+++ cc_dir_inv: %d\n", parser->cc_dir_inv);
+	DP_INFO("cc_dir_inv: %d\n", parser->cc_dir_inv);
 
 	for (i = 0; i < mp->num_gpio; i++) {
 		if (gpio_is_valid(config->gpio)) {
@@ -1223,6 +1233,7 @@ struct dp_power *dp_power_get(struct dp_parser *parser)
 
 #ifdef CONFIG_SEC_DISPLAYPORT
 	secdp_redriver_register(power);
+	mutex_init(&power->dp_clk_lock);
 	g_secdp_power = power;
 #endif
 

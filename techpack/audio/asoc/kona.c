@@ -46,10 +46,12 @@
 #include "codecs/tas256x/bigdata_tas_sysfs_cb.h"
 #elif defined(CONFIG_SND_SOC_TAS2562)
 #include "codecs/tas2562/bigdata_tas_sysfs_cb.h"
+#elif defined(CONFIG_SND_SOC_TFA9878)
+#include "codecs/tfa9878/bigdata_tfa_sysfs_cb.h"
 #endif
 #ifdef CONFIG_SND_SOC_CS35L45
 #include <sound/cirrus/big_data.h>
-//#include "../../../sound/soc/codecs/bigdata_cs35l45_sysfs_cb.h"
+#include "../../../sound/soc/codecs/bigdata_cs35l45_sysfs_cb.h"
 #endif
 #define DRV_NAME "kona-asoc-snd"
 #define __CHIPSET__ "KONA "
@@ -6123,6 +6125,17 @@ static int kona_tas256x_init(struct snd_soc_pcm_runtime *rtd)
 }
 #endif
 
+#ifdef CONFIG_SND_SOC_TFA9878
+static int kona_tfa9878_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+
+	register_tfa98xx_bigdata_cb(codec_dai->component);
+	return 0;
+}
+#endif
+
+
 #ifdef CONFIG_SND_SOC_CS35L45
 static int kona_tdm_cirrus_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -6155,9 +6168,7 @@ static int kona_tdm_cirrus_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(right_dapm, "Right Exit");
 	snd_soc_dapm_sync(right_dapm);
 
-#if 0
 	register_cirrus_bigdata_cb(codec_dais[0]->component);
-#endif
 	return 0;
 }
 #endif
@@ -7724,6 +7735,10 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.codec_name = "tas2562.18-004c",
 		.codec_dai_name = "tas2562 ASI1",
 		.init = &kona_tas2562_init,
+#elif defined(CONFIG_SND_SOC_TFA9878)
+		.codec_name = "tfa98xx.18-0034",
+		.codec_dai_name = "tfa98xx-aif-18-34",
+		.init = &kona_tfa9878_init,
 #else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-rx",
@@ -7747,6 +7762,9 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 #elif defined(CONFIG_SND_SOC_TAS2562)
 		.codec_name = "tas2562.18-004c",
 		.codec_dai_name = "tas2562 ASI1",
+#elif defined(CONFIG_SND_SOC_TFA9878)
+		.codec_name = "tfa98xx.18-0034",
+		.codec_dai_name = "tfa98xx-aif-18-34",
 #else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-tx",
@@ -8729,9 +8747,9 @@ mbhc_cfg_cal:
 			__func__, ret);
 		goto err_hs_detect;
 	}
-#ifdef CONFIG_SND_SOC_WCD938X
+#ifndef CONFIG_SEC_SND_USB_HEADSET_ONLY
 	register_mbhc_jack_cb(component);
-#endif /* CONFIG_SND_SOC_WCD938X */
+#endif
 	return 0;
 
 err_hs_detect:

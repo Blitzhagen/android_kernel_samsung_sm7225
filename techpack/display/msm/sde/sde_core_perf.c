@@ -140,6 +140,10 @@ static void _sde_core_perf_calc_doze_suspend(struct drm_crtc *crtc,
 				is_doze_suspend = true;
 		}
 
+		if (!is_doze_suspend && conn && c_conn)
+			SDE_ERROR("No BW, planes:%x dpms_mode:%d lpmode:%d\n",
+				state->plane_mask, c_conn->dpms_mode,
+				sde_connector_get_lp(conn));
 		if (conn && c_conn)
 			SDE_EVT32(state->plane_mask, c_conn->dpms_mode,
 				sde_connector_get_lp(conn), is_doze_suspend,
@@ -1018,8 +1022,11 @@ void sde_core_perf_crtc_update(struct drm_crtc *crtc,
 			 * During VRR transition, keep max SDE core clock.
 			 */
 			struct samsung_display_driver_data *vdd = ss_get_vdd(PRIMARY_DISPLAY_NDX);
-			if (vdd->vrr.support_vrr_based_bl && vdd->vrr.running_vrr) {
-				SDE_INFO("VRR: keep max SDE core clock (%lld -> %lld hz)\n",
+			if (vdd->vrr.support_vrr_based_bl &&
+					(vdd->vrr.running_vrr_mdp || vdd->vrr.running_vrr)) {
+				SDE_INFO("During VRR (%d|%d): keep max SDE core clock (%lld -> %lld hz)\n",
+						vdd->vrr.running_vrr_mdp,
+						vdd->vrr.running_vrr,
 						clk_rate, kms->perf.max_core_clk_rate);
 				clk_rate = kms->perf.max_core_clk_rate;
 			}
@@ -1361,7 +1368,7 @@ static ssize_t sysfs_sde_core_perf_mode_write(struct device *dev,
 
 #if defined(CONFIG_DISPLAY_SAMSUNG)
 	/* This causes unexpected mdp clock issue.. disable the function until fix the issue.. */
-	LCD_INFO("skip sysfs perf_mode\n");
+	LCD_INFO(vdd, "skip sysfs perf_mode\n");
 	return count;
 #endif
 

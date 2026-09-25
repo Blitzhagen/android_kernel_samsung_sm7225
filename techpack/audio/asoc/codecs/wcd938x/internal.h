@@ -66,6 +66,7 @@ struct wcd938x_priv {
 	struct wcd938x_mbhc *mbhc;
 
 	u32 hph_mode;
+	u32 cfilt_val;
 	u32 tx_mode[TX_ADC_MAX];
 	bool comp1_enable;
 	bool comp2_enable;

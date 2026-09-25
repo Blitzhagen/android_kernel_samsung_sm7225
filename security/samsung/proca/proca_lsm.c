@@ -29,6 +29,12 @@
 #include "proca_config.h"
 #include "proca_porting.h"
 
+#define XATTR_FIVE_SUFFIX "five"
+#define XATTR_NAME_FIVE (XATTR_SECURITY_PREFIX XATTR_FIVE_SUFFIX)
+
+#define XATTR_PA_SUFFIX "pa"
+#define XATTR_NAME_PA (XATTR_USER_PREFIX XATTR_PA_SUFFIX)
+
 #include "five_hooks.h"
 
 #ifdef CONFIG_PROCA_GKI_10
@@ -197,7 +203,7 @@ static struct proca_task_descr *prepare_proca_task_descr(
 	}
 
 	if (init_proca_identity(&ident, file,
-			pa_xattr_value, pa_xattr_size,
+			&pa_xattr_value, pa_xattr_size,
 			&parsed_cert))
 		goto proca_cert_cleanup;
 

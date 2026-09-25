@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -45,7 +46,6 @@
 #if defined(CONFIG_DISPLAY_SAMSUNG) // case 04436106
 #include "ss_dsi_panel_debug.h"
 #endif
-#include "dsi_display.h"
 
 #define SDE_PSTATES_MAX (SDE_STAGE_MAX * 4)
 #define SDE_MULTIRECT_PLANE_MAX (SDE_STAGE_MAX * 2)
@@ -1475,9 +1475,6 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 		for (i = 0; i < cstate->num_dim_layers; i++)
 			_sde_crtc_setup_dim_layer_cfg(crtc, sde_crtc,
 					mixer, &cstate->dim_layer[i]);
-		if (cstate->fod_dim_layer)
-				_sde_crtc_setup_dim_layer_cfg(crtc, sde_crtc,
-						mixer, cstate->fod_dim_layer);
 	}
 
 	_sde_crtc_program_lm_output_roi(crtc);
@@ -2494,12 +2491,15 @@ static void _sde_crtc_set_input_fence_timeout(struct sde_crtc_state *cstate)
  * _sde_crtc_clear_dim_layers_v1 - clear all dim layer settings
  * @cstate:      Pointer to sde crtc state
  */
-static void _sde_crtc_clear_dim_layers_v1(struct sde_crtc_state *cstate)
+void _sde_crtc_clear_dim_layers_v1(struct drm_crtc_state *state)
 {
 	u32 i;
+	struct sde_crtc_state *cstate;
 
-	if (!cstate)
+	if (!state)
 		return;
+
+	cstate = to_sde_crtc_state(state);
 
 	for (i = 0; i < cstate->num_dim_layers; i++)
 		memset(&cstate->dim_layer[i], 0, sizeof(cstate->dim_layer[i]));
@@ -2529,7 +2529,7 @@ static void _sde_crtc_set_dim_layer_v1(struct drm_crtc *crtc,
 
 	if (!usr_ptr) {
 		/* usr_ptr is null when setting the default property value */
-		_sde_crtc_clear_dim_layers_v1(cstate);
+		_sde_crtc_clear_dim_layers_v1(&cstate->base);
 		SDE_DEBUG("dim_layer data removed\n");
 		return;
 	}
@@ -4755,106 +4755,6 @@ static int _sde_crtc_check_zpos(struct drm_crtc_state *state,
 	return rc;
 }
 
-static struct sde_hw_dim_layer *
-sde_crtc_setup_fod_dim_layer(struct sde_crtc_state *cstate, uint32_t stage)
-{
-	struct drm_crtc_state *crtc_state = &cstate->base;
-	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
-	struct sde_hw_dim_layer *dim_layer = NULL;
-	struct dsi_display *display;
-	struct sde_kms *kms;
-	uint32_t alpha;
-	uint32_t layer_stage;
-
-	kms = _sde_crtc_get_kms(crtc_state->crtc);
-	if (!kms || !kms->catalog) {
-		SDE_ERROR("Invalid kms\n");
-		goto error;
-	}
-
-	layer_stage = SDE_STAGE_0 + stage;
-	if (layer_stage >= kms->catalog->mixer[0].sblk->maxblendstages) {
-		SDE_ERROR("Stage too large %u vs max %u\n", layer_stage,
-			  kms->catalog->mixer[0].sblk->maxblendstages);
-		goto error;
-	}
-
-	if (cstate->num_dim_layers == SDE_MAX_DIM_LAYERS) {
-		SDE_ERROR("Max dim layers reached\n");
-		goto error;
-	}
-
-	display = get_main_display();
-	if (!display || !display->panel) {
-		SDE_ERROR("Invalid primary display\n");
-		goto error;
-	}
-
-	mutex_lock(&display->panel->panel_lock);
-	alpha = dsi_panel_get_fod_dim_alpha(display->panel);
-	mutex_unlock(&display->panel->panel_lock);
-
-	dim_layer = &cstate->dim_layer[cstate->num_dim_layers];
-	dim_layer->flags = SDE_DRM_DIM_LAYER_INCLUSIVE;
-	dim_layer->stage = layer_stage;
-	dim_layer->rect.x = 0;
-	dim_layer->rect.y = 0;
-	dim_layer->rect.w = mode->hdisplay;
-	dim_layer->rect.h = mode->vdisplay;
-	dim_layer->color_fill.color_0 = 0;
-	dim_layer->color_fill.color_1 = 0;
-	dim_layer->color_fill.color_2 = 0;
-	dim_layer->color_fill.color_3 = alpha;
-
-error:
-	return dim_layer;
-}
-
-static void
-sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
-			  struct plane_state *pstates, int cnt)
-{
-	uint32_t dim_layer_stage;
-	int plane_idx;
-	struct dsi_display *display = get_main_display();
-	struct samsung_display_driver_data *vdd = (struct samsung_display_driver_data *)display->panel->panel_private;
-
-	for (plane_idx = 0; plane_idx < cnt; plane_idx++)
-		if (sde_plane_is_fod_layer(pstates[plane_idx].drm_pstate))
-			break;
-
-	if (plane_idx == cnt) {
-		cstate->fod_dim_layer = NULL;
-	} else {
-		dim_layer_stage = pstates[plane_idx].stage;
-		cstate->fod_dim_layer = sde_crtc_setup_fod_dim_layer(cstate,
-							     dim_layer_stage);
-	}
-
-	if (!cstate->fod_dim_layer) {
-		// Samsung fingerprint HBM
-		if (vdd->finger_mask && vdd->br_info.common_br.finger_mask_bl_level != 0) {
-			vdd->br_info.common_br.finger_mask_bl_level = 0;
-			vdd->finger_mask = 0;
-			vdd->finger_mask_updated = true;
-			SDE_DEBUG("[FINGER_MASK] disabled mask");
-		}
-		return;
-	}
-
-	for (plane_idx = 0; plane_idx < cnt; plane_idx++)
-		if (pstates[plane_idx].stage >= dim_layer_stage)
-			pstates[plane_idx].stage++;
-
-	// Samsung fingerprint HBM
-	if (!vdd->finger_mask && vdd->br_info.common_br.finger_mask_bl_level == 0) {
-		vdd->br_info.common_br.finger_mask_bl_level = 331;
-		vdd->finger_mask = 1;
-		vdd->finger_mask_updated = true;
-		SDE_DEBUG("[FINGER_MASK] enabled mask");
-	}
-}
-
 static int _sde_crtc_atomic_check_pstates(struct drm_crtc *crtc,
 		struct drm_crtc_state *state,
 		struct plane_state *pstates,
@@ -4883,8 +4783,6 @@ static int _sde_crtc_atomic_check_pstates(struct drm_crtc *crtc,
 			plane, multirect_plane, &cnt);
 	if (rc)
 		return rc;
-
-	sde_crtc_fod_atomic_check(cstate, pstates, cnt);
 
 	/* assign mixer stages based on sorted zpos property */
 	rc = _sde_crtc_check_zpos(state, sde_crtc, pstates, cstate, mode, cnt);
@@ -5130,7 +5028,7 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 		return;
 	}
 
-	info = kzalloc(sizeof(struct sde_kms_info), GFP_KERNEL);
+	info = vzalloc(sizeof(struct sde_kms_info));
 	if (!info) {
 		SDE_ERROR("failed to allocate info memory\n");
 		return;
@@ -5383,7 +5281,7 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 	msm_property_set_blob(&sde_crtc->property_info, &sde_crtc->blob_info,
 			info->data, SDE_KMS_INFO_DATALEN(info), CRTC_PROP_INFO);
 
-	kfree(info);
+	vfree(info);
 }
 
 static int _sde_crtc_get_output_fence(struct drm_crtc *crtc,

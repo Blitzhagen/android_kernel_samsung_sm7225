@@ -2283,6 +2283,34 @@ static int wcd938x_tx_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int wcd938x_micb2_cfilt_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = wcd938x->cfilt_val;
+	return 0;
+}
+
+static int wcd938x_micb2_cfilt_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
+	u32 cfilt_val;
+
+	cfilt_val = ucontrol->value.enumerated.item[0];
+
+	if (cfilt_val)
+		snd_soc_component_update_bits(component, WCD938X_MICB2_TEST_CTL_3, 0xFF, 0x24);
+	else
+		snd_soc_component_update_bits(component, WCD938X_MICB2_TEST_CTL_3, 0xFF, 0xA4);
+
+	wcd938x->cfilt_val = cfilt_val;
+	return 0;
+}
+
 static int wcd938x_rx_hph_mode_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
@@ -2534,6 +2562,10 @@ static const char * const rx_hph_mode_mux_text_wcd9380[] = {
 	"CLS_AB_LOHIFI",
 };
 
+static const char * const micb2_cfilt_en_mux_text_wcd9380[] = {
+	"Enable", "Disable",
+};
+
 static const char * const wcd938x_ear_pa_gain_text[] = {
 	"G_6_DB", "G_4P5_DB", "G_3_DB", "G_1P5_DB", "G_0_DB",
 	"G_M1P5_DB", "G_M3_DB", "G_M4P5_DB",
@@ -2541,6 +2573,10 @@ static const char * const wcd938x_ear_pa_gain_text[] = {
 	"G_M10P5_DB", "G_M12_DB", "G_M13P5_DB",
 	"G_M15_DB", "G_M16P5_DB", "G_M18_DB",
 };
+
+static const struct soc_enum micb2_cfilt_en_mux_enum_wcd9380 =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(micb2_cfilt_en_mux_text_wcd9380),
+			micb2_cfilt_en_mux_text_wcd9380);
 
 static const struct soc_enum rx_hph_mode_mux_enum_wcd9380 =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(rx_hph_mode_mux_text_wcd9380),
@@ -2564,6 +2600,9 @@ static const struct snd_kcontrol_new wcd9380_snd_controls[] = {
 
 	SOC_ENUM_EXT("RX HPH Mode", rx_hph_mode_mux_enum_wcd9380,
 		wcd938x_rx_hph_mode_get, wcd938x_rx_hph_mode_put),
+
+	SOC_ENUM_EXT("MICB2 CFILT EN", micb2_cfilt_en_mux_enum_wcd9380,
+		wcd938x_micb2_cfilt_get, wcd938x_micb2_cfilt_put),
 
 	SOC_ENUM_EXT("TX0 MODE", tx_mode_mux_enum_wcd9380,
 			wcd938x_tx_mode_get, wcd938x_tx_mode_put),

@@ -938,7 +938,7 @@ static void cam_vfe_camif_ver3_print_status(uint32_t *status,
 	uint32_t violation_mask = 0x3F, module_id = 0;
 	uint32_t bus_overflow_status = 0, status_0 = 0, status_2 = 0;
 	struct cam_vfe_soc_private *soc_private;
-	uint32_t val0, val1, val2;
+//	uint32_t val0, val1, val2;
 
 	if (!status) {
 		CAM_ERR(CAM_ISP, "Invalid params");
@@ -1025,15 +1025,10 @@ static void cam_vfe_camif_ver3_print_status(uint32_t *status,
 			CAM_INFO(CAM_ISP, "PDAF BUS OVERFLOW");
 
 		soc_private = camif_priv->soc_info->soc_private;
-		cam_cpas_reg_read(soc_private->cpas_handle,
-			CAM_CPAS_REG_CAMNOC, 0xA20, true, &val0);
-		cam_cpas_reg_read(soc_private->cpas_handle,
-			CAM_CPAS_REG_CAMNOC, 0x1420, true, &val1);
-		cam_cpas_reg_read(soc_private->cpas_handle,
-			CAM_CPAS_REG_CAMNOC, 0x1A20, true, &val2);
-		CAM_INFO(CAM_ISP,
-			"CAMNOC REG ife_linear: 0x%X ife_rdi_wr: 0x%X ife_ubwc_stats: 0x%X",
-			val0, val1, val2);
+		cam_cpas_get_camnoc_fifo_fill_level_info(
+			soc_private->cpas_version,
+			soc_private->cpas_handle);
+
 		cam_cpas_log_votes();
 		return;
 	}

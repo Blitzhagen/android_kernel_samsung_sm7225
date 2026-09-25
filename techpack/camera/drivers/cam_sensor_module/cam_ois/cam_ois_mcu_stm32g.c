@@ -806,7 +806,7 @@ int sysboot_i2c_erase(struct cam_ois_ctrl_t *o_ctrl, uint32_t address, size_t le
 				continue;
 			}
 
-#if defined(CONFIG_SEC_A52XQ_PROJECT)		
+#if defined(CONFIG_SEC_A52XQ_PROJECT) || defined(CONFIG_SEC_M62XQ_PROJECT)		
 			msleep(BOOT_I2C_PAGE_ERASE_TMOUT(erase.count + 1));    // added after discussion with yh1013.kim (FW engineer) for A52-5g case
 #endif
 			
@@ -3104,7 +3104,7 @@ bool cam_ois_sine_wavecheck(struct cam_ois_ctrl_t *o_ctrl, int threshold,
 		CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE); /* count value for error judgement level. */
 	ret |= cam_ois_i2c_write(o_ctrl, 0x0054, 0x05,
 		CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE); /* frequency level for measurement. */
-#if defined(CONFIG_SEC_A52XQ_PROJECT)
+#if defined(CONFIG_SEC_A52XQ_PROJECT) || defined(CONFIG_SEC_M62XQ_PROJECT)
 	ret |= cam_ois_i2c_write(o_ctrl, 0x0055, 0x2A,
 			CAMERA_SENSOR_I2C_TYPE_WORD, CAMERA_SENSOR_I2C_TYPE_BYTE); /* amplitude level for measurement. */
 		ret |= cam_ois_i2c_write(o_ctrl, 0x0056, 0x03,
@@ -3729,7 +3729,10 @@ int cam_ois_write_gyro_orientation(struct cam_ois_ctrl_t *o_ctrl)
 #elif defined(CONFIG_SEC_F2Q_PROJECT) || defined(CONFIG_SEC_VICTORY_PROJECT)
 	uint8_t new_data1[3] = { 0x00, 0x00, 0x01 };
 	uint8_t new_data2[2] = { 0x01, 0x01 };
-#elif defined(CONFIG_SEC_A52XQ_PROJECT)
+#elif defined(CONFIG_MACH_A52XQ_USA_SINGLE) || defined(CONFIG_MACH_A52XQ_USA_OPEN)
+	uint8_t new_data1[3] = { 0x00, 0x00, 0x01 };
+	uint8_t new_data2[2] = { 0x00, 0x00 };
+#elif defined(CONFIG_SEC_A52XQ_PROJECT) || defined(CONFIG_SEC_M62XQ_PROJECT)
 	uint8_t new_data1[3] = { 0x00, 0x01, 0x00 };
 	uint8_t new_data2[2] = { 0x00, 0x00 };
 #else
