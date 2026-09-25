@@ -127,6 +127,11 @@ dtb-$(CONFIG_ARCH_LAGOON) += \
 		lagoon-qrd.dtb
 endif
 
+# lagoon.dtb is the base for Samsung DTBO overlays (applied by the
+# bootloader). Stock builds it with -@ (__symbols__ for __fixups__
+# resolution) even though CONFIG_BUILD_ARM64_DT_OVERLAY=n.
+DTC_FLAGS_lagoon := -@
+
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
         dtbo-$(CONFIG_ARCH_BENGAL) += \
                 bengal-rumi-overlay.dtbo \
