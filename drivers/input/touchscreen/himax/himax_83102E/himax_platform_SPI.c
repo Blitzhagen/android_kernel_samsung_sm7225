@@ -123,6 +123,8 @@ int himax_parse_dt(struct himax_ts_data *ts,
 	int fw_count, select_lcd_count = 0;
 	int lcd_id_num = 1;
 	u32 coords[20];
+	u32 px_zone[3];
+	int err;
 
 	pdata->gpio_irq = of_get_named_gpio(dt, "himax,irq-gpio", 0);
 
@@ -140,7 +142,24 @@ int himax_parse_dt(struct himax_ts_data *ts,
 	if (!gpio_is_valid(pdata->gpio_3v3_en))
 		I(" DT:gpio_3v3_en value is not valid\n");
 
-	I(" DT:gpio_irq=%d, gpio_rst=%d, gpio_3v3_en=%d\n", pdata->gpio_irq, pdata->gpio_reset, pdata->gpio_3v3_en);
+	pdata->gpio_vendor_check = of_get_named_gpio(dt, "himax,vendor_check-gpio", 0);
+	if (gpio_is_valid(pdata->gpio_vendor_check)) {
+		err = of_property_read_u32(dt, "himax,vendor_check_enable_value", &data);
+		if (err < 0) {
+			E(" DT: failed to get vendor_check_enable_value, %d\n", err);
+		} else {
+			int vendor_check_value = gpio_get_value(pdata->gpio_vendor_check);
+
+			if (vendor_check_value != data) {
+				E(" DT: gpio_vendor_check is %d, himax ic is not connected\n",
+					vendor_check_value);
+				return -ENODEV;
+			}
+		}
+	}
+
+	I(" DT:gpio_irq=%d, gpio_rst=%d, gpio_3v3_en=%d, gpio_vendor_check=%d\n",
+		pdata->gpio_irq, pdata->gpio_reset, pdata->gpio_3v3_en, pdata->gpio_vendor_check);
 	
 #ifdef CONFIG_DISPLAY_SAMSUNG
 	lcdtype = get_lcd_attached("GET");
@@ -195,6 +214,18 @@ int himax_parse_dt(struct himax_ts_data *ts,
 	pdata->screenHeight = coords[select_lcd_count * 2 + 1];
 	I(" DT-%s:display-coords = (%d, %d)\n", __func__, pdata->screenWidth, pdata->screenHeight);
 
+	if (of_property_read_u32_array(dt, "himax,area-size", px_zone, 3)) {
+		pdata->area_indicator = 48;
+		pdata->area_navigation = 96;
+		pdata->area_edge = 60;
+	} else {
+		pdata->area_indicator = px_zone[0];
+		pdata->area_navigation = px_zone[1];
+		pdata->area_edge = px_zone[2];
+	}
+	I(" DT-%s: zone's size - indicator:%d, navigation:%d, edge:%d\n",
+		__func__, pdata->area_indicator, pdata->area_navigation, pdata->area_edge);
+
 	if (of_property_read_u32(dt, "report_type", &data) == 0) {
 		pdata->protocol_type = data;
 		I(" DT:protocol_type=%d\n", pdata->protocol_type);
@@ -208,6 +239,10 @@ int himax_parse_dt(struct himax_ts_data *ts,
 
 	pdata->support_aot = of_property_read_bool(dt, "support_aot");
 	pdata->enable_sysinput_enabled = of_property_read_bool(dt, "enable_sysinput_enabled");
+	pdata->support_dex = of_property_read_bool(dt, "support_dex");
+	pdata->notify_tsp_esd = of_property_read_bool(dt, "himax,notify_tsp_esd");
+
+	I("%s: notify_tsp_esd:%d\n", __func__, pdata->notify_tsp_esd);
 
 	if (of_property_read_string(dt, "himax,panel_buck_en", &pdata->panel_buck_en))
 		input_err(true, ts->dev, "%s: Failed to get panel_buck_en name property\n", __func__);

@@ -103,6 +103,7 @@ struct himax_i2c_platform_data {
 	int gpio_irq;
 	int gpio_reset;
 	int gpio_3v3_en;
+	int gpio_vendor_check;
 	int gpio_pon;
 	int (*power)(int on);
 	void (*reset)(void);
@@ -112,6 +113,8 @@ struct himax_i2c_platform_data {
 	int hx_config_size;
 	bool support_aot;
 	bool enable_sysinput_enabled;
+	bool support_dex;
+	bool notify_tsp_esd;
 
 	const char *panel_buck_en;
 	const char *panel_buck_en2;

@@ -504,6 +504,10 @@ struct himax_ts_data {
 
 	struct notifier_block reboot_notifier;
 
+#if IS_ENABLED(CONFIG_INPUT_SEC_NOTIFIER)
+	struct notifier_block himax_input_nb;
+#endif
+
 	struct workqueue_struct *flash_wq;
 	struct work_struct flash_work;
 

@@ -2345,6 +2345,12 @@ static int himax_mcu_ic_esd_recovery(int hx_esd_event, int hx_zero_event, int le
 	int ret_val = NO_ERR;
 
 	if (hx_esd_event == length) {
+#if IS_ENABLED(CONFIG_INPUT_SEC_NOTIFIER)
+		if (private_ts->pdata->notify_tsp_esd) {
+			I("[HIMAX TP MSG]: notify LCD reset.\n");
+			sec_input_notify(&private_ts->himax_input_nb, NOTIFIER_TSP_ESD_INTERRUPT, NULL);
+		}
+#endif
 		g_zero_event_count = 0;
 		ret_val = HX_ESD_EVENT;
 	} else if (hx_zero_event == length) {
