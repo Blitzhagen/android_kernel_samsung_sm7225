@@ -1,6 +1,7 @@
 # The gts7xllite generation carries these objects in
 # drivers/input/sec_input/ (enabled by CONFIG_INPUT_SEC_INPUT).
-ifneq ($(CONFIG_INPUT_SEC_INPUT),)
+# Skip them here when sec_input is enabled to avoid duplicate symbols.
+ifeq ($(CONFIG_INPUT_SEC_INPUT),)
 obj-$(CONFIG_INPUT_TOUCHSCREEN)         += sec_cmd.o
 obj-$(CONFIG_INPUT_TOUCHSCREEN_TCLMV2)  += sec_tclm_v2.o
 obj-$(CONFIG_INPUT_SEC_SECURE_TOUCH)    += sec_secure_touch.o
