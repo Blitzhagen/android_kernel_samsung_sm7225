@@ -30,6 +30,16 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 
 	if (kn->flags & KERNFS_LOCKDEP)
 		lockdep_assert_held(kn);
+
+	if (!virt_addr_valid(kobj)) {
+		char kn_name[64], pkn_name[64];
+
+		kernfs_name(kn, kn_name, sizeof(kn_name));
+		kernfs_name(kn->parent, pkn_name, sizeof(pkn_name));
+		pr_err("sysfs: '%s' (parent '%s') has invalid kobject %px\n",
+		       kn_name, pkn_name, kobj);
+		return NULL;
+	}
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }
 
@@ -148,8 +158,8 @@ static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 	if (!count)
 		return 0;
 
-	if (!ops) {
-		pr_err("sysfs: no sysfs_ops for '%s' (parent '%s'), write rejected\n",
+	if (!ops || !ops->store) {
+		pr_err("sysfs: no sysfs_ops/store for '%s' (parent '%s'), write rejected\n",
 		       of->kn->name, of->kn->parent ? of->kn->parent->name : "?");
 		return -EIO;
 	}
