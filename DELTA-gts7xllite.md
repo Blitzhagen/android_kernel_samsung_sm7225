@@ -6,70 +6,81 @@ Branch: `gts7xllite-23.2`
 
 ## A. DTS / Boot
 
-- [ ] `arch/arm64/boot/dts/samsung/gts7/` kopiert (5 Overlay-DTS + Makefile)
-- [ ] `dts/samsung/Makefile`: `dts-dirs += gts7/gts7xllite` im GTS7XLLITE-Branch
-- [ ] `dts/vendor/qcom/Makefile`: `DTC_FLAGS_lagoon := -@`
-- [ ] `lagoon.dtsi` reserved-mem-Diff geprueft/uebernommen
-- [ ] `vendor/gts7xllite_eur_openx_defconfig` eingefuehrt, Symbole abgeglichen
-- [ ] Firmware-Blobs + `firmware/Makefile` (tsp_focaltech, keyboard_stm, tsp_slsi, w9021, hx83102e-init)
+- [x] `arch/arm64/boot/dts/samsung/gts7/` kopiert (5 Overlay-DTS + Makefile)
+- [x] `dts/samsung/Makefile`: `dts-dirs += gts7/gts7xllite` im GTS7XLLITE-Branch
+- [x] `dts/vendor/qcom/Makefile`: `DTC_FLAGS_lagoon := -@`
+- [x] `lagoon.dtsi` reserved-mem-Diff geprueft/uebernommen
+- [x] `vendor/gts7xllite_eur_openx_defconfig` eingefuehrt, Symbole abgeglichen
+- [x] Firmware-Blobs + `firmware/Makefile` (tsp_focaltech, keyboard_stm, tsp_slsi, w9021, hx83102e-init)
+- [x] UH/RKP/KDP komplett aus (wie a42xq-Referenz; KDP_NS-fs/-Umbau nicht portiert)
 
 ## B. Display
 
-- [ ] `techpack/display/msm/samsung/{FT8203_TS124QDM,HX83102_TV104WUM,HX83121_PPC357DB11}` kopiert
-- [ ] `techpack/display/msm/samsung/{BLIC,PMIC}` kopiert
-- [ ] `panel_common_conf.h` + `ss_wrapper_common.c/h` kopiert
-- [ ] `techpack/display/msm/Makefile` obj-Zeilen
-- [ ] `ss_dsi_panel_common.c` FT8203-Init-Hook + Delta-Review
-- [ ] Root-`Kconfig` Panel-source-Zeilen
+- [x] `techpack/display/msm/samsung/{FT8203_TS124QDM,HX83102_TV104WUM,HX83121_PPC357DB11}` kopiert
+- [x] `techpack/display/msm/samsung/{BLIC,PMIC}` kopiert
+- [x] `panel_common_conf.h` + `ss_wrapper_common.c/h` kopiert
+- [x] `techpack/display/msm/Makefile` obj-Zeilen
+- [x] `ss_dsi_panel_common.c` FT8203-Init-Hook + Delta-Review
+- [x] Root-`Kconfig` Panel-source-Zeilen
+- [x] `samsung/`-Subtree auf gts7xl-Generation ersetzt; `sec_displayport.h` SECDP_SWITCH-Define nachgezogen
 
 ## C. Input
 
-- [ ] `drivers/input/sec_input/` (sec_input.h, sec_common_fn.c, sec_input_notifier.c, Kconfig, Makefile; dedup vs input/common/)
-- [ ] `drivers/input/sec_input/stm32/` (Pogo) + `include/linux/input/pogo_i2c_notifier.h`
-- [ ] `drivers/input/touchscreen/focaltech/` (ft820x)
-- [ ] `drivers/input/input_boost/` + `include/linux/input/input_booster.h`
-- [ ] `drivers/input/misc/hall/` (hall_ic_logical, hall_ic_notifier, sec_hall_dumpkey) + `include/linux/hall/`
-- [ ] himax: gts7xl-DTS-Props in himax_83102E verifiziert/gemergt
-- [ ] LEGO-Zeilen in `drivers/Kconfig` + `drivers/Makefile`
-- [ ] Wacom wez01/Firmware verifiziert
+- [x] `drivers/input/sec_input/` (sec_input.h, sec_common_fn.c, sec_input_notifier.c, Kconfig, Makefile; dedup vs input/common/)
+- [x] `drivers/input/sec_input/stm32/` (Pogo) + `include/linux/input/pogo_i2c_notifier.h`
+- [x] `drivers/input/touchscreen/focaltech/` (ft820x) — war bereits vollstaendig
+- [x] `drivers/input/input_boost/` + `include/linux/input/input_booster.h`
+- [x] `drivers/input/misc/hall/` (hall_ic_logical, hall_ic_notifier, sec_hall_dumpkey) + `include/linux/hall/`
+- [x] himax: gts7xl-DTS-Props gemergt (area-size, vendor_check-gpio, notify_tsp_esd)
+- [x] LEGO-Zeilen in `drivers/Kconfig` + `drivers/Makefile`
+- [x] Wacom wez01/Firmware verifiziert
+- [x] input/common-Guard: `ifeq (,$(CONFIG_INPUT_SEC_INPUT))` gegen doppelte Symbole
 
 ## D. Power
 
-- [ ] `drivers/battery/` gts7xl-Snapshot (sm5440_charger, sec_direct_charger, battery_logger, sb_full_soc, sec_*_sysfs, sec_battery*, sm5714_*, dtsi)
-- [ ] `drivers/muic/` muic_param.c + muic_sysfs.c + sm5714-MUIC + include/linux/muic/common/
-- [ ] `drivers/usb/typec/common/pdic_*.c` + include-Header
-- [ ] `drivers/usb/gadget/function/f_ss_mon_gadget.c`
-- [ ] `drivers/regulator/s2mpb03/` + include/linux/regulator/s2mpb03.h
-- [ ] sysfs-Pflichtknoten verifiziert (batt_slate_mode, afc_disable)
+- [x] `drivers/battery/` gts7xl-Snapshot (sm5440_charger, sec_direct_charger, battery_logger, sb_full_soc, sec_*_sysfs, sec_battery*, sm5714_*, dtsi)
+- [x] `drivers/muic/` muic_param.c + muic_sysfs.c + sm5714-MUIC + include/linux/muic/common/
+- [x] `drivers/usb/typec/common/pdic_*.c` + include-Header
+- [x] `drivers/usb/gadget/function/f_ss_mon_gadget.c`
+- [x] `drivers/regulator/s2mpb03/` + include/linux/regulator/s2mpb03.h
+- [x] sysfs-Pflichtknoten verifiziert (batt_slate_mode, afc_disable)
+- [x] `sec-battery.h`: SIOP_DEFAULT / SIOP_SCENARIO_VT_CALL nachgezogen
+- [x] `ps5169.h`: is_DFP + ps5169_notify_dplink nachgezogen
+- [x] `usb_notify.h` volle gts7xl-Generation; `usb_hw_param.h` USB_HOST_*-Eintraege
+- [x] `dwc3-msm.c`: is_dwc3_msm_probe_done() portiert
 
 ## E. Sensoren / ADSP
 
-- [ ] `drivers/sensors/`: isg6320.c/_reg.h, Kconfig-Optionen, a96t3x6*/sx9360*-Merge
-- [ ] `drivers/adsp_factory/`: stk3a9x_light/prox, ssc_core.c/adsp.h/stk31610/flip_cover/veml3xxx-Merge
+- [x] `drivers/sensors/`: isg6320.c/_reg.h, Kconfig-Optionen, a96t3x6*/sx9360*-Merge
+- [x] `drivers/adsp_factory/`: stk3a9x_light/prox, ssc_core.c/adsp.h/stk31610/flip_cover/veml3xxx-Merge
+- [x] `adsp_ft_common.h`: OPTION_TYPE_SSC_* Enum-Reihenfolge Stock-konform
 
 ## F. Audio
 
-- [ ] `sound/soc/codecs/`: bigdata_cs35l45_sysfs_cb.*, cs35l45_dsp_events.h
-- [ ] `techpack/audio/` Content-Diffs gereviewt (dbmdx vorhanden)
+- [x] `sound/soc/codecs/`: bigdata_cs35l45_sysfs_cb.*, cs35l45_dsp_events.h
+- [x] `techpack/audio/` auf gts7xl-Generation (dbmdx vorhanden); PROJECT_NAME=lito_gts7plite via gts7xllite
 
 ## G. Kamera
 
-- [ ] `techpack/camera/.../cam_eeprom/hi1336_otp.h` + cam_eeprom/cam_sensor-Diffs
-- [ ] SAMSUNG_CAMERA_OTP_FRONT / SUPPORT_*_OPTIC Configs
+- [x] hi1336/cam_eeprom: kein gts7xl-relevantes Delta — uebersprungen
 
 ## H. Rest
 
-- [ ] `drivers/samsung/lmkd_debug.c`
-- [ ] `drivers/hwmon/sec_thermistor/sec_thermistor.h`
-- [ ] `drivers/samsung/{debug,misc,quest}/` gts7xl-Delta wo noetig
-- [ ] `security/samsung/five/{gki,s_os}` u. a. falls defconfig verlangt
-- [ ] `drivers/leds/leds-sm5714-fled.c` Review
-- [ ] wcn39xx-GPIO-Teile bewertet
+- [x] `drivers/samsung/lmkd_debug.c`
+- [x] `drivers/hwmon/sec_thermistor/sec_thermistor.h`
+- [x] `drivers/samsung/{debug,misc,quest}/` gts7xl-Delta
+- [x] `security/samsung/` gts7xl-Generation (defex_lsm inkl. refcount/variadic-Fixes)
+- [x] `drivers/leds/leds-sm5714-fled.c`
+- [x] wcn39xx gts7xl-Stand uebernommen (Android-U-Fixes der Basis verifiziert)
+- [x] `clk.c` doppeltes all_lists entfernt; `pgalloc.h` stray else unter CONFIG_RKP gefixt
+- [x] `cred.c`/`defex`: atomic_long_t/refcount_t-Anpassungen auf 4.19.325
+- [x] `rbincache.c`: rc_sysfs_init ohne __init (Link-Section-Mismatch)
+- [x] Build-Sichtbarkeit: leere `Android.mk` in `sm7225_old/` (Scan-Shield)
 
 ## Verifikation
 
-- [ ] `m kernel` fehlerfrei
-- [ ] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
-- [ ] `m bootimage` → boot.img
-- [ ] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs
+- [x] `m kernel` fehlerfrei (vmlinux + 7 Module)
+- [x] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
+- [x] `m bootimage` → boot.img (100 MB, ANDROID!-Magic)
+- [x] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs (+mmc_test, tcp_htcp, tcp_westwood)
 - [ ] Boottest (User): Display, Touch, S-Pen, Pogo, Charge/AFC, Audio, Cam, Sensoren, 5G, WLAN, NFC
