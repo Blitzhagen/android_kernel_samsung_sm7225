@@ -265,6 +265,11 @@ static void himax_mcu_interface_on(void)
 		himax_bus_read(pic_op->addr_conti[0], tmp_data, 1, HIMAX_I2C_RETRY_TIMES);
 		himax_bus_read(pic_op->addr_incr4[0], tmp_data2, 1, HIMAX_I2C_RETRY_TIMES);
 
+		I("%s: rd[0x%02X]=0x%02X (exp 0x%02X) rd[0x%02X]=0x%02X (exp 0x%02X)\n",
+			__func__,
+			pic_op->addr_conti[0], tmp_data[0], pic_op->data_conti[0],
+			pic_op->addr_incr4[0], tmp_data2[0], pic_op->data_incr4[0]);
+
 		if (tmp_data[0] == pic_op->data_conti[0] && tmp_data2[0] == pic_op->data_incr4[0])
 			break;
 
@@ -273,6 +278,15 @@ static void himax_mcu_interface_on(void)
 
 	if (cnt > 0)
 		I("%s:Polling burst mode: %d times\n", __func__, cnt);
+
+	if (cnt >= 10) {
+		uint8_t id_addr[DATA_LEN_4] = {0xD0, 0x00, 0x00, 0x90};
+		uint8_t id_data[DATA_LEN_4] = {0};
+
+		g_core_fp.fp_register_read(id_addr, DATA_LEN_4, id_data, false);
+		I("%s: chipid readback = %02X%02X%02X%02X\n",
+			__func__, id_data[0], id_data[1], id_data[2], id_data[3]);
+	}
 }
 
 static bool himax_mcu_wait_wip(int Timing)
