@@ -88,7 +88,7 @@
 #define HX_RESUME_SEND_CMD
 #define HX_ESD_RECOVERY
 #define HX_TP_PROC_GUEST_INFO
-/*#define HX_NEW_EVENT_STACK_FORMAT*/
+#define HX_NEW_EVENT_STACK_FORMAT
 #define HX_AUTO_UPDATE_FW
 #define HX_SMART_WAKEUP
 /*#define HX_GESTURE_TRACK*/
@@ -108,6 +108,7 @@
 #define SEC_FACTORY_MODE
 #define SEC_FIX_MAX_PT 10
 #define SEC_FIX_INT_EDGE true
+#define SEC_PALM_FUNC
 
 /*#define HX_EN_SEL_BUTTON*/	/* Support Self Virtual key		,default is close*/
 /*#define HX_EN_MUT_BUTTON*/	/* Support Mutual Virtual Key	,default is close*/
@@ -220,6 +221,9 @@ static void himax_ts_late_resume(struct early_suspend *h);
 
 #if defined(HX_PEN_FUNC_EN)
 #define PEN_INFO_SZ 12
+#endif
+#ifdef SEC_PALM_FUNC
+#define SEC_FINGER_INFO_SZ 24
 #endif
 
 #if defined(__EMBEDDED_FW__)
@@ -346,6 +350,11 @@ struct himax_target_report_data {
 	int *x;
 	int *y;
 	int *w;
+#ifdef SEC_PALM_FUNC
+	int *maj;
+	int *min;
+	int *palm;
+#endif
 	int *finger_id;
 	int finger_on;
 	int finger_num;
@@ -445,6 +454,9 @@ struct himax_ts_data {
 	struct pinctrl *pinctrl;
 	int (*power) (int on);
 	int pre_finger_data[10][6];		/*0: x, 1:y, 2:w, 3:mv_cnt, 4:major, 5:minor */
+	int palm_flag;
+	bool noise_mode;
+	bool lamp_noise_mode;
 	int p_x[10];
 	int p_y[10];
 

@@ -163,6 +163,7 @@ unsigned char IC_CHECKSUM;
 EXPORT_SYMBOL(IC_CHECKSUM);
 
 uint8_t g_last_fw_irq_flag = 0;
+uint8_t g_last_fw_irq_flag2 = 0;
 
 #ifdef HX_ESD_RECOVERY
 u8 HX_ESD_RESET_ACTIVATE;
@@ -791,6 +792,10 @@ int himax_input_register(struct himax_ts_data *ts)
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, ts->pdata->abs_x_min, ts->pdata->abs_x_max, ts->pdata->abs_x_fuzz, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, ts->pdata->abs_y_min, ts->pdata->abs_y_max, ts->pdata->abs_y_fuzz, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, ts->pdata->abs_pressure_min, ts->pdata->abs_pressure_max, ts->pdata->abs_pressure_fuzz, 0);
+#ifdef SEC_PALM_FUNC
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MINOR, ts->pdata->abs_pressure_min, ts->pdata->abs_pressure_max, ts->pdata->abs_pressure_fuzz, 0);
+	set_bit(BTN_PALM, ts->input_dev->keybit);
+#endif
 #ifndef	HX_PROTOCOL_A
 	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, ts->pdata->abs_pressure_min, ts->pdata->abs_pressure_max, ts->pdata->abs_pressure_fuzz, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, ts->pdata->abs_width_min, ts->pdata->abs_width_max, ts->pdata->abs_pressure_fuzz, 0);
@@ -1241,6 +1246,10 @@ int himax_report_data_init(void)
 	hx_touch_data->touch_info_size += PEN_INFO_SZ;
 	hx_touch_data->rawdata_size -= PEN_INFO_SZ;
 #endif
+#ifdef SEC_PALM_FUNC
+	hx_touch_data->touch_info_size += SEC_FINGER_INFO_SZ;
+	hx_touch_data->rawdata_size -= SEC_FINGER_INFO_SZ;
+#endif
 	if ((ic_data->HX_TX_NUM * ic_data->HX_RX_NUM + ic_data->HX_TX_NUM + ic_data->HX_RX_NUM) % hx_touch_data->rawdata_size == 0)
 		hx_touch_data->rawdata_frame_size = (ic_data->HX_TX_NUM * ic_data->HX_RX_NUM + ic_data->HX_TX_NUM + ic_data->HX_RX_NUM) / hx_touch_data->rawdata_size;
 	else
@@ -1266,6 +1275,17 @@ int himax_report_data_init(void)
 		g_target_report_data->w = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
 		if (g_target_report_data->w == NULL)
 			goto mem_alloc_fail;
+#ifdef SEC_PALM_FUNC
+		g_target_report_data->maj = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+		if (g_target_report_data->maj == NULL)
+			goto mem_alloc_fail;
+		g_target_report_data->min = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+		if (g_target_report_data->min == NULL)
+			goto mem_alloc_fail;
+		g_target_report_data->palm = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+		if (g_target_report_data->palm == NULL)
+			goto mem_alloc_fail;
+#endif
 		g_target_report_data->finger_id = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
 		if (g_target_report_data->finger_id == NULL)
 			goto mem_alloc_fail;
@@ -1370,6 +1390,20 @@ mem_alloc_fail:
 			g_target_report_data->p_x = NULL;
 		}
 #endif
+#ifdef SEC_PALM_FUNC
+		if (g_target_report_data->palm != NULL) {
+			kfree(g_target_report_data->palm);
+			g_target_report_data->palm = NULL;
+		}
+		if (g_target_report_data->min != NULL) {
+			kfree(g_target_report_data->min);
+			g_target_report_data->min = NULL;
+		}
+		if (g_target_report_data->maj != NULL) {
+			kfree(g_target_report_data->maj);
+			g_target_report_data->maj = NULL;
+		}
+#endif
 		if (g_target_report_data->finger_id != NULL) {
 			kfree(g_target_report_data->finger_id);
 			g_target_report_data->finger_id = NULL;
@@ -1441,6 +1475,14 @@ void himax_report_data_deinit(void)
 	g_target_report_data->p_y = NULL;
 	kfree(g_target_report_data->p_x);
 	g_target_report_data->p_x = NULL;
+#endif
+#ifdef SEC_PALM_FUNC
+	kfree(g_target_report_data->palm);
+	g_target_report_data->palm = NULL;
+	kfree(g_target_report_data->min);
+	g_target_report_data->min = NULL;
+	kfree(g_target_report_data->maj);
+	g_target_report_data->maj = NULL;
 #endif
 	kfree(g_target_report_data->finger_id);
 	g_target_report_data->finger_id = NULL;
@@ -1532,7 +1574,7 @@ void hx_log_touch_event(struct himax_ts_data *ts)
 			ts->touch_count++;
 			ts->p_x[loop_i] = x = ts->pre_finger_data[loop_i][0];
 			ts->p_y[loop_i] = y = ts->pre_finger_data[loop_i][1];
-#ifdef HX_SP_INFO
+#ifdef SEC_PALM_FUNC
 			ma = ts->pre_finger_data[loop_i][4];
 			mi = ts->pre_finger_data[loop_i][5];
 #else
@@ -1738,7 +1780,11 @@ static int himax_ts_event_check(struct himax_ts_data *ts, uint8_t *buf, int ts_p
 	/* Normal */
 	switch (ts_path) {
 	case HX_REPORT_COORD:
+#ifdef SEC_PALM_FUNC
+		length = ts->coordInfoSize;
+#else
 		length = hx_touch_data->touch_info_size;
+#endif
 		break;
 #if defined(HX_SMART_WAKEUP)
 /* SMWP */
@@ -1747,7 +1793,11 @@ static int himax_ts_event_check(struct himax_ts_data *ts, uint8_t *buf, int ts_p
 		break;
 #endif
 	case HX_REPORT_COORD_RAWDATA:
+#ifdef SEC_PALM_FUNC
+		length = ts->coordInfoSize;
+#else
 		length = hx_touch_data->touch_info_size;
+#endif
 		break;
 	default:
 		I("%s, Neither Normal Nor SMWP error!\n", __func__);
@@ -1864,6 +1914,9 @@ static int himax_distribute_touch_data(uint8_t *buf, int ts_path, int ts_status)
 #if defined(HX_PEN_FUNC_EN)
 	hx_state_info_pos -= PEN_INFO_SZ;
 #endif
+#ifdef SEC_PALM_FUNC
+	hx_state_info_pos -= SEC_FINGER_INFO_SZ;
+#endif
 
 	if (g_ts_dbg != 0)
 		I("%s: Entering, ts_status=%d!\n", __func__, ts_status);
@@ -1902,6 +1955,44 @@ static int himax_distribute_touch_data(uint8_t *buf, int ts_path, int ts_status)
 	}
 	/* debug info start */
 	if (buf[hx_state_info_pos] != 0xFF && buf[hx_state_info_pos + 1] != 0xFF) {
+#ifdef HX_NEW_EVENT_STACK_FORMAT
+		if (g_last_fw_irq_flag != hx_touch_data->hx_state_info[0]) {
+			if ((g_last_fw_irq_flag & 0x03) != (hx_touch_data->hx_state_info[0] & 0x03))
+				I("%s ReCal change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] & 0x03);
+			if ((g_last_fw_irq_flag >> 3 & 0x01) != (hx_touch_data->hx_state_info[0] >> 3 & 0x01))
+				I("%s Palm change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] >> 3 & 0x01);
+			if ((g_last_fw_irq_flag >> 7 & 0x01) != (hx_touch_data->hx_state_info[0] >> 7 & 0x01))
+				I("%s AC mode change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] >> 7 & 0x01);
+			if ((g_last_fw_irq_flag >> 5 & 0x01) != (hx_touch_data->hx_state_info[0] >> 5 & 0x01))
+				I("%s Water change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] >> 5 & 0x01);
+			if ((g_last_fw_irq_flag >> 6 & 0x01) != (hx_touch_data->hx_state_info[0] >> 6 & 0x01))
+				I("%s TX Hop change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] >> 6 & 0x01);
+		}
+		if (g_last_fw_irq_flag2 != hx_touch_data->hx_state_info[1]) {
+			if ((g_last_fw_irq_flag2 & 0x01) != (hx_touch_data->hx_state_info[1] & 0x01))
+				I("%s High Sensitivity change to %d\n",
+						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[1] & 0x01);
+
+			private_ts->noise_mode = hx_touch_data->hx_state_info[1] >> 3 & 0x01;
+			if ((g_last_fw_irq_flag2 >> 3 & 0x01) != private_ts->noise_mode) {
+				I("%s nosie mode change to %d\n",
+						HIMAX_LOG_TAG, private_ts->noise_mode);
+			}
+
+			private_ts->lamp_noise_mode =  hx_touch_data->hx_state_info[1] >> 4 & 0x01;
+			if ((g_last_fw_irq_flag2 >> 4 & 0x01) != private_ts->lamp_noise_mode) {
+				I("%s lamp noise mode change to %d\n",
+						HIMAX_LOG_TAG, private_ts->lamp_noise_mode);
+			}
+		}
+		g_last_fw_irq_flag = hx_touch_data->hx_state_info[0];
+		g_last_fw_irq_flag2 = hx_touch_data->hx_state_info[1];
+#else
 		if (g_last_fw_irq_flag != hx_touch_data->hx_state_info[0]) {
 			if ((g_last_fw_irq_flag & 0x01) != (hx_touch_data->hx_state_info[0] & 0x01))
 				I("%s ReCal change to %d\n",
@@ -1923,6 +2014,7 @@ static int himax_distribute_touch_data(uint8_t *buf, int ts_path, int ts_status)
 						HIMAX_LOG_TAG, hx_touch_data->hx_state_info[0] >> 5 & 0x01);
 		}
 		g_last_fw_irq_flag = hx_touch_data->hx_state_info[0];
+#endif
 	}
 	/* debug info end */
 
@@ -1941,6 +2033,9 @@ int himax_parse_report_points(struct himax_ts_data *ts, int ts_path, int ts_stat
 	int8_t p_tilt_x = 0, p_tilt_y = 0;
 	int p_x = 0, p_y = 0, p_w = 0;
 	static uint8_t p_p_on;
+#endif
+#ifdef SEC_PALM_FUNC
+	int maj = 0, min = 0, palm = 0;
 #endif
 	int base = 0;
 	int32_t	loop_i = 0;
@@ -2026,6 +2121,13 @@ int himax_parse_report_points(struct himax_ts_data *ts, int ts_path, int ts_stat
 	g_target_report_data->finger_num = hx_touch_data->finger_num;
 	g_target_report_data->finger_on = hx_touch_data->finger_on;
 	g_target_report_data->ig_count = hx_touch_data->hx_coord_buf[ts->coordInfoSize - 5];
+#ifdef SEC_PALM_FUNC
+#ifdef HX_NEW_EVENT_STACK_FORMAT
+	palm = (hx_touch_data->hx_state_info[0] >> 3 & 0x01);
+#else
+	palm = (hx_touch_data->hx_state_info[0] >> 1 & 0x01);
+#endif
+#endif
 
 	if (g_ts_dbg != 0)
 		I("%s:finger_num = 0x%2X, finger_on = %d\n", __func__, g_target_report_data->finger_num, g_target_report_data->finger_on);
@@ -2035,9 +2137,17 @@ int himax_parse_report_points(struct himax_ts_data *ts, int ts_path, int ts_stat
 		x = hx_touch_data->hx_coord_buf[base] << 8 | hx_touch_data->hx_coord_buf[base + 1];
 		y = (hx_touch_data->hx_coord_buf[base + 2] << 8 | hx_touch_data->hx_coord_buf[base + 3]);
 		w = hx_touch_data->hx_coord_buf[(ts->nFinger_support * 4) + loop_i];
+#ifdef SEC_PALM_FUNC
+		maj = hx_touch_data->hx_coord_buf[ts->coordInfoSize+(loop_i*2)];
+		min = hx_touch_data->hx_coord_buf[ts->coordInfoSize+(loop_i*2)+1];
+#endif
 
 		if (g_ts_dbg != 0)
+#ifndef SEC_PALM_FUNC
 			D("%s: now parsing[%d]:x=%d, y=%d, w=%d\n", __func__, loop_i, x, y, w);
+#else
+			D("%s: now parsing[%d]:x=%d, y=%d, w=%d, maj=%d, min=%d, palm=%d\n", __func__, loop_i, x, y, w, maj, min, palm);
+#endif
 
 		if (x >= 0 && x <= ts->pdata->abs_x_max && y >= 0 && y <= ts->pdata->abs_y_max) {
 			hx_touch_data->finger_num--;
@@ -2045,6 +2155,15 @@ int himax_parse_report_points(struct himax_ts_data *ts, int ts_path, int ts_stat
 			g_target_report_data->x[loop_i] = x;
 			g_target_report_data->y[loop_i] = y;
 			g_target_report_data->w[loop_i] = w;
+#ifdef SEC_PALM_FUNC
+			g_target_report_data->maj[loop_i] = maj;
+			g_target_report_data->min[loop_i] = min;
+			g_target_report_data->palm[loop_i] = palm;
+			if (palm)
+				ts->palm_flag |= BIT(loop_i);
+			else
+				ts->palm_flag &= ~BIT(loop_i);
+#endif
 			g_target_report_data->finger_id[loop_i] = 1;
 			g_target_report_data->mv_cnt[loop_i]++;
 
@@ -2059,12 +2178,22 @@ int himax_parse_report_points(struct himax_ts_data *ts, int ts_path, int ts_stat
 
 			ts->pre_finger_data[loop_i][0] = x;
 			ts->pre_finger_data[loop_i][1] = y;
+#ifdef SEC_PALM_FUNC
+			ts->pre_finger_data[loop_i][4] = maj;
+			ts->pre_finger_data[loop_i][5] = min;
+#endif
 
 			ts->pre_finger_mask = ts->pre_finger_mask + (1 << loop_i);
 		} else {/* report coordinates */
 			g_target_report_data->x[loop_i] = x;
 			g_target_report_data->y[loop_i] = y;
 			g_target_report_data->w[loop_i] = w;
+#ifdef SEC_PALM_FUNC
+			g_target_report_data->maj[loop_i] = maj;
+			g_target_report_data->min[loop_i] = min;
+			g_target_report_data->palm[loop_i] = 0;
+			ts->palm_flag &= ~BIT(loop_i);
+#endif
 			g_target_report_data->finger_id[loop_i] = 0;
 			ts->pre_finger_data[loop_i][3] = g_target_report_data->mv_cnt[loop_i];
 			g_target_report_data->mv_cnt[loop_i] = 0;
@@ -2187,6 +2316,10 @@ static void himax_report_all_leave_event(struct himax_ts_data *ts)
 		}
 	}
 
+#ifdef SEC_PALM_FUNC
+	ts->palm_flag = 0;
+	input_report_key(ts->input_dev, BTN_PALM, 0);
+#endif
 	input_report_key(ts->input_dev, BTN_TOUCH, 0);
 	input_sync(ts->input_dev);
 
@@ -2398,7 +2531,12 @@ static void himax_finger_report(struct himax_ts_data *ts)
 #else
 			input_report_key(ts->input_dev, BTN_TOUCH, 1);
 #endif
+#ifdef SEC_PALM_FUNC
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, g_target_report_data->maj[i]);
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MINOR, g_target_report_data->min[i]);
+#else
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, g_target_report_data->w[i]);
+#endif
 #ifndef	HX_PROTOCOL_A
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, g_target_report_data->w[i]);
 			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, g_target_report_data->w[i]);
@@ -2424,6 +2562,9 @@ static void himax_finger_report(struct himax_ts_data *ts)
 		}
 	}
 #ifndef	HX_PROTOCOL_A
+#ifdef SEC_PALM_FUNC
+	input_report_key(ts->input_dev, BTN_PALM, ts->palm_flag);
+#endif
 	input_report_key(ts->input_dev, BTN_TOUCH, 1);
 #endif
 	input_sync(ts->input_dev);
@@ -2548,6 +2689,10 @@ static void himax_finger_leave(struct himax_ts_data *ts)
 	/*if (ts->debug_log_level & BIT(1)) */
 	/*himax_log_touch_event(x, y, w, loop_i, EN_NoiseFilter, HX_FINGER_LEAVE); */
 
+#ifdef SEC_PALM_FUNC
+	ts->palm_flag = 0;
+	input_report_key(ts->input_dev, BTN_PALM, ts->palm_flag);
+#endif
 	input_report_key(ts->input_dev, BTN_TOUCH, 0);
 	input_sync(ts->input_dev);
 
