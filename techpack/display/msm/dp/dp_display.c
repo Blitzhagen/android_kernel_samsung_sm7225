@@ -1508,6 +1508,7 @@ static int dp_display_bind(struct device *dev, struct device *master,
 
 	dp->dp_display.drm_dev = drm;
 	dp->priv = drm->dev_private;
+	pr_err("gts7-dp: bind ok\n");
 end:
 	return rc;
 }
@@ -3743,12 +3744,14 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->parser = NULL;
 		goto error;
 	}
+	pr_err("gts7-dp: stage parser ok\n");
 
 	rc = dp->parser->parse(dp->parser);
 	if (rc) {
 		DP_ERR("device tree parsing failed\n");
 		goto error_catalog;
 	}
+	pr_err("gts7-dp: stage parse ok\n");
 
 	g_dp_display->is_mst_supported = dp->parser->has_mst;
 	g_dp_display->no_mst_encoder = dp->parser->no_mst_encoder;
@@ -3760,6 +3763,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->catalog = NULL;
 		goto error_catalog;
 	}
+	pr_err("gts7-dp: stage catalog ok\n");
 
 	dp->power = dp_power_get(dp->parser);
 	if (IS_ERR(dp->power)) {
@@ -3775,6 +3779,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		DP_ERR("Power client create failed\n");
 		goto error_aux;
 	}
+	pr_err("gts7-dp: stage power ok\n");
 
 	dp->aux = dp_aux_get(dev, &dp->catalog->aux, dp->parser,
 			dp->aux_switch_node);
@@ -3784,12 +3789,14 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->aux = NULL;
 		goto error_aux;
 	}
+	pr_err("gts7-dp: stage aux_get ok\n");
 
 	rc = dp->aux->drm_aux_register(dp->aux);
 	if (rc) {
 		DP_ERR("DRM DP AUX register failed\n");
 		goto error_link;
 	}
+	pr_err("gts7-dp: stage aux_register ok\n");
 
 	dp->link = dp_link_get(dev, dp->aux);
 	if (IS_ERR(dp->link)) {
@@ -3798,6 +3805,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->link = NULL;
 		goto error_aux_unreg;
 	}
+	pr_err("gts7-dp: stage link ok\n");
 
 	panel_in.aux = dp->aux;
 	panel_in.catalog = &dp->catalog->panel;
@@ -3813,6 +3821,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->panel = NULL;
 		goto error_panel;
 	}
+	pr_err("gts7-dp: stage panel ok\n");
 
 	ctrl_in.link = dp->link;
 	ctrl_in.panel = dp->panel;
@@ -3828,6 +3837,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->ctrl = NULL;
 		goto error_ctrl;
 	}
+	pr_err("gts7-dp: stage ctrl ok\n");
 
 	dp->panel->audio = dp_audio_get(dp->pdev, dp->panel,
 						&dp->catalog->audio);
@@ -3837,6 +3847,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->panel->audio = NULL;
 		goto error_audio;
 	}
+	pr_err("gts7-dp: stage audio ok\n");
 
 #ifdef CONFIG_SEC_DISPLAYPORT
 	dp->sec.sysfs = secdp_sysfs_get(dev, &dp->sec);
@@ -3846,10 +3857,13 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->sec.sysfs = NULL;
 		goto error_sysfs;
 	}
+	pr_err("gts7-dp: stage sysfs ok\n");
 
 	rc = secdp_init(dp);
 	if (rc)
 		DP_ERR("secdp_init failed\n");
+	else
+		pr_err("gts7-dp: stage secdp ok\n");
 #endif
 
 	memset(&dp->mst, 0, sizeof(dp->mst));
@@ -3866,6 +3880,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->hpd = NULL;
 		goto error_hpd;
 	}
+	pr_err("gts7-dp: stage hpd ok\n");
 
 	hdcp_disabled = !!dp_display_initialize_hdcp(dp);
 
@@ -3885,6 +3900,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->debug = NULL;
 		goto error_debug;
 	}
+	pr_err("gts7-dp: stage debug ok\n");
 
 	dp->cached_connector_status = connector_status_disconnected;
 	dp->tot_dsc_blks_in_use = 0;
@@ -3959,6 +3975,7 @@ static int dp_display_post_init(struct dp_display *dp_display)
 		goto end;
 	}
 
+	pr_err("gts7-dp: post_init calling init_sub_modules\n");
 	rc = dp_init_sub_modules(dp);
 	if (rc)
 		goto end;
@@ -5796,6 +5813,7 @@ static int dp_display_probe(struct platform_device *pdev)
 	struct dp_display_private *dp;
 
 	DP_INFO("+++\n");
+	pr_err("gts7-dp: probe enter\n");
 
 	if (!pdev || !pdev->dev.of_node) {
 		DP_ERR("pdev not found\n");
@@ -5879,11 +5897,13 @@ static int dp_display_probe(struct platform_device *pdev)
 	}
 
 	DP_INFO("exit, rc(%d)\n", rc);
+	pr_err("gts7-dp: probe done, component added\n");
 
 	return 0;
 error:
 	devm_kfree(&pdev->dev, dp);
 bail:
+	pr_err("gts7-dp: probe failed rc=%d\n", rc);
 	return rc;
 }
 
