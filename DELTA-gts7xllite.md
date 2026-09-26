@@ -32,6 +32,7 @@ Branch: `gts7xllite-23.2`
 - [x] `drivers/input/input_boost/` + `include/linux/input/input_booster.h`
 - [x] `drivers/input/misc/hall/` (hall_ic_logical, hall_ic_notifier, sec_hall_dumpkey) + `include/linux/hall/`
 - [x] himax: gts7xl-DTS-Props gemergt (area-size, vendor_check-gpio, notify_tsp_esd)
+- [x] himax HX83121A: Stock-FW 255K (ver 01010d) + FW_SIZE_255k/_255k-Routine + Layout-Adressen 0x214xx/0x215xx + 2nd-flash-reload-Reset in read_FW_ver; falscher 128K-Blob (ver 010183) ersetzt — Touch verifiziert (ver IC=01010D, reload OK, echte Koordinaten)
 - [x] LEGO-Zeilen in `drivers/Kconfig` + `drivers/Makefile`
 - [x] Wacom wez01/Firmware verifiziert
 - [x] input/common-Guard: `ifeq (,$(CONFIG_INPUT_SEC_INPUT))` gegen doppelte Symbole
