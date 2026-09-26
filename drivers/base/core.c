@@ -26,6 +26,9 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/sysfs.h>
+#include <linux/mm.h>
+#include <linux/vmalloc.h>
+#include <asm/sections.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -3591,6 +3594,32 @@ out:
 }
 EXPORT_SYMBOL_GPL(device_move);
 
+/*
+ * A device whose kobject was freed while still linked into
+ * devices_kset (or whose ->parent dangles) panics the reboot path in
+ * get_device()/kobject_get().  Plausibility gate as in
+ * sysfs_kobject_sane()/kobj_link_sane(): the pointer must be a kernel
+ * image object, module/vmalloc memory or a valid linear-map address,
+ * and the kobject must still carry a reference.
+ */
+static bool shutdown_dev_live(const struct device *dev)
+{
+	unsigned long addr = (unsigned long)dev;
+	unsigned long ktype;
+
+	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
+	    !is_vmalloc_addr(dev) && !virt_addr_valid(dev))
+		return false;
+	if (!kref_read(&dev->kobj.kref))
+		return false;
+	ktype = (unsigned long)READ_ONCE(dev->kobj.ktype);
+	if (ktype &&
+	    (ktype < (unsigned long)_stext || ktype >= (unsigned long)_end) &&
+	    !is_vmalloc_addr((void *)ktype))
+		return false;
+	return true;
+}
+
 /**
  * device_shutdown - call ->shutdown() on each device to shutdown.
  */
@@ -3612,6 +3641,18 @@ void device_shutdown(void)
 	while (!list_empty(&devices_kset->list)) {
 		dev = list_entry(devices_kset->list.prev, struct device,
 				kobj.entry);
+
+		if (!shutdown_dev_live(dev)) {
+			pr_err("device_shutdown: dead device kobject %p skipped\n",
+			       dev);
+			list_del_init(&dev->kobj.entry);
+			continue;
+		}
+		if (dev->parent && !shutdown_dev_live(dev->parent)) {
+			pr_err("device_shutdown: %p has dead parent %p, detaching\n",
+			       dev, dev->parent);
+			dev->parent = NULL;
+		}
 
 		/*
 		 * hold reference count of device's parent to

@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include <asm/sections.h>
 
 #include "sysfs.h"
@@ -27,9 +28,11 @@
  * payload).  Dereferencing ->ktype blindly then faults.  Plausibility
  * gate: the pointer itself must be a kernel-image object (static
  * kobjects like platform_bus live in .data/.rodata and fail
- * virt_addr_valid) or a valid linear-map address; and ->ktype always
- * points at a static const inside the kernel image.  Both accepted
- * ranges are mapped, so the ->ktype read cannot fault.
+ * virt_addr_valid), module/vmalloc memory (module statics like
+ * llcc_perfmon's kobjects live below the image) or a valid linear-map
+ * address; and ->ktype always points at a static const inside the
+ * kernel image or a module.  All accepted ranges are mapped, so the
+ * ->ktype read cannot fault.
  */
 static bool sysfs_kobject_sane(struct kobject *kobj)
 {
@@ -37,10 +40,12 @@ static bool sysfs_kobject_sane(struct kobject *kobj)
 	unsigned long ktype;
 
 	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
-	    !virt_addr_valid(kobj))
+	    !is_vmalloc_addr(kobj) && !virt_addr_valid(kobj))
 		return false;
 	ktype = (unsigned long)READ_ONCE(kobj->ktype);
-	return ktype >= (unsigned long)_stext && ktype < (unsigned long)_end;
+	if (ktype >= (unsigned long)_stext && ktype < (unsigned long)_end)
+		return true;
+	return ktype && is_vmalloc_addr((void *)ktype);
 }
 
 /*

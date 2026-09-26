@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include <asm/sections.h>
 
 /**
@@ -124,9 +125,10 @@ static int create_dir(struct kobject *kobj)
  * without being removed from the tree, slot reused by unrelated data).
  * strlen() on the ->name of such a node faults.  Plausibility gate like
  * sysfs_kobject_sane(): the node must be a kernel-image object (static
- * kobjects fail virt_addr_valid) or a valid linear-map address, ->ktype
- * when set always points into the kernel image, and ->name must point at
- * image (static string) or linear-map (kstrdup) memory.
+ * kobjects fail virt_addr_valid), module/vmalloc memory or a valid
+ * linear-map address, ->ktype when set must point into image or module
+ * memory, and ->name must point at image (static string), module or
+ * linear-map (kstrdup) memory.
  */
 static bool kobj_link_sane(struct kobject *leaf, struct kobject *node,
 			   const char **name)
@@ -135,14 +137,15 @@ static bool kobj_link_sane(struct kobject *leaf, struct kobject *node,
 	unsigned long ktype;
 
 	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
-	    !virt_addr_valid(node)) {
+	    !is_vmalloc_addr(node) && !virt_addr_valid(node)) {
 		pr_warn("kobject: '%s' (%p): bogus ancestor pointer %px\n",
 			kobject_name(leaf), leaf, node);
 		return false;
 	}
 	ktype = (unsigned long)READ_ONCE(node->ktype);
 	if (ktype &&
-	    (ktype < (unsigned long)_stext || ktype >= (unsigned long)_end)) {
+	    (ktype < (unsigned long)_stext || ktype >= (unsigned long)_end) &&
+	    !is_vmalloc_addr((void *)ktype)) {
 		pr_warn("kobject: '%s' (%p): bogus ancestor ktype %px at %p\n",
 			kobject_name(leaf), leaf, (void *)ktype, node);
 		return false;
@@ -153,7 +156,7 @@ static bool kobj_link_sane(struct kobject *leaf, struct kobject *node,
 		return true;
 	}
 	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
-	    !virt_addr_valid((void *)addr)) {
+	    !is_vmalloc_addr((void *)addr) && !virt_addr_valid((void *)addr)) {
 		pr_warn("kobject: '%s' (%p): bogus ancestor name %px at %p\n",
 			kobject_name(leaf), leaf, (void *)addr, node);
 		return false;
