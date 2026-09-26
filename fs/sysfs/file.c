@@ -16,9 +16,32 @@
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/mm.h>
+#include <asm/sections.h>
 
 #include "sysfs.h"
 #include "../kernfs/kernfs-internal.h"
+
+/*
+ * A kernfs parent node can hold a priv pointer that is not a live
+ * kobject (freed kobject whose slab slot was reused, non-kobject
+ * payload).  Dereferencing ->ktype blindly then faults.  Plausibility
+ * gate: the pointer itself must be a kernel-image object (static
+ * kobjects like platform_bus live in .data/.rodata and fail
+ * virt_addr_valid) or a valid linear-map address; and ->ktype always
+ * points at a static const inside the kernel image.  Both accepted
+ * ranges are mapped, so the ->ktype read cannot fault.
+ */
+static bool sysfs_kobject_sane(struct kobject *kobj)
+{
+	unsigned long addr = (unsigned long)kobj;
+	unsigned long ktype;
+
+	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
+	    !virt_addr_valid(kobj))
+		return false;
+	ktype = (unsigned long)READ_ONCE(kobj->ktype);
+	return ktype >= (unsigned long)_stext && ktype < (unsigned long)_end;
+}
 
 /*
  * Determine ktype->sysfs_ops for the given kernfs_node.  This function
@@ -31,7 +54,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 	if (kn->flags & KERNFS_LOCKDEP)
 		lockdep_assert_held(kn);
 
-	if (!virt_addr_valid(kobj)) {
+	if (!sysfs_kobject_sane(kobj)) {
 		char kn_name[64], pkn_name[64];
 
 		kernfs_name(kn, kn_name, sizeof(kn_name));
@@ -40,7 +63,7 @@ static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
 		       kn_name, pkn_name, kobj);
 		return NULL;
 	}
-	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
+	return kobj->ktype->sysfs_ops;
 }
 
 /*
