@@ -3796,7 +3796,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		rc = PTR_ERR(dp->link);
 		DP_ERR("failed to initialize link, rc = %d\n", rc);
 		dp->link = NULL;
-		goto error_link;
+		goto error_aux_unreg;
 	}
 
 	panel_in.aux = dp->aux;
@@ -3921,6 +3921,13 @@ error_panel:
 error_sysfs:
 	secdp_sysfs_put(dp->sec.sysfs);
 #endif
+error_aux_unreg:
+	/* aux is registered here - drop the i2c adapter before its
+	 * devm-managed memory is released, otherwise the orphaned
+	 * adapter device stays linked into devices_kset.
+	 */
+	if (dp->aux)
+		dp->aux->drm_aux_deregister(dp->aux);
 error_link:
 	dp_aux_put(dp->aux);
 error_aux:

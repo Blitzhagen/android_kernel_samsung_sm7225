@@ -3688,8 +3688,8 @@ static int __init device_list_sweep(void)
 			bad++;
 			break;
 		}
+		dev = container_of(entry, struct device, kobj.entry);
 		if (!shutdown_link_intact(entry)) {
-			dev = container_of(entry, struct device, kobj.entry);
 			pr_err("devlist: corrupt linkage %p (%s)\n",
 			       dev, shutdown_ptr_sane(dev) ?
 			       shutdown_dev_name(dev) : "?");
