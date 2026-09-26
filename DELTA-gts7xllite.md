@@ -33,6 +33,7 @@ Branch: `gts7xllite-23.2`
 - [x] `drivers/input/misc/hall/` (hall_ic_logical, hall_ic_notifier, sec_hall_dumpkey) + `include/linux/hall/`
 - [x] himax: gts7xl-DTS-Props gemergt (area-size, vendor_check-gpio, notify_tsp_esd)
 - [x] himax HX83121A: Stock-FW 255K (ver 01010d) + FW_SIZE_255k/_255k-Routine + Layout-Adressen 0x214xx/0x215xx + 2nd-flash-reload-Reset in read_FW_ver; falscher 128K-Blob (ver 010183) ersetzt — Touch verifiziert (ver IC=01010D, reload OK, echte Koordinaten)
+- [x] himax HX83121A Finger-Drag-Fix: `HX_NEW_EVENT_STACK_FORMAT` + `SEC_PALM_FUNC` + `SEC_FINGER_INFO_SZ=24` portiert — Stock-FW sendet 80B-Frames (56B Info + 24B maj/min-Trailer, Trailer-Checksum @79); 56B-Reads erzeugten Phantom-Release-Frames (point_num=0 alle ~150 ms → Tap-Serie statt Drag). Jetzt: 80B-Read pro IRQ, maj/min via `coordInfoSize+i*2`, `ABS_MT_TOUCH_MAJOR/MINOR`, `BTN_PALM`, palm_flag. Verifiziert: kontinuierliche Kontakte (mc bis 306, dd >1000px), Scrollen funktioniert. Debug-Helfer: tsdbg1 liest 128B + RAW-Dump.
 - [x] LEGO-Zeilen in `drivers/Kconfig` + `drivers/Makefile`
 - [x] Wacom wez01/Firmware verifiziert
 - [x] input/common-Guard: `ifeq (,$(CONFIG_INPUT_SEC_INPUT))` gegen doppelte Symbole
