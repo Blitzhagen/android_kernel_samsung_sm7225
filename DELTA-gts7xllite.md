@@ -91,3 +91,16 @@ Branch: `gts7xllite-23.2`
 
 - [x] Browser-Haenger (gmx.net/google.de lud nicht fertig): samsung-software-media-c2-hal-1-0 crash-looopte (SIGSYS) — seccomp-Policy blockierte mremap(MREMAP_MAYMOVE). `mremap: 1` in samsung.software.media.c2-base-policy. WebView blockierte auf IComponentStore/default bei Video-Elementen.
 - [x] vendor.samsung.hardware.media.converter@1.0-service Linker-Loop: patchelf NEEDED `common-V1-ndk_platform.so` → `-V2-ndk.so` (platform-Varianten existieren auf A16 nicht mehr)
+
+## OMX/Media-Stack (AOSP-Source statt Samsung-Blobs, device 39393c1 + vendor 5653857 + gts7xllite 7f7c764)
+
+- [x] Samsung-A14-Blobs `android.hardware.media.omx@1.0-service` + `libstagefright_omx_vendor.so` raus —
+      sie allozierten `GraphicBuffer` mit altem sizeof (~112 B), der A16-libui-Ctor schreibt aber
+      ~1,7 KB inkl. `DependencyMonitor` → Heap-Overflow → SIGBUS in `~AnnotatedFenceTime` bei freeBuffer.
+- [x] AOSP-OMX-Service (frameworks/av, 32-bit) + `libstagefright_omx` vendor-variant +
+      CAF `libOmxCore`/`libOmxVdec`/`libOmxVenc`/`libstagefrighthw` (hardware/qcom-caf/sm8250).
+- [x] OMX-HAL im VINTF-Manifest deklariert (IOmx + IOmxStore @1.0).
+- [x] `vendor.gralloc.disable_ubwc=1` (vendor.prop): sonst wirbt libOmxVdec UBWC-Format 0x7fa30c04,
+      libc2dcolorconvert kann es nicht → Buffer-Setup-Fehler. Entspricht TARKZiMs TARGET_DISABLED_UBWC.
+- [x] Verifiziert am Geraet: OMX.qcom.video.decoder.avc/hevc hw-accelerated in MediaCodecList,
+      AVC-Playback rendert (Screenshot), kein SIGBUS mehr, ~BufferMeta sauber durchgelaufen.
