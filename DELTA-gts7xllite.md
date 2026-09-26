@@ -85,4 +85,4 @@ Branch: `gts7xllite-23.2`
 - [x] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
 - [x] `m bootimage` → boot.img (100 MB, ANDROID!-Magic)
 - [x] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs (+mmc_test, tcp_htcp, tcp_westwood)
-- [ ] Boottest (User): Display, Touch, S-Pen, Pogo, Charge/AFC, Audio, Cam, Sensoren, 5G, WLAN, NFC
+- [ ] Boottest (User): Display, Touch, S-Pen, Pogo, Charge/AFC, Audio, Cam, Sensoren, 5G, WLAN (kein NFC-Modul in diesem Geraet)
