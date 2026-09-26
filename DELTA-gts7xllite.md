@@ -85,4 +85,9 @@ Branch: `gts7xllite-23.2`
 - [x] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
 - [x] `m bootimage` → boot.img (100 MB, ANDROID!-Magic)
 - [x] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs (+mmc_test, tcp_htcp, tcp_westwood)
-- [ ] Boottest (User): Display, Touch, S-Pen, Pogo, Charge/AFC, Audio, Cam, Sensoren, 5G, WLAN (kein NFC-Modul in diesem Geraet)
+- [ ] Boottest (User): Display, Touch ok, S-Pen ok, Pogo, Charge/AFC, Audio, Cam, Sensoren, 5G(LTE laeuft), WLAN ok (kein NFC-Modul in diesem Geraet)
+
+## Vendor-Fixes (vendor/samsung/sm7225-common, Commit 1a511ba)
+
+- [x] Browser-Haenger (gmx.net/google.de lud nicht fertig): samsung-software-media-c2-hal-1-0 crash-looopte (SIGSYS) — seccomp-Policy blockierte mremap(MREMAP_MAYMOVE). `mremap: 1` in samsung.software.media.c2-base-policy. WebView blockierte auf IComponentStore/default bei Video-Elementen.
+- [x] vendor.samsung.hardware.media.converter@1.0-service Linker-Loop: patchelf NEEDED `common-V1-ndk_platform.so` → `-V2-ndk.so` (platform-Varianten existieren auf A16 nicht mehr)
