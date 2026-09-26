@@ -3641,6 +3641,70 @@ static const char *shutdown_dev_name(const struct device *dev)
 	return shutdown_ptr_sane(name) ? name : "?";
 }
 
+static void shutdown_dump_neighbour(struct list_head *entry)
+{
+	struct list_head *prev = READ_ONCE(entry->prev);
+	struct device *prev_dev;
+	int hop;
+
+	for (hop = 0; hop < 8 && shutdown_ptr_sane(prev); hop++) {
+		prev_dev = container_of(prev, struct device, kobj.entry);
+		if (!shutdown_ptr_sane(prev_dev)) {
+			pr_err("devlist: hop -%d bogus dev ptr %p\n",
+			       hop + 1, prev_dev);
+			break;
+		}
+		pr_err("devlist: hop -%d %p (%s) kref %d\n", hop + 1,
+		       prev_dev, shutdown_dev_name(prev_dev),
+		       kref_read(&prev_dev->kobj.kref));
+		prev = READ_ONCE(prev->prev);
+		if (!shutdown_ptr_sane(prev)) {
+			pr_err("devlist: hop -%d ends, prev %p unmappable\n",
+			       hop + 1, prev);
+			break;
+		}
+	}
+}
+
+/*
+ * One-shot late-boot sanity sweep: report devices_kset entries that
+ * were unlinked or freed without fixing their neighbours so the
+ * offending driver can be identified without another shutdown cycle.
+ */
+static int __init device_list_sweep(void)
+{
+	struct list_head *head = &devices_kset->list;
+	struct list_head *entry;
+	struct device *dev;
+	unsigned int n = 0, bad = 0;
+
+	spin_lock(&devices_kset->list_lock);
+	for (entry = READ_ONCE(head->next);
+	     entry != head && n < 65535;
+	     entry = READ_ONCE(entry->next), n++) {
+		if (!shutdown_ptr_sane(entry)) {
+			pr_err("devlist: bogus entry %p after %u nodes\n",
+			       entry, n);
+			bad++;
+			break;
+		}
+		if (!shutdown_link_intact(entry)) {
+			dev = container_of(entry, struct device, kobj.entry);
+			pr_err("devlist: corrupt linkage %p (%s)\n",
+			       dev, shutdown_ptr_sane(dev) ?
+			       shutdown_dev_name(dev) : "?");
+			shutdown_dump_neighbour(entry);
+			bad++;
+			if (!shutdown_ptr_sane(READ_ONCE(entry->next)))
+				break;
+		}
+	}
+	spin_unlock(&devices_kset->list_lock);
+	pr_info("devlist: sweep done, %u nodes, %u corrupt\n", n, bad);
+	return 0;
+}
+late_initcall(device_list_sweep);
+
 /**
  * device_shutdown - call ->shutdown() on each device to shutdown.
  */
@@ -3671,6 +3735,7 @@ void device_shutdown(void)
 		if (!shutdown_link_intact(&dev->kobj.entry)) {
 			pr_err("device_shutdown: %p (%s) list linkage corrupt, aborting shutdown walk\n",
 			       dev, shutdown_dev_name(dev));
+			shutdown_dump_neighbour(&dev->kobj.entry);
 			break;
 		}
 		if (!shutdown_dev_live(dev)) {
