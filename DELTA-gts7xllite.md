@@ -85,7 +85,7 @@ Branch: `gts7xllite-23.2`
 - [x] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
 - [x] `m bootimage` → boot.img (100 MB, ANDROID!-Magic)
 - [x] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs (+mmc_test, tcp_htcp, tcp_westwood)
-- [ ] Boottest (User): Display, Touch ok, S-Pen ok, Pogo ok (EF-DT730 erkannt, Key-Events sauber), Charge/AFC ok (PD-APDO ~9V, sm5440 Direct-Charge, +2.3A in Akku), Audio ok (Lautsprecher, seit C2-HAL-Fix), Cam, Sensoren ok (Autorotation; lsm6dso/ak0991x/VEML3235/A96T3X6 + Samsung-Virtuals aktiv), 5G(LTE laeuft), WLAN ok (kein NFC-Modul in diesem Geraet)
+- [ ] Boottest (User): Display, Touch ok, S-Pen ok, Pogo ok (EF-DT730 erkannt, Key-Events sauber), Charge/AFC ok (PD-APDO ~9V, sm5440 Direct-Charge, +2.3A in Akku), Audio ok (Lautsprecher + Bluetooth: Xiaomi Buds 5, A2DP+HFP aktiv), Cam, Sensoren ok (Autorotation; lsm6dso/ak0991x/VEML3235/A96T3X6 + Samsung-Virtuals aktiv), 5G(LTE laeuft), WLAN ok (kein NFC-Modul in diesem Geraet)
 
 ## Vendor-Fixes (vendor/samsung/sm7225-common, Commit 1a511ba)
 
