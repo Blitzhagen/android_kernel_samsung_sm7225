@@ -3597,27 +3597,48 @@ EXPORT_SYMBOL_GPL(device_move);
 /*
  * A device whose kobject was freed while still linked into
  * devices_kset (or whose ->parent dangles) panics the reboot path in
- * get_device()/kobject_get().  Plausibility gate as in
- * sysfs_kobject_sane()/kobj_link_sane(): the pointer must be a kernel
- * image object, module/vmalloc memory or a valid linear-map address,
- * and the kobject must still carry a reference.
+ * get_device()/kobject_get(), and a node with broken prev/next linkage
+ * makes list_del() refuse so the walk below never terminates.
+ * Plausibility gate as in sysfs_kobject_sane()/kobj_link_sane():
+ * pointers must be kernel image objects, module/vmalloc memory or a
+ * valid linear-map address.
  */
+static bool shutdown_ptr_sane(const void *p)
+{
+	unsigned long addr = (unsigned long)p;
+
+	return (addr >= (unsigned long)_stext && addr < (unsigned long)_end) ||
+	       is_vmalloc_addr(p) || virt_addr_valid(p);
+}
+
 static bool shutdown_dev_live(const struct device *dev)
 {
-	unsigned long addr = (unsigned long)dev;
 	unsigned long ktype;
 
-	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
-	    !is_vmalloc_addr(dev) && !virt_addr_valid(dev))
+	if (!shutdown_ptr_sane(dev))
 		return false;
 	if (!kref_read(&dev->kobj.kref))
 		return false;
 	ktype = (unsigned long)READ_ONCE(dev->kobj.ktype);
-	if (ktype &&
-	    (ktype < (unsigned long)_stext || ktype >= (unsigned long)_end) &&
-	    !is_vmalloc_addr((void *)ktype))
+	if (ktype && !shutdown_ptr_sane((void *)ktype))
 		return false;
 	return true;
+}
+
+static bool shutdown_link_intact(struct list_head *entry)
+{
+	struct list_head *prev = READ_ONCE(entry->prev);
+	struct list_head *next = READ_ONCE(entry->next);
+
+	return shutdown_ptr_sane(prev) && shutdown_ptr_sane(next) &&
+	       READ_ONCE(prev->next) == entry && READ_ONCE(next->prev) == entry;
+}
+
+static const char *shutdown_dev_name(const struct device *dev)
+{
+	const char *name = READ_ONCE(dev->kobj.name);
+
+	return shutdown_ptr_sane(name) ? name : "?";
 }
 
 /**
@@ -3642,15 +3663,25 @@ void device_shutdown(void)
 		dev = list_entry(devices_kset->list.prev, struct device,
 				kobj.entry);
 
-		if (!shutdown_dev_live(dev)) {
-			pr_err("device_shutdown: dead device kobject %p skipped\n",
+		if (!shutdown_ptr_sane(dev)) {
+			pr_err("device_shutdown: bogus list entry %p, aborting shutdown walk\n",
 			       dev);
+			break;
+		}
+		if (!shutdown_link_intact(&dev->kobj.entry)) {
+			pr_err("device_shutdown: %p (%s) list linkage corrupt, aborting shutdown walk\n",
+			       dev, shutdown_dev_name(dev));
+			break;
+		}
+		if (!shutdown_dev_live(dev)) {
+			pr_err("device_shutdown: dead device kobject %p (%s) skipped\n",
+			       dev, shutdown_dev_name(dev));
 			list_del_init(&dev->kobj.entry);
 			continue;
 		}
 		if (dev->parent && !shutdown_dev_live(dev->parent)) {
-			pr_err("device_shutdown: %p has dead parent %p, detaching\n",
-			       dev, dev->parent);
+			pr_err("device_shutdown: %p (%s) has dead parent %p, detaching\n",
+			       dev, shutdown_dev_name(dev), dev->parent);
 			dev->parent = NULL;
 		}
 
