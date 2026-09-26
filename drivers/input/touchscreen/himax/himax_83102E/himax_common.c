@@ -1611,7 +1611,7 @@ static int himax_touch_get(struct himax_ts_data *ts, uint8_t *buf, int ts_path, 
 				ts_status = HX_TS_GET_DATA_FAIL;
 			}
 		} else {
-			if (!g_core_fp.fp_read_event_stack(buf, hx_touch_data->touch_info_size)) {
+			if (!g_core_fp.fp_read_event_stack(buf, (g_ts_dbg ? 128 : hx_touch_data->touch_info_size))) {
 				E("%s: can't read data from chip!\n", __func__);
 				ts_status = HX_TS_GET_DATA_FAIL;
 			}
@@ -2630,6 +2630,17 @@ static int himax_ts_operation(struct himax_ts_data *ts, int ts_path, int ts_stat
 	ts_status = himax_touch_get(ts, ts->xfer_buff, ts_path, ts_status);
 	if (ts_status == HX_TS_GET_DATA_FAIL)
 		goto END_FUNCTION;
+
+	if (g_ts_dbg != 0 && ts_path == HX_REPORT_COORD) {
+		int di;
+		for (di = 0; di < 96; di += 16)
+			I("RAW[%02x]: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+				di,
+				ts->xfer_buff[di], ts->xfer_buff[di+1], ts->xfer_buff[di+2], ts->xfer_buff[di+3],
+				ts->xfer_buff[di+4], ts->xfer_buff[di+5], ts->xfer_buff[di+6], ts->xfer_buff[di+7],
+				ts->xfer_buff[di+8], ts->xfer_buff[di+9], ts->xfer_buff[di+10], ts->xfer_buff[di+11],
+				ts->xfer_buff[di+12], ts->xfer_buff[di+13], ts->xfer_buff[di+14], ts->xfer_buff[di+15]);
+	}
 
 	ts_status = himax_distribute_touch_data(ts->xfer_buff, ts_path, ts_status);
 	ts_status = himax_err_ctrl(ts, ts->xfer_buff, ts_path, ts_status);
