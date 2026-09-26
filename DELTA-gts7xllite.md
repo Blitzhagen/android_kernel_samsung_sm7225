@@ -104,3 +104,18 @@ Branch: `gts7xllite-23.2`
       libc2dcolorconvert kann es nicht → Buffer-Setup-Fehler. Entspricht TARKZiMs TARGET_DISABLED_UBWC.
 - [x] Verifiziert am Geraet: OMX.qcom.video.decoder.avc/hevc hw-accelerated in MediaCodecList,
       AVC-Playback rendert (Screenshot), kein SIGBUS mehr, ~BufferMeta sauber durchgelaufen.
+
+## Boot-Stabilitaet: sysfs/kobject UAF-Guard (Commit 527a4a5)
+
+- [x] init/ueventd-Oops bei Coldplug (`echo add > .../uevent`): `kn->parent->priv` eines
+      uevent-Nodes war kein lebendes kobject (freed/reused, `->ktype` enthielt String-Bytes)
+      → `ldr [ktype+8]` faultete, init starb → Haenger am Samsung-Splash, Loop bis
+      `init_fatal_reboot_target=recovery` griff.
+- [x] Erste Härtung (62ed710) mit `virt_addr_valid` war doppelt falsch: sie rejectete
+      **legitime statische Kobjects** (`platform_bus.kobj` in .data, `/sys/devices/platform/uevent`)
+      und fing **keine** Heap-Pointer ab (dangling → `pfn_valid` ok → Crash).
+- [x] Neuer Check `sysfs_kobject_sane()`: priv muss Kernel-Image-Objekt oder pfn-valid sein;
+      `->ktype` muss in `_stext.._end` zeigen (ktypes sind static const). Reads bleiben mapped.
+      Bad nodes werden mit kernfs-Namen geloggt statt oopsed.
+- [x] Gegenprobe am Geraet: Schreiben auf `/sys/devices/platform/uevent` +
+      `/sys/bus/platform/uevent` laeuft sauber durch, kein invalid-kobject im dmesg.
