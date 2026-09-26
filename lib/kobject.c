@@ -16,6 +16,8 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/mm.h>
+#include <asm/sections.h>
 
 /**
  * kobject_namespace - return @kobj's namespace tag
@@ -117,6 +119,49 @@ static int create_dir(struct kobject *kobj)
 	return 0;
 }
 
+/*
+ * A ->parent link in an ancestor chain can be dangling (kobject freed
+ * without being removed from the tree, slot reused by unrelated data).
+ * strlen() on the ->name of such a node faults.  Plausibility gate like
+ * sysfs_kobject_sane(): the node must be a kernel-image object (static
+ * kobjects fail virt_addr_valid) or a valid linear-map address, ->ktype
+ * when set always points into the kernel image, and ->name must point at
+ * image (static string) or linear-map (kstrdup) memory.
+ */
+static bool kobj_link_sane(struct kobject *leaf, struct kobject *node,
+			   const char **name)
+{
+	unsigned long addr = (unsigned long)node;
+	unsigned long ktype;
+
+	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
+	    !virt_addr_valid(node)) {
+		pr_warn("kobject: '%s' (%p): bogus ancestor pointer %px\n",
+			kobject_name(leaf), leaf, node);
+		return false;
+	}
+	ktype = (unsigned long)READ_ONCE(node->ktype);
+	if (ktype &&
+	    (ktype < (unsigned long)_stext || ktype >= (unsigned long)_end)) {
+		pr_warn("kobject: '%s' (%p): bogus ancestor ktype %px at %p\n",
+			kobject_name(leaf), leaf, (void *)ktype, node);
+		return false;
+	}
+	addr = (unsigned long)READ_ONCE(node->name);
+	if (!addr) {
+		*name = NULL;
+		return true;
+	}
+	if ((addr < (unsigned long)_stext || addr >= (unsigned long)_end) &&
+	    !virt_addr_valid((void *)addr)) {
+		pr_warn("kobject: '%s' (%p): bogus ancestor name %px at %p\n",
+			kobject_name(leaf), leaf, (void *)addr, node);
+		return false;
+	}
+	*name = (const char *)addr;
+	return true;
+}
+
 static int get_kobj_path_length(struct kobject *kobj)
 {
 	int length = 1;
@@ -127,9 +172,13 @@ static int get_kobj_path_length(struct kobject *kobj)
 	 * Add 1 to strlen for leading '/' of each level.
 	 */
 	do {
-		if (kobject_name(parent) == NULL)
+		const char *name;
+
+		if (!kobj_link_sane(kobj, parent, &name))
 			return 0;
-		length += strlen(kobject_name(parent)) + 1;
+		if (!name)
+			return 0;
+		length += strlen(name) + 1;
 		parent = parent->parent;
 	} while (parent);
 	return length;
@@ -141,12 +190,17 @@ static int fill_kobj_path(struct kobject *kobj, char *path, int length)
 
 	--length;
 	for (parent = kobj; parent; parent = parent->parent) {
-		int cur = strlen(kobject_name(parent));
+		const char *name;
+		int cur;
+
+		if (!kobj_link_sane(kobj, parent, &name) || !name)
+			return -EINVAL;
+		cur = strlen(name);
 		/* back up enough to print this name with '/' */
 		length -= cur;
 		if (length <= 0)
 			return -EINVAL;
-		memcpy(path + length, kobject_name(parent), cur);
+		memcpy(path + length, name, cur);
 		*(path + --length) = '/';
 	}
 
