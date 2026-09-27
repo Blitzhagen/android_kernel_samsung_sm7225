@@ -85,7 +85,25 @@ Branch: `gts7xllite-23.2`
 - [x] `m dtboimage` → 6 DTBO-Entries (sec-system-update + r00/r02/r03/r04/r05)
 - [x] `m bootimage` → boot.img (100 MB, ANDROID!-Magic)
 - [x] vendor/lib/modules: llcc_perfmon, mpq-adapter, mpq-dmx-hw-plugin, rdbg, rmnet_perf, rmnet_shs (+mmc_test, tcp_htcp, tcp_westwood)
-- [ ] Boottest (User): Display, Touch ok, S-Pen ok, Pogo ok (EF-DT730 erkannt, Key-Events sauber), Charge/AFC ok (PD-APDO ~9V, sm5440 Direct-Charge, +2.3A in Akku), Audio ok (Lautsprecher + Bluetooth: Xiaomi Buds 5, A2DP+HFP aktiv), Cam, Sensoren ok (Autorotation; lsm6dso/ak0991x/VEML3235/A96T3X6 + Samsung-Virtuals aktiv), 5G(LTE laeuft), WLAN ok (kein NFC-Modul in diesem Geraet)
+- [x] Boottest (User): Display, Touch ok, S-Pen ok, Pogo ok (EF-DT730 erkannt, Key-Events sauber), Charge/AFC ok (PD-APDO ~9V, sm5440 Direct-Charge, +2.3A in Akku), Audio ok (Lautsprecher + Bluetooth: Xiaomi Buds 5, A2DP+HFP aktiv), Cam, Sensoren ok (Autorotation; lsm6dso/ak0991x/VEML3235/A96T3X6 + Samsung-Virtuals aktiv), 5G(LTE laeuft), WLAN ok (kein NFC-Modul in diesem Geraet), Mikrofon-Aufnahme + echtes JPEG-Foto verifiziert, UI-Tick-Sounds ok
+
+## Final-Cleanup (SELinux enforcing, Release-Härtung)
+
+- [x] SELinux enforcing: `androidboot.selinux=permissive` entfernt (device 6f6483b);
+      getenforce = Enforcing, boot_completed=1, nur 7 kosmetische cross-partition AVCs.
+- [x] Bluetooth seinfo-Fix: `PRODUCT_MAINLINE_BLUETOOTH_SEPOLICY_DEV_CERTIFICATES`
+      auf private Keys gesetzt (gts7xllite 913d5f8) — com.android.bluetooth läuft
+      jetzt in `u:r:bluetooth` statt `u:r:zygote`.
+- [x] Vendor-sepolicy-Delta (device 98e2667 + 36055ae + 39c6b01): crash_dump_fallback
+      für hal_samsung_c2, genfs-Prefix sysfs_touchscreen_writable für spi1.0/input/*,
+      vendor.ota.recovery.status eigener Prop-Typ, vendor_init rawdump/debugfs.
+      WICHTIG: Policy-Blob liegt als /odm/etc/selinux/precompiled_sepolicy — bei
+      sepolicy-Änderungen immer odm.img neu bauen+flashen (CILs allein greifen nicht).
+- [x] Bring-up-Entfernung: WITH_ADB_INSECURE, recovery adb_keys, vendor.prop
+      debug-Props (ro.adb.secure/ro.debuggable/service.adb.root/usb.config=adb),
+      init.bringup.rc + bootwatchdog.sh (device dac36e8, gts7xllite 89c4e55+1a7e738).
+- [x] Cmdline-Safety-Nets bleiben bewusst: `panic=10` (Reboot statt Freeze),
+      `init_fatal_reboot_target=recovery` (kein Download-Mode bei init-Fatal).
 
 ## Vendor-Fixes (vendor/samsung/sm7225-common, Commit 1a511ba)
 
@@ -133,6 +151,7 @@ Branch: `gts7xllite-23.2`
       `card0-DP-1` (status=disconnected, korrekt ohne Kabel), HDCP 1.3+2.2 init,
       `secdp_sysfs_init` ok, ps5169-Redriver API registriert, PDIC-Notifier aktiv,
       kein EEXIST im Log. DSI bleibt `connected`.
-- [x] Diagnose-Hilfsmittel: Stage-Marker (4b25317) nach Fix entfernt;
-      `LOG_BUF_SHIFT=21` bleibt bis Ende des Bring-ups (664a24d).
+- [x] Diagnose-Hilfsmittel entfernt (Final-Cleanup): Stage-Marker (4b25317),
+      Himax-Debug-Logging revertiert (99d0be8), `LOG_BUF_SHIFT` zurück auf 17
+      und `PANIC_ON_OOPS_VALUE` zurück auf 1 (f43175a).
 - [ ] Ausstehend: physischer Monitor-/DeX-Test mit USB-C-DP-Adapter (User).
