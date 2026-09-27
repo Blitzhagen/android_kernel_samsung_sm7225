@@ -1471,7 +1471,6 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 	/* dp */
 	sde_kms->dp_displays = NULL;
 	sde_kms->dp_display_count = dp_display_get_num_of_displays();
-	pr_err("gts7-dp: dp_display_count=%d\n", sde_kms->dp_display_count);
 	if (sde_kms->dp_display_count) {
 		sde_kms->dp_displays = kcalloc(sde_kms->dp_display_count,
 				sizeof(void *), GFP_KERNEL);

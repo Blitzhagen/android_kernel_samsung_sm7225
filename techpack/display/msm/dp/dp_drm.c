@@ -369,8 +369,6 @@ int dp_connector_post_init(struct drm_connector *connector, void *display)
 	dp_display->base_connector = connector;
 	dp_display->bridge->connector = connector;
 
-	pr_err("gts7-dp: connector post_init %s\n",
-			dp_display->post_init ? "present" : "NULL");
 	if (dp_display->post_init) {
 		rc = dp_display->post_init(dp_display);
 		if (rc)
