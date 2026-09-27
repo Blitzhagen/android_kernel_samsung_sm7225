@@ -119,3 +119,20 @@ Branch: `gts7xllite-23.2`
       Bad nodes werden mit kernfs-Namen geloggt statt oopsed.
 - [x] Gegenprobe am Geraet: Schreiben auf `/sys/devices/platform/uevent` +
       `/sys/bus/platform/uevent` laeuft sauber durch, kein invalid-kobject im dmesg.
+
+## USB-C DisplayPort: doppelte ch_hdmi_audio-Registrierung (Commit 5448ace)
+
+- [x] `dp_init_sub_modules()` brach mit -ENODEV ab: `msm_ext_display.c` registrierte im
+      Probe einen `switch_dev` namens `ch_hdmi_audio`; `dp_audio.c` versuchte denselben
+      Namen → sysfs `-EEXIST` → Audio-Init schlug fehl → kein `card0-DP-*` Connector.
+- [x] Fix: Registration + `switch_set_state` in `msm_ext_display.c` entfernt
+      (Stock-Layout: `dp_audio.c` ist alleiniger Owner). `switch_set_state` auf
+      unregistriertem dev wäre zudem ein NULL-deref auf `sdev->dev`.
+- [x] Verifiziert am Geraet (LOG_BUF_SHIFT=21 → voller Bootlog):
+      `dp_display_post_init: success`, `dp_display_probe: exit rc(0)`,
+      `card0-DP-1` (status=disconnected, korrekt ohne Kabel), HDCP 1.3+2.2 init,
+      `secdp_sysfs_init` ok, ps5169-Redriver API registriert, PDIC-Notifier aktiv,
+      kein EEXIST im Log. DSI bleibt `connected`.
+- [x] Diagnose-Hilfsmittel: Stage-Marker (4b25317) nach Fix entfernt;
+      `LOG_BUF_SHIFT=21` bleibt bis Ende des Bring-ups (664a24d).
+- [ ] Ausstehend: physischer Monitor-/DeX-Test mit USB-C-DP-Adapter (User).
