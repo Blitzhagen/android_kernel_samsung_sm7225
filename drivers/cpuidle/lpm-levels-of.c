@@ -262,8 +262,6 @@ static int create_cpu_lvl_nodes(struct lpm_cluster *p, struct kobject *parent)
 						(void *)lpm_cpu, cpu, true);
 				if (ret)
 					goto release_kobj;
-				if (lpm_cpu->levels[i].suspend_disabled)
-					level_list[i].suspend_enabled = false;
 			}
 
 			cpu_level_available[cpu] = level_list;
@@ -302,8 +300,6 @@ int create_cluster_lvl_nodes(struct lpm_cluster *p, struct kobject *kobj)
 				(void *)p, 0, false);
 		if (ret)
 			return ret;
-		if (p->levels[i].suspend_disabled)
-			p->levels[i].available.suspend_enabled = false;
 	}
 
 	list_for_each_entry(child, &p->child, list) {
@@ -421,8 +417,6 @@ static int parse_cluster_level(struct device_node *dn,
 		return ret;
 
 	level->is_reset = of_property_read_bool(dn, "qcom,is-reset");
-	level->suspend_disabled = of_property_read_bool(dn,
-						"qcom,disable-suspend");
 
 	if (cluster->nlevels != cluster->default_level) {
 		ret = lpm_of_read_u32(dn, "qcom,min-child-idx",
@@ -527,8 +521,6 @@ static int parse_cpu(struct device_node *node, struct lpm_cpu *cpu)
 					"qcom,use-broadcast-timer");
 
 		l->is_reset = of_property_read_bool(n, "qcom,is-reset");
-		l->suspend_disabled = of_property_read_bool(n,
-						"qcom,disable-suspend");
 
 		ret = lpm_of_read_u32(n, "qcom,reset-level", &l->reset_level,
 								false);

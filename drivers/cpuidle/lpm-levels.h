@@ -39,7 +39,6 @@ struct lpm_cpu_level {
 	struct power_params pwr;
 	unsigned int psci_id;
 	bool is_reset;
-	bool suspend_disabled;
 	int reset_level;
 };
 
@@ -83,7 +82,6 @@ struct lpm_cluster_level {
 	struct lpm_level_avail available;
 	unsigned int psci_id;
 	bool is_reset;
-	bool suspend_disabled;
 	int reset_level;
 };
 

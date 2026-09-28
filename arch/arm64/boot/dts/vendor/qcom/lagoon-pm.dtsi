@@ -31,7 +31,6 @@
 				qcom,min-residency-us = <6118>;
 				qcom,min-child-idx = <2>;
 				qcom,is-reset;
-				qcom,disable-suspend;
 			};
 
 			qcom,pm-cluster-level@2 { /* Cx Off */
@@ -43,7 +42,6 @@
 				qcom,min-residency-us = <8467>;
 				qcom,min-child-idx = <2>;
 				qcom,is-reset;
-				qcom,disable-suspend;
 				qcom,notify-rpm;
 			};
 
@@ -56,7 +54,6 @@
 				qcom,min-residency-us = <9826>;
 				qcom,min-child-idx = <2>;
 				qcom,is-reset;
-				qcom,disable-suspend;
 				qcom,notify-rpm;
 			};
 
@@ -90,7 +87,6 @@
 					qcom,exit-latency-us = <901>;
 					qcom,min-residency-us = <1774>;
 					qcom,is-reset;
-					qcom,disable-suspend;
 					qcom,use-broadcast-timer;
 				};
 
@@ -102,7 +98,6 @@
 					qcom,exit-latency-us = <915>;
 					qcom,min-residency-us = <4001>;
 					qcom,is-reset;
-					qcom,disable-suspend;
 					qcom,use-broadcast-timer;
 				};
 			};
@@ -135,7 +130,6 @@
 					qcom,exit-latency-us = <1244>;
 					qcom,min-residency-us = <2207>;
 					qcom,is-reset;
-					qcom,disable-suspend;
 					qcom,use-broadcast-timer;
 				};
 
@@ -147,7 +141,6 @@
 					qcom,exit-latency-us = <1854>;
 					qcom,min-residency-us = <5555>;
 					qcom,is-reset;
-					qcom,disable-suspend;
 					qcom,use-broadcast-timer;
 				};
 			};
