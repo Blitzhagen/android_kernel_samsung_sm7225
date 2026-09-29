@@ -159,7 +159,7 @@ unsigned int kdp_get_usecount(struct cred *cred)
 	if (is_kdp_protect_addr((unsigned long )cred))
 		return (unsigned int)ROCRED_UC_READ(cred);
 	else
-		return atomic_read(&cred->usage);
+		return atomic_long_read(&cred->usage);
 }
 
 inline struct cred *get_new_cred(struct cred *cred)
@@ -167,7 +167,7 @@ inline struct cred *get_new_cred(struct cred *cred)
 	if (is_kdp_protect_addr((unsigned long)cred))
 		ROCRED_UC_INC(cred);
 	else
-		atomic_inc(&cred->usage);
+		atomic_long_inc(&cred->usage);
 	return cred;
 }
 
@@ -181,7 +181,7 @@ inline void put_cred(const struct cred *_cred)
 		if (ROCRED_UC_DEC_AND_TEST(cred))
 			__put_cred(cred);
 	} else {
-		if (atomic_dec_and_test(&(cred)->usage))
+		if (atomic_long_dec_and_test(&(cred)->usage))
 			__put_cred(cred);
 	}
 }
