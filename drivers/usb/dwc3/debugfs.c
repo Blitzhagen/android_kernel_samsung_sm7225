@@ -823,7 +823,7 @@ void dwc3_debugfs_create_endpoint_dir(struct dwc3_ep *dep)
 {
 	struct dentry		*dir;
 
-	dir = debugfs_create_dir(dep->name, parent);
+	dir = debugfs_create_dir(dep->name, dep->dwc->root);
 	if (!dir) {
 		pr_err("%s: failed to create dir %s\n", __func__, dep->name);
 		return;
@@ -832,8 +832,7 @@ void dwc3_debugfs_create_endpoint_dir(struct dwc3_ep *dep)
 	dwc3_debugfs_create_endpoint_files(dep, dir);
 }
 
-static void dwc3_debugfs_create_endpoint_dirs(struct dwc3 *dwc,
-		struct dentry *parent)
+static void dwc3_debugfs_create_endpoint_dirs(struct dwc3 *dwc)
 {
 	int			i;
 
@@ -843,7 +842,7 @@ static void dwc3_debugfs_create_endpoint_dirs(struct dwc3 *dwc,
 		if (!dep)
 			continue;
 
-		dwc3_debugfs_create_endpoint_dir(dep, parent);
+		dwc3_debugfs_create_endpoint_dir(dep);
 	}
 }
 
@@ -1055,7 +1054,7 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 				    &dwc3_testmode_fops);
 		debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root, dwc,
 				    &dwc3_link_state_fops);
-		dwc3_debugfs_create_endpoint_dirs(dwc, root);
+		dwc3_debugfs_create_endpoint_dirs(dwc);
 
 		file = debugfs_create_file("int_events", 0644, root, dwc,
 				&dwc3_gadget_dbg_events_fops);
