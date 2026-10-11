@@ -348,6 +348,10 @@ int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
+const struct dentry_operations fscrypt_d_ops = {
+	.d_revalidate = fscrypt_d_revalidate,
+};
+
 /**
  * fscrypt_initialize() - allocate major buffers for fs encryption.
  * @cop_flags:  fscrypt operations flags

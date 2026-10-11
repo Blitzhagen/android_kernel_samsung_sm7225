@@ -3,7 +3,6 @@
 #define __LINUX_BITS_H
 
 #include <linux/const.h>
-#include <vdso/bits.h>
 #include <asm/bitsperlong.h>
 
 #define BIT(nr)			(UL(1) << (nr))

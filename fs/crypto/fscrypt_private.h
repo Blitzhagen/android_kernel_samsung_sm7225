@@ -615,6 +615,7 @@ struct fscrypt_mode {
 	enum blk_crypto_mode_num blk_crypto_mode;
 };
 
+extern const struct dentry_operations fscrypt_d_ops;
 extern struct fscrypt_mode fscrypt_modes[];
 
 int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,

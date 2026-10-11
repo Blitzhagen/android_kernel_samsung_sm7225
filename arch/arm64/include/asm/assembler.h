@@ -143,10 +143,6 @@
 /*
  * Clear Branch History instruction
  */
-	.macro clearbhb
-	hint	#22
-	.endm
-
 /*
  * Clear Branch History instruction
  */
@@ -759,20 +755,6 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 .Lyield_out_\@ :
 	.endm
 	
-	.macro __mitigate_spectre_bhb_loop      tmp
-#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
-alternative_cb  spectre_bhb_patch_loop_iter
-	mov	\tmp, #32		// Patched to correct the immediate
-alternative_cb_end
-.Lspectre_bhb_loop\@:
-	b	. + 4
-	subs	\tmp, \tmp, #1
-	b.ne	.Lspectre_bhb_loop\@
-	dsb	nsh
-	isb
-#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
-	.endm
-
 	.macro __mitigate_spectre_bhb_loop      tmp
 #ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
 alternative_cb  spectre_bhb_patch_loop_iter

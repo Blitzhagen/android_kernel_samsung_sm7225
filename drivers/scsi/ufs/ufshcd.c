@@ -1465,11 +1465,11 @@ static void ufshcd_print_tmrs(struct ufs_hba *hba, unsigned long bitmap)
 				sizeof(struct request_desc_header));
 		dev_err(hba->dev, "TM[%d] - Task Management Request UPIU\n",
 				tag);
-		ufshcd_hex_dump(hba, "TM REQ", tmrdp->task_req_upiu,
+		ufshcd_hex_dump(hba, "TM REQ", &tmrdp->req_header,
 				sizeof(struct utp_upiu_req));
 		dev_err(hba->dev, "TM[%d] - Task Management Response UPIU\n",
 				tag);
-		ufshcd_hex_dump(hba, "TM RSP", tmrdp->task_rsp_upiu,
+		ufshcd_hex_dump(hba, "TM RSP", &tmrdp->rsp_header,
 				sizeof(struct utp_task_req_desc));
 	}
 }
