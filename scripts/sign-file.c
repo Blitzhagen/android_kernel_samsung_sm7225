@@ -27,7 +27,9 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR < 3
 #include <openssl/engine.h>
+#endif
 
 /*
  * Use CMS if we have openssl-1.0.0 or newer available - otherwise we have to
@@ -42,6 +44,7 @@
  * the case.
  */
 #if defined(LIBRESSL_VERSION_NUMBER) || \
+	defined(OPENSSL_IS_BORINGSSL) || \
 	OPENSSL_VERSION_NUMBER < 0x10000000L || \
 	defined(OPENSSL_NO_CMS)
 #define USE_PKCS7
@@ -136,6 +139,7 @@ static EVP_PKEY *read_private_key(const char *private_key_name)
 {
 	EVP_PKEY *private_key;
 
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR < 3
 	if (!strncmp(private_key_name, "pkcs11:", 7)) {
 		ENGINE *e;
 
@@ -153,7 +157,9 @@ static EVP_PKEY *read_private_key(const char *private_key_name)
 		private_key = ENGINE_load_private_key(e, private_key_name,
 						      NULL, NULL);
 		ERR(!private_key, "%s", private_key_name);
-	} else {
+	} else
+#endif
+	{
 		BIO *b;
 
 		b = BIO_new_file(private_key_name, "rb");

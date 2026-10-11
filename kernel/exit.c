@@ -68,6 +68,12 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+#ifdef CONFIG_SECURITY_DEFEX
+#include <linux/defex.h>
+#endif
+
+#include <linux/sec_debug.h>
+
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
 	nr_threads--;
@@ -715,6 +721,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	if (group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
+	tsk->exit_state = EXIT_ZOMBIE;
 	if (unlikely(tsk->ptrace)) {
 		int sig = thread_group_leader(tsk) &&
 				thread_group_empty(tsk) &&
@@ -779,6 +786,9 @@ void __noreturn do_exit(long code)
 	 * Then do everything else.
 	 */
 
+#ifdef CONFIG_SECURITY_DEFEX
+	task_defex_zero_creds(current);
+#endif
 	WARN_ON(blk_needs_flush_plug(tsk));
 
 	if (unlikely(in_interrupt()))
@@ -830,6 +840,7 @@ void __noreturn do_exit(long code)
 	}
 
 	exit_signals(tsk);  /* sets PF_EXITING */
+	sched_exit(tsk);
 	/*
 	 * Ensure that all new tsk->pi_lock acquisitions must observe
 	 * PF_EXITING. Serializes against futex.c:attach_to_pi_owner().
@@ -849,12 +860,15 @@ void __noreturn do_exit(long code)
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
 		/*
-		 * If the last thread of global init has exited, panic
-		 * immediately to get a useable coredump.
+		 * If the last thread of global init exit, do panic
+		 * immeddiately to get the coredump to find any clue
+		 * for init task in userspace.
 		 */
-		if (unlikely(is_global_init(tsk)))
-			panic("Attempted to kill init! exitcode=0x%08x\n",
-				tsk->signal->group_exit_code ?: (int)code);
+		if (unlikely(sec_debug_is_enabled())) {
+			if (unlikely(is_global_init(tsk)))
+				panic("Attempted to kill init!! exitcode=0x%08x\n",
+					tsk->signal->group_exit_code ?: (int)code);
+		}
 
 #ifdef CONFIG_POSIX_TIMERS
 		hrtimer_cancel(&tsk->signal->real_timer);
