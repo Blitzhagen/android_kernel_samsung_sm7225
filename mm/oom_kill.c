@@ -98,7 +98,6 @@ static unsigned long psi_emergency_jiffies = INITIAL_JIFFIES;
 static unsigned long psi_emerg_trigger_jiffies = INITIAL_JIFFIES;
 /* Prevents contention on the mutex_trylock in psi_emergency_jiffies */
 static DEFINE_MUTEX(ulmk_retry_lock);
-
 static bool __maybe_unused ulmk_kill_possible(void)
 {
 	struct task_struct *tsk;
@@ -242,6 +241,7 @@ void ulmk_update_last_kill(void)
 	atomic64_set(&ulmk_kill_jiffies, jiffies);
 }
 #endif
+
 
 #ifdef CONFIG_NUMA
 /**
