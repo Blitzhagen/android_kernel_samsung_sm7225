@@ -69,6 +69,7 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
+static int __unregister_client(struct device *dev, void *dummy);
 
 static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
 static bool is_registered;
