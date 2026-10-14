@@ -1316,7 +1316,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	return 0;
 
 out_reg:
-	i2c_deregister_clients(adap);
+	device_for_each_child(&adap->dev, NULL, __unregister_client);
 	device_del(&adap->dev);
 err_put_adap:
 	init_completion(&adap->dev_released);
