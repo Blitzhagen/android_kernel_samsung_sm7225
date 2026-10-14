@@ -175,6 +175,9 @@ inline void put_cred(const struct cred *_cred)
 {
 	struct cred *cred = (struct cred *) _cred;
 
+	if (!cred)
+		return;
+
 	validate_creds(cred);
 
 	if (is_kdp_protect_addr((unsigned long)cred)) {

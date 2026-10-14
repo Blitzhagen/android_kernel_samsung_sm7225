@@ -387,7 +387,10 @@ void __init setup_arch(char **cmdline_p)
 			boot_args[1], boot_args[2], boot_args[3]);
 	}
 
-	init_random_pool();
+	/* init_random_pool() issues a TZ PRNG scm_call that this firmware
+	 * answers with TZBSP_ERR_FATAL_RPM_ERR + warm reset on .325.
+	 * Leave it disabled; msm-rng + other sources provide entropy. */
+	/* init_random_pool(); */
 }
 
 static int __init topology_init(void)
