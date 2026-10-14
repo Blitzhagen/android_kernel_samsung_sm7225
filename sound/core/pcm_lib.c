@@ -1863,15 +1863,12 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 		if (substream->wait_time) {
 			wait_time = substream->wait_time;
 		} else {
-			wait_time = 100;
+				wait_time = 100;
 
 			if (runtime->rate) {
 				long t = runtime->buffer_size * 1100 / runtime->rate;
 				wait_time = max(t, wait_time);
 			}
-#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_AUDIO)
-			wait_time /= 10;
-#endif
 		}
 		wait_time = msecs_to_jiffies(wait_time);
 	}
