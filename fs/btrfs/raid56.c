@@ -1208,6 +1208,9 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	/* We should have at least one data sector. */
 	ASSERT(bitmap_weight(rbio->dbitmap, rbio->stripe_npages));
 
+	/* We should have at least one data sector. */
+	ASSERT(bitmap_weight(rbio->dbitmap, rbio->stripe_npages));
+
 	/* at this point we either have a full stripe,
 	 * or we've read the full stripe from the drive.
 	 * recalculate the parity and write the new results.

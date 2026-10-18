@@ -170,12 +170,10 @@ class ELF:
         for parser in self.__parsers_elf_list:
             if self.check_is_parser(parser):
                 raw_sections = self.get_raw_by_tool(parser, ["-SW", elf_file]).strip()
-                if not raw_sections:
-                    continue
                 if self.find_str_in_text(" .relr.dyn ", raw_sections) and parser == "llvm-readelf":
                     ret_tool_readelf = parser
                     break
-                if not self.find_str_in_text(" .relr.dyn ", raw_sections) and parser in ("readelf", "llvm-readelf"):
+                if not self.find_str_in_text(" .relr.dyn ", raw_sections) and parser == "readelf":
                     ret_tool_readelf = parser
                     break
 

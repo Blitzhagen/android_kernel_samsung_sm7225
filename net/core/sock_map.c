@@ -46,22 +46,17 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	/* Make sure page count doesn't overflow. */
 	cost = (u64) stab->map.max_entries * sizeof(struct sock *);
-	if (cost >= U32_MAX - PAGE_SIZE) {
-		err = -EINVAL;
-		goto free_stab;
-	}
-
-	stab->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-	err = bpf_map_precharge_memlock(stab->map.pages);
+	err = bpf_map_charge_init(&stab->map.memory, cost);
 	if (err)
 		goto free_stab;
 
-	stab->sks = bpf_map_area_alloc(stab->map.max_entries *
+	stab->sks = bpf_map_area_alloc((u64) stab->map.max_entries *
 				       sizeof(struct sock *),
 				       stab->map.numa_node);
 	if (stab->sks)
 		return &stab->map;
 	err = -ENOMEM;
+	bpf_map_charge_finish(&stab->map.memory);
 free_stab:
 	kfree(stab);
 	return ERR_PTR(err);
@@ -372,7 +367,14 @@ static struct sock *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
 
 static void *sock_map_lookup(struct bpf_map *map, void *key)
 {
-	return __sock_map_lookup_elem(map, *(u32 *)key);
+	struct sock *sk;
+
+	sk = __sock_map_lookup_elem(map, *(u32 *)key);
+	if (!sk || !sk_fullsock(sk))
+		return NULL;
+	if (sk_is_refcounted(sk) && !refcount_inc_not_zero(&sk->sk_refcnt))
+		return NULL;
+	return sk;
 }
 
 static void *sock_map_lookup_sys(struct bpf_map *map, void *key)
@@ -386,7 +388,7 @@ static void *sock_map_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 
@@ -526,8 +528,8 @@ static bool sock_map_sk_state_allowed(const struct sock *sk)
 static int sock_hash_update_common(struct bpf_map *map, void *key,
 				   struct sock *sk, u64 flags);
 
-static int sock_map_update_elem(struct bpf_map *map, void *key,
-				void *value, u64 flags)
+int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value,
+			     u64 flags)
 {
 	struct socket *sock;
 	struct sock *sk;
@@ -564,6 +566,31 @@ static int sock_map_update_elem(struct bpf_map *map, void *key,
 	sock_map_sk_release(sk);
 out:
 	fput(sock->file);
+	return ret;
+}
+
+static int sock_map_update_elem(struct bpf_map *map, void *key,
+				void *value, u64 flags)
+{
+	struct sock *sk = (struct sock *)value;
+	int ret;
+
+	if (unlikely(!sk || !sk_fullsock(sk)))
+		return -EINVAL;
+
+	if (!sock_map_sk_is_suitable(sk))
+		return -EOPNOTSUPP;
+
+	local_bh_disable();
+	bh_lock_sock(sk);
+	if (!sock_map_sk_state_allowed(sk))
+		ret = -EOPNOTSUPP;
+	else if (map->map_type == BPF_MAP_TYPE_SOCKMAP)
+		ret = sock_map_update_common(map, *(u32 *)key, sk, flags);
+	else
+		ret = sock_hash_update_common(map, key, sk, flags);
+	bh_unlock_sock(sk);
+	local_bh_enable();
 	return ret;
 }
 
@@ -645,7 +672,9 @@ const struct bpf_func_proto bpf_msg_redirect_map_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+static int sock_map_btf_id;
 const struct bpf_map_ops sock_map_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_map_alloc,
 	.map_free		= sock_map_free,
 	.map_get_next_key	= sock_map_get_next_key,
@@ -655,6 +684,8 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_lookup_elem	= sock_map_lookup,
 	.map_release_uref	= sock_map_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_btf_name		= "bpf_stab",
+	.map_btf_id		= &sock_map_btf_id,
 };
 
 struct bpf_htab_elem {
@@ -1008,13 +1039,20 @@ static void *sock_hash_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 
 static void *sock_hash_lookup(struct bpf_map *map, void *key)
 {
-	return __sock_hash_lookup_elem(map, key);
+	struct sock *sk;
+
+	sk = __sock_hash_lookup_elem(map, key);
+	if (!sk || !sk_fullsock(sk))
+		return NULL;
+	if (sk_is_refcounted(sk) && !refcount_inc_not_zero(&sk->sk_refcnt))
+		return NULL;
+	return sk;
 }
 
 static void sock_hash_release_progs(struct bpf_map *map)
@@ -1099,7 +1137,9 @@ const struct bpf_func_proto bpf_msg_redirect_hash_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+static int sock_hash_map_btf_id;
 const struct bpf_map_ops sock_hash_ops = {
+	.map_meta_equal		= bpf_map_meta_equal,
 	.map_alloc		= sock_hash_alloc,
 	.map_free		= sock_hash_free,
 	.map_get_next_key	= sock_hash_get_next_key,
@@ -1109,6 +1149,8 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_lookup_elem_sys_only = sock_hash_lookup_sys,
 	.map_release_uref	= sock_hash_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_btf_name		= "bpf_shtab",
+	.map_btf_id		= &sock_hash_map_btf_id,
 };
 
 static struct sk_psock_progs *sock_map_progs(struct bpf_map *map)
