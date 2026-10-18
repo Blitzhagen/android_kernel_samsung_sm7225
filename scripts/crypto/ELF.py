@@ -72,8 +72,12 @@ class ELF:
         self.utils = Utils()
         self.__readelf_path = None
         self.__obj_parser_tool = None
-        self.__parsers_elf_list = ["readelf", "llvm-readelf"]
-        self.__parsers_obj_list = ["llvm-nm", "nm"]
+        env_readelf = os.environ.get("FIPS_READELF")
+        env_nm = os.environ.get("FIPS_NM")
+        self.__parsers_elf_list = [p for p in
+                                 (env_readelf, "readelf", "llvm-readelf") if p]
+        self.__parsers_obj_list = [p for p in
+                                   (env_nm, "llvm-nm", "nm") if p]
         self.__sections = OrderedDict()
         self.__symbols = OrderedDict()
         self.__symbols_list_text = None
@@ -173,7 +177,7 @@ class ELF:
                 if self.find_str_in_text(" .relr.dyn ", raw_sections) and parser == "llvm-readelf":
                     ret_tool_readelf = parser
                     break
-                if not self.find_str_in_text(" .relr.dyn ", raw_sections) and parser == "readelf":
+                if not self.find_str_in_text(" .relr.dyn ", raw_sections) and parser != "llvm-readelf":
                     ret_tool_readelf = parser
                     break
 
