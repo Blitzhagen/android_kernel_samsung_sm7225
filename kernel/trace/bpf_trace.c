@@ -1066,76 +1066,6 @@ static const struct bpf_func_proto bpf_send_signal_proto = {
 	.arg1_type	= ARG_ANYTHING,
 };
 
-<<<<<<< ours
-struct send_signal_irq_work {
-	struct irq_work irq_work;
-	struct task_struct *task;
-	u32 sig;
-};
-
-static DEFINE_PER_CPU(struct send_signal_irq_work, send_signal_work);
-
-static void do_bpf_send_signal(struct irq_work *entry)
-{
-	struct send_signal_irq_work *work;
-
-	work = container_of(entry, struct send_signal_irq_work, irq_work);
-	group_send_sig_info(work->sig, SEND_SIG_PRIV, work->task, PIDTYPE_TGID);
-}
-
-BPF_CALL_1(bpf_send_signal, u32, sig)
-{
-	struct send_signal_irq_work *work = NULL;
-
-	/* Similar to bpf_probe_write_user, task needs to be
-	 * in a sound condition and kernel memory access be
-	 * permitted in order to send signal to the current
-	 * task.
-	 */
-	if (unlikely(current->flags & (PF_KTHREAD | PF_EXITING)))
-		return -EPERM;
-	if (unlikely(uaccess_kernel()))
-		return -EPERM;
-	if (unlikely(!nmi_uaccess_okay()))
-		return -EPERM;
-	/* Task should not be pid=1 to avoid kernel panic. */
-	if (unlikely(is_global_init(current)))
-		return -EPERM;
-
-	if (preempt_count() != 0 || irqs_disabled()) {
-		/* Do an early check on signal validity. Otherwise,
-		 * the error is lost in deferred irq_work.
-		 */
-		if (unlikely(!valid_signal(sig)))
-			return -EINVAL;
-
-		work = this_cpu_ptr(&send_signal_work);
-		if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY)
-			return -EBUSY;
-
-		/* Add the current task, which is the target of sending signal,
-		 * to the irq_work. The current task may change when queued
-		 * irq works get executed.
-		 */
-		work->task = current;
-		work->sig = sig;
-		irq_work_queue(&work->irq_work);
-		return 0;
-	}
-
-	return group_send_sig_info(sig, SEND_SIG_PRIV, current, PIDTYPE_TGID);
-}
-
-static const struct bpf_func_proto bpf_send_signal_proto = {
-	.func		= bpf_send_signal,
-	.gpl_only	= false,
-	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_ANYTHING,
-};
-
-static const struct bpf_func_proto *
-tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-=======
 BPF_CALL_1(bpf_send_signal_thread, u32, sig)
 {
 	return bpf_send_signal_common(sig, PIDTYPE_PID);
@@ -1262,7 +1192,6 @@ const struct bpf_func_proto bpf_snprintf_btf_proto = {
 
 const struct bpf_func_proto *
 bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
->>>>>>> tarkzim
 {
 	switch (func_id) {
 	case BPF_FUNC_map_lookup_elem:
@@ -1329,8 +1258,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 #endif
 	case BPF_FUNC_send_signal:
 		return &bpf_send_signal_proto;
-<<<<<<< ours
-=======
 	case BPF_FUNC_send_signal_thread:
 		return &bpf_send_signal_thread_proto;
 	case BPF_FUNC_perf_event_read_value:
@@ -1359,7 +1286,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_per_cpu_ptr_proto;
 	case BPF_FUNC_this_cpu_ptr:
 		return &bpf_this_cpu_ptr_proto;
->>>>>>> tarkzim
 	default:
 		return NULL;
 	}
@@ -2124,17 +2050,12 @@ static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *
 	if (prog->aux->max_ctx_offset > btp->num_args * sizeof(u64))
 		return -EINVAL;
 
-<<<<<<< ours
-	return tracepoint_probe_register_may_exist(tp, (void *)btp->bpf_func,
-						   prog);
-=======
 	if (prog->aux->max_tp_access > btp->writable_size)
 		return -EINVAL;
 
 	return tracepoint_probe_register_may_exist(tp, (void *)btp->bpf_func,
 						   prog);
 
->>>>>>> tarkzim
 }
 
 int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
@@ -2200,18 +2121,11 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 {
 	struct bpf_trace_module *btm, *tmp;
 	struct module *mod = module;
-<<<<<<< ours
-
-	if (mod->num_bpf_raw_events == 0 ||
-	    (op != MODULE_STATE_COMING && op != MODULE_STATE_GOING))
-		return 0;
-=======
 	int ret = 0;
 
 	if (mod->num_bpf_raw_events == 0 ||
 	    (op != MODULE_STATE_COMING && op != MODULE_STATE_GOING))
 		goto out;
->>>>>>> tarkzim
 
 	mutex_lock(&bpf_module_mutex);
 
@@ -2221,11 +2135,8 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 		if (btm) {
 			btm->module = module;
 			list_add(&btm->list, &bpf_trace_modules);
-<<<<<<< ours
-=======
 		} else {
 			ret = -ENOMEM;
->>>>>>> tarkzim
 		}
 		break;
 	case MODULE_STATE_GOING:
@@ -2241,12 +2152,8 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 
 	mutex_unlock(&bpf_module_mutex);
 
-<<<<<<< ours
-	return 0;
-=======
 out:
 	return notifier_from_errno(ret);
->>>>>>> tarkzim
 }
 
 static struct notifier_block bpf_module_nb = {

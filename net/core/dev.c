@@ -4046,11 +4046,8 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		 * to -1 or to their cpu id, but not to our id.
 		 */
 		if (READ_ONCE(txq->xmit_lock_owner) != cpu) {
-<<<<<<< ours
 			bool is_list = false;
 
-=======
->>>>>>> tarkzim
 			if (dev_xmit_recursion())
 				goto recursion_alert;
 
@@ -8291,7 +8288,6 @@ EXPORT_SYMBOL(dev_change_proto_down);
  *	@proto_down: new value
  */
 int dev_change_proto_down_generic(struct net_device *dev, bool proto_down)
-<<<<<<< ours
 {
 	if (proto_down)
 		netif_carrier_off(dev);
@@ -8304,8 +8300,6 @@ EXPORT_SYMBOL(dev_change_proto_down_generic);
 
 u32 __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
 		    enum bpf_netdev_command cmd)
-=======
->>>>>>> tarkzim
 {
 	if (proto_down)
 		netif_carrier_off(dev);
@@ -8744,55 +8738,12 @@ out_put_dev:
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, int expected_fd, u32 flags)
 {
-<<<<<<< ours
-	const struct net_device_ops *ops = dev->netdev_ops;
-	enum bpf_netdev_command query;
-	struct bpf_prog *prog = NULL;
-	bpf_op_t bpf_op, bpf_chk;
-	bool offload;
-=======
 	enum bpf_xdp_mode mode = dev_xdp_mode(flags);
 	struct bpf_prog *new_prog = NULL, *old_prog = NULL;
->>>>>>> tarkzim
 	int err;
 
 	ASSERT_RTNL();
 
-<<<<<<< ours
-	offload = flags & XDP_FLAGS_HW_MODE;
-	query = offload ? XDP_QUERY_PROG_HW : XDP_QUERY_PROG;
-
-	bpf_op = bpf_chk = ops->ndo_bpf;
-	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE))) {
-		NL_SET_ERR_MSG(extack, "underlying driver does not support XDP in native mode");
-		return -EOPNOTSUPP;
-	}
-	if (!bpf_op || (flags & XDP_FLAGS_SKB_MODE))
-		bpf_op = generic_xdp_install;
-	if (bpf_op == bpf_chk)
-		bpf_chk = generic_xdp_install;
-
-	if (fd >= 0) {
-		if (!offload && __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG)) {
-			NL_SET_ERR_MSG(extack, "native and generic XDP can't be active at the same time");
-			return -EEXIST;
-		}
-		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_query(dev, bpf_op, query)) {
-			NL_SET_ERR_MSG(extack, "XDP program already attached");
-			return -EBUSY;
-		}
-
-		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
-					     bpf_op == ops->ndo_bpf);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-
-		if (!offload && bpf_prog_is_dev_bound(prog->aux)) {
-			NL_SET_ERR_MSG(extack, "using device-bound program without HW_MODE flag is not supported");
-			bpf_prog_put(prog);
-			return -EINVAL;
-=======
 	if (fd >= 0) {
 		new_prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
 						 mode != XDP_MODE_SKB);
@@ -8807,7 +8758,6 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 			err = PTR_ERR(old_prog);
 			old_prog = NULL;
 			goto err_out;
->>>>>>> tarkzim
 		}
 	}
 

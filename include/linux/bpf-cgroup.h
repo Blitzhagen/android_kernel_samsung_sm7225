@@ -27,10 +27,6 @@ struct task_struct;
 extern struct static_key_false cgroup_bpf_enabled_key;
 #define cgroup_bpf_enabled static_branch_unlikely(&cgroup_bpf_enabled_key)
 
-<<<<<<< ours
-DECLARE_PER_CPU(struct bpf_cgroup_storage*,
-		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
-=======
 #define BPF_CGROUP_STORAGE_NEST_MAX	8
 
 struct bpf_cgroup_storage_info {
@@ -43,7 +39,6 @@ struct bpf_cgroup_storage_info {
  */
 DECLARE_PER_CPU(struct bpf_cgroup_storage_info,
 		bpf_cgroup_storage_info[BPF_CGROUP_STORAGE_NEST_MAX]);
->>>>>>> tarkzim
 
 #define for_each_cgroup_storage_type(stype) \
 	for (stype = 0; stype < MAX_BPF_CGROUP_STORAGE_TYPE; stype++)
@@ -77,10 +72,7 @@ struct bpf_cgroup_link {
 struct bpf_prog_list {
 	struct list_head node;
 	struct bpf_prog *prog;
-<<<<<<< ours
-=======
 	struct bpf_cgroup_link *link;
->>>>>>> tarkzim
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 };
 
@@ -114,32 +106,20 @@ struct cgroup_bpf {
 int cgroup_bpf_inherit(struct cgroup *cgrp);
 void cgroup_bpf_offline(struct cgroup *cgrp);
 
-<<<<<<< ours
-int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-			struct bpf_prog *replace_prog,
-			enum bpf_attach_type type, u32 flags);
-int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-=======
 int __cgroup_bpf_attach(struct cgroup *cgrp,
 			struct bpf_prog *prog, struct bpf_prog *replace_prog,
 			struct bpf_cgroup_link *link,
 			enum bpf_attach_type type, u32 flags);
 int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 			struct bpf_cgroup_link *link,
->>>>>>> tarkzim
 			enum bpf_attach_type type);
 int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 		       union bpf_attr __user *uattr);
 
 /* Wrapper for __cgroup_bpf_*() protected by cgroup_mutex */
-<<<<<<< ours
-int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-		      struct bpf_prog *replace_prog, enum bpf_attach_type type,
-=======
 int cgroup_bpf_attach(struct cgroup *cgrp,
 		      struct bpf_prog *prog, struct bpf_prog *replace_prog,
 		      struct bpf_cgroup_link *link, enum bpf_attach_type type,
->>>>>>> tarkzim
 		      u32 flags);
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type);
@@ -165,8 +145,6 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 				      short access, enum bpf_attach_type type);
 
-<<<<<<< ours
-=======
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 				   struct ctl_table *table, int write,
 				   char **buf, size_t *pcount, loff_t *ppos,
@@ -180,27 +158,11 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 				       int __user *optlen, int max_optlen,
 				       int retval);
 
->>>>>>> tarkzim
 static inline enum bpf_cgroup_storage_type cgroup_storage_type(
 	struct bpf_map *map)
 {
 	if (map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE)
 		return BPF_CGROUP_STORAGE_PERCPU;
-<<<<<<< ours
-
-	return BPF_CGROUP_STORAGE_SHARED;
-}
-
-static inline void bpf_cgroup_storage_set(struct bpf_cgroup_storage
-					  *storage[MAX_BPF_CGROUP_STORAGE_TYPE])
-{
-	enum bpf_cgroup_storage_type stype;
-
-	for_each_cgroup_storage_type(stype)
-		this_cpu_write(bpf_cgroup_storage[stype], storage[stype]);
-}
-
-=======
 
 	return BPF_CGROUP_STORAGE_SHARED;
 }
@@ -246,7 +208,6 @@ static inline void bpf_cgroup_storage_unset(void)
 struct bpf_cgroup_storage *
 cgroup_storage_lookup(struct bpf_cgroup_storage_map *map,
 		      void *key, bool locked);
->>>>>>> tarkzim
 struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 					enum bpf_cgroup_storage_type stype);
 void bpf_cgroup_storage_free(struct bpf_cgroup_storage *storage);
@@ -493,16 +454,10 @@ static inline int cgroup_bpf_prog_query(const union bpf_attr *attr,
 	return -EINVAL;
 }
 
-<<<<<<< ours
-static inline void bpf_cgroup_storage_set(
-	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE]) {}
-static inline int bpf_cgroup_storage_assign(struct bpf_prog *prog,
-=======
 static inline int bpf_cgroup_storage_set(
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE]) { return 0; }
 static inline void bpf_cgroup_storage_unset(void) {}
 static inline int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux,
->>>>>>> tarkzim
 					    struct bpf_map *map) { return 0; }
 static inline struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(
 	struct bpf_prog *prog, enum bpf_cgroup_storage_type stype) { return NULL; }

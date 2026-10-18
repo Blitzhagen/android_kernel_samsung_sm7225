@@ -53,7 +53,6 @@ struct xdp_umem {
 	struct list_head xsk_list;
 };
 
-<<<<<<< ours
 /* Nodes are linked in the struct xdp_sock map_list field, and used to
  * track which maps a certain socket reside in.
  */
@@ -62,12 +61,10 @@ struct xsk_map_node {
 	struct list_head node;
 	struct xsk_map *map;
 	struct xdp_sock **map_entry;
-=======
 struct xsk_map {
 	struct bpf_map map;
 	spinlock_t lock; /* Synchronize map updates */
 	struct xdp_sock *xsk_map[];
->>>>>>> tarkzim
 };
 
 struct xdp_sock {
@@ -112,12 +109,10 @@ struct xdp_umem_fq_reuse *xsk_reuseq_swap(struct xdp_umem *umem,
 					  struct xdp_umem_fq_reuse *newq);
 void xsk_reuseq_free(struct xdp_umem_fq_reuse *rq);
 
-<<<<<<< ours
 void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 			     struct xdp_sock **map_entry);
 int xsk_map_inc(struct xsk_map *map);
 void xsk_map_put(struct xsk_map *map);
-=======
 int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp);
 void __xsk_map_flush(void);
 
@@ -133,7 +128,6 @@ static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
 	xs = READ_ONCE(m->xsk_map[key]);
 	return xs;
 }
->>>>>>> tarkzim
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
@@ -198,7 +192,6 @@ static inline bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma,
 	return false;
 }
 
-<<<<<<< ours
 static inline u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
 	return NULL;
@@ -218,8 +211,6 @@ static inline bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma,
 	return false;
 }
 
-=======
->>>>>>> tarkzim
 static inline void xsk_umem_consume_tx_done(struct xdp_umem *umem)
 {
 }
@@ -262,8 +253,6 @@ static inline void xsk_umem_fq_reuse(struct xdp_umem *umem, u64 addr)
 {
 }
 
-<<<<<<< ours
-=======
 static inline int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	return -EOPNOTSUPP;
@@ -278,7 +267,6 @@ static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
 {
 	return NULL;
 }
->>>>>>> tarkzim
 #endif /* CONFIG_XDP_SOCKETS */
 
 #endif /* _LINUX_XDP_SOCK_H */

@@ -74,18 +74,10 @@
 #include <net/smc.h>
 #include <net/l3mdev.h>
 #include <linux/android_kabi.h>
-<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 #define NAP_PROCESS_NAME_LEN	128
 #define NAP_DOMAIN_NAME_LEN	255
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
-
-#ifdef CONFIG_KNOX_NCM
-#define NAP_PROCESS_NAME_LEN	128
-#define NAP_DOMAIN_NAME_LEN	255
-#endif
->>>>>>> tarkzim
 
 /*
  * This structure really needs to be cleaned up.
@@ -461,14 +453,7 @@ struct sock {
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1,
-<<<<<<< ours
-				sk_userlocks : 4,
-				sk_protocol  : 8,
-				sk_type      : 16;
-	u16			sk_gso_max_segs;
-=======
 				sk_userlocks : 4;
->>>>>>> tarkzim
 	u8			sk_pacing_shift;
 	u16			sk_type;
 	u16			sk_protocol;
@@ -507,11 +492,7 @@ struct sock {
 #endif
 	struct sock_cgroup_data	sk_cgrp_data;
 	struct mem_cgroup	*sk_memcg;
-<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
-	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	uid_t			knox_uid;
 	pid_t			knox_pid;
 	uid_t			knox_dns_uid;
@@ -522,11 +503,7 @@ struct sock {
 	char			parent_process_name[NAP_PROCESS_NAME_LEN];
 	pid_t			knox_dns_pid;
 	char 			dns_process_name[NAP_PROCESS_NAME_LEN];
-<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
-	#endif
->>>>>>> tarkzim
 	void			(*sk_state_change)(struct sock *sk);
 	void			(*sk_data_ready)(struct sock *sk);
 	void			(*sk_write_space)(struct sock *sk);
@@ -553,12 +530,9 @@ struct sock {
 	ANDROID_KABI_RESERVE(6);
 	ANDROID_KABI_RESERVE(7);
 	ANDROID_KABI_RESERVE(8);
-<<<<<<< ours
 #if IS_ENABLED(CONFIG_PROVE_LOCKING) && IS_ENABLED(CONFIG_MODULES)
 	struct module		*sk_owner;
 #endif
-=======
->>>>>>> tarkzim
 };
 
 enum sk_pacing {
@@ -2055,20 +2029,8 @@ static inline void dst_negative_advice(struct sock *sk)
 
 	sk_rethink_txhash(sk);
 
-<<<<<<< ours
 	if (dst && dst->ops->negative_advice)
 		dst->ops->negative_advice(sk, dst);
-=======
-	if (dst && dst->ops->negative_advice) {
-		ndst = dst->ops->negative_advice(dst);
-
-		if (ndst != dst) {
-			rcu_assign_pointer(sk->sk_dst_cache, ndst);
-			sk_tx_queue_clear(sk);
-			WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
-		}
-	}
->>>>>>> tarkzim
 }
 
 static inline void

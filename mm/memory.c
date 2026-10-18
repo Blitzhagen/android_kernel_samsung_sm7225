@@ -158,7 +158,6 @@ static int __init init_zero_pfn(void)
 	return 0;
 }
 early_initcall(init_zero_pfn);
-<<<<<<< ours
 
 /*
  * Only trace rss_stat when there is a 512kb cross over.
@@ -167,16 +166,6 @@ early_initcall(init_zero_pfn);
  */
 #define TRACE_MM_COUNTER_THRESHOLD 128
 
-=======
-
-/*
- * Only trace rss_stat when there is a 512kb cross over.
- * Smaller changes may be lost unless every small change is
- * crossing into or returning to a 512kb boundary.
- */
-#define TRACE_MM_COUNTER_THRESHOLD 128
-
->>>>>>> tarkzim
 void mm_trace_rss_stat(struct mm_struct *mm, int member, long count,
 		       long value)
 {
@@ -235,7 +224,6 @@ static void check_sync_rss_stat(struct task_struct *task)
 
 #endif /* SPLIT_RSS_COUNTING */
 
-<<<<<<< ours
 #ifdef HAVE_GENERIC_MMU_GATHER
 
 static bool tlb_next_batch(struct mmu_gather *tlb)
@@ -500,8 +488,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 	dec_tlb_flush_pending(tlb->mm);
 }
 
-=======
->>>>>>> tarkzim
 /*
  * Note: this doesn't free the actual pages themselves. That
  * has been handled earlier when unmapping all the memory regions.
@@ -1498,11 +1484,7 @@ again:
 	 */
 	if (force_flush) {
 		force_flush = 0;
-<<<<<<< ours
 		tlb_flush_mmu_free(tlb);
-=======
-		tlb_flush_mmu(tlb);
->>>>>>> tarkzim
 	}
 
 	if (addr != end) {
@@ -3128,7 +3110,6 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	 * Take out anonymous pages first, anonymous shared vmas are
 	 * not dirty accountable.
 	 */
-<<<<<<< ours
 	if (PageAnon(vmf->page)) {
 		struct page *page = vmf->page;
 
@@ -3149,43 +3130,6 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		unlock_page(page);
 		wp_page_reuse(vmf);
 		return VM_FAULT_WRITE;
-=======
-	if (PageAnon(vmf->page) && !PageKsm(vmf->page)) {
-		int total_map_swapcount;
-		if (!trylock_page(vmf->page)) {
-			get_page(vmf->page);
-			pte_unmap_unlock(vmf->pte, vmf->ptl);
-			lock_page(vmf->page);
-			if (!pte_map_lock(vmf)) {
-				unlock_page(vmf->page);
-				put_page(vmf->page);
-				return VM_FAULT_RETRY;
-			}
-			if (!pte_same(*vmf->pte, vmf->orig_pte)) {
-				unlock_page(vmf->page);
-				pte_unmap_unlock(vmf->pte, vmf->ptl);
-				put_page(vmf->page);
-				return 0;
-			}
-			put_page(vmf->page);
-		}
-		if (reuse_swap_page(vmf->page, &total_map_swapcount)) {
-			if (total_map_swapcount == 1) {
-				/*
-				 * The page is all ours. Move it to
-				 * our anon_vma so the rmap code will
-				 * not search our parent or siblings.
-				 * Protected against the rmap code by
-				 * the page lock.
-				 */
-				page_move_anon_rmap(vmf->page, vma);
-			}
-			unlock_page(vmf->page);
-			wp_page_reuse(vmf);
-			return VM_FAULT_WRITE;
-		}
-		unlock_page(vmf->page);
->>>>>>> tarkzim
 	} else if (unlikely((vmf->vma_flags & (VM_WRITE|VM_SHARED)) ==
 					(VM_WRITE|VM_SHARED))) {
 		return wp_page_shared(vmf);
@@ -4183,21 +4127,15 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 	 * something).
 	 */
 	if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
-<<<<<<< ours
-		ret = do_fault_around(vmf);
-		if (ret)
-			return ret;
-#ifdef CONFIG_PAGE_BOOST_RECORDING
-	} else if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT == 1) {
-		record_io_info(vma->vm_file, vmf->pgoff, 1);
-#endif
-=======
 		if (likely(!userfaultfd_minor(vmf->vma))) {
 			ret = do_fault_around(vmf);
 			if (ret)
 				return ret;
 		}
->>>>>>> tarkzim
+#ifdef CONFIG_PAGE_BOOST_RECORDING
+	} else if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT == 1) {
+		record_io_info(vma->vm_file, vmf->pgoff, 1);
+#endif
 	}
 
 	ret = __do_fault(vmf);

@@ -241,11 +241,7 @@ const struct cred *get_task_cred(struct task_struct *task)
 		if (is_kdp_protect_addr((unsigned long)cred))
 			inc_test = ROCRED_UC_INC_NOT_ZERO(cred);
 		else
-<<<<<<< ours
-			inc_test = atomic_long_inc_not_zero(&((struct cred *)cred)->usage);
-=======
 			inc_test = atomic_inc_not_zero(&((struct cred *)cred)->usage);
->>>>>>> tarkzim
 	} while (!inc_test);
 #else
 	do {
@@ -253,10 +249,7 @@ const struct cred *get_task_cred(struct task_struct *task)
 		BUG_ON(!cred);
 	} while (!atomic_long_inc_not_zero(&((struct cred *)cred)->usage));
 #endif
-<<<<<<< ours
 
-=======
->>>>>>> tarkzim
 	rcu_read_unlock();
 	return cred;
 }
@@ -651,13 +644,9 @@ const struct cred *override_creds(const struct cred *new)
 #endif
 {
 	const struct cred *old = current->cred;
-<<<<<<< ours
-
-=======
 #ifdef CONFIG_KDP_CRED
 	struct cred *new = *cnew;
 #endif
->>>>>>> tarkzim
 	kdebug("override_creds(%p{%ld,%d})", new,
 	       atomic_long_read(&new->usage),
 	       read_cred_subscribers(new));
@@ -703,11 +692,7 @@ const struct cred *override_creds(const struct cred *new)
 	} else
 #endif
 	rcu_assign_pointer(current->cred, new);
-<<<<<<< ours
-
-=======
 #endif /* CONFIG_KDP_CRED */
->>>>>>> tarkzim
 	alter_cred_subscribers(old, -1);
 
 	kdebug("override_creds() = %p{%ld,%d}", old,

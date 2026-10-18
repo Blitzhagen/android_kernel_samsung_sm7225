@@ -663,20 +663,14 @@ const struct bpf_map_ops array_map_ops = {
 	.map_gen_lookup = array_map_gen_lookup,
 	.map_direct_value_addr = array_map_direct_value_addr,
 	.map_direct_value_meta = array_map_direct_value_meta,
-<<<<<<< ours
-=======
 	.map_mmap = array_map_mmap,
->>>>>>> tarkzim
 	.map_seq_show_elem = array_map_seq_show_elem,
 	.map_check_btf = array_map_check_btf,
 	.map_lookup_batch = generic_map_lookup_batch,
 	.map_update_batch = generic_map_update_batch,
-<<<<<<< ours
-=======
 	.map_btf_name = "bpf_array",
 	.map_btf_id = &array_map_btf_id,
 	.iter_seq_info = &iter_seq_info,
->>>>>>> tarkzim
 };
 
 static int percpu_array_map_btf_id;
@@ -863,8 +857,6 @@ static void prog_array_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
-<<<<<<< ours
-=======
 struct prog_poke_elem {
 	struct list_head list;
 	struct bpf_prog_aux *aux;
@@ -1076,7 +1068,6 @@ static void prog_array_map_free(struct bpf_map *map)
  * and map_meta_equal is not implemented.
  */
 static int prog_array_map_btf_id;
->>>>>>> tarkzim
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = prog_array_map_alloc,
@@ -1090,15 +1081,10 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_fd_get_ptr = prog_fd_array_get_ptr,
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
 	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
-<<<<<<< ours
-	.map_release_uref = bpf_fd_array_map_clear,
-	.map_seq_show_elem = prog_array_map_seq_show_elem,
-=======
 	.map_release_uref = prog_array_map_clear,
 	.map_seq_show_elem = prog_array_map_seq_show_elem,
 	.map_btf_name = "bpf_array",
 	.map_btf_id = &prog_array_map_btf_id,
->>>>>>> tarkzim
 };
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,

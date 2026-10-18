@@ -26,17 +26,10 @@
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 
 #include <net/netfilter/nf_conntrack_tuple.h>
-<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 #define PROCESS_NAME_LEN_NAP	128
 #define DOMAIN_NAME_LEN_NAP	255
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
-#ifdef CONFIG_KNOX_NCM
-#define PROCESS_NAME_LEN_NAP	128
-#define DOMAIN_NAME_LEN_NAP	255
-#endif
->>>>>>> tarkzim
 
 /* per conntrack: protocol private data */
 union nf_conntrack_proto {
@@ -114,11 +107,7 @@ struct nf_conn {
 
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
-<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
-	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	/* The number of application layer bytes sent by the socket */
 	__u64   knox_sent;
 	/* The number of application layer bytes recieved by the socket */
@@ -148,13 +137,9 @@ struct nf_conn {
 	u32 npa_timeout;
 	/* Atomic variable indicating end of intermediate flow */
 	atomic_t intermediateFlow;
-<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 
 
-=======
-	#endif
->>>>>>> tarkzim
 };
 
 static inline struct nf_conn *

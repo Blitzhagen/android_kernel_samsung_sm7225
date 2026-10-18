@@ -369,18 +369,6 @@ out_undo:
 	synchronize_rcu();
 
 	ops = saved_ops;
-<<<<<<< ours
-	rtnl_lock();
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list) {
-		if (ops->exit_batch_rtnl)
-			ops->exit_batch_rtnl(&net_exit_list, &dev_kill_list);
-	}
-	unregister_netdevice_many(&dev_kill_list);
-	rtnl_unlock();
-
-	ops = saved_ops;
-=======
->>>>>>> tarkzim
 	list_for_each_entry_continue_reverse(ops, &pernet_list, list)
 		ops_exit_list(ops, &net_exit_list);
 
@@ -1052,14 +1040,10 @@ static int __register_pernet_operations(struct list_head *list,
 out_undo:
 	/* If I have an error cleanup all namespaces I initialized */
 	list_del(&ops->list);
-<<<<<<< ours
-	free_exit_list(ops, &net_exit_list);
-=======
 	ops_pre_exit_list(ops, &net_exit_list);
 	synchronize_rcu();
 	ops_exit_list(ops, &net_exit_list);
 	ops_free_list(ops, &net_exit_list);
->>>>>>> tarkzim
 	return error;
 }
 
@@ -1072,15 +1056,10 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 	/* See comment in __register_pernet_operations() */
 	for_each_net(net)
 		list_add_tail(&net->exit_list, &net_exit_list);
-<<<<<<< ours
-
-	free_exit_list(ops, &net_exit_list);
-=======
 	ops_pre_exit_list(ops, &net_exit_list);
 	synchronize_rcu();
 	ops_exit_list(ops, &net_exit_list);
 	ops_free_list(ops, &net_exit_list);
->>>>>>> tarkzim
 }
 
 #else
@@ -1103,14 +1082,10 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 	} else {
 		LIST_HEAD(net_exit_list);
 		list_add(&init_net.exit_list, &net_exit_list);
-<<<<<<< ours
-		free_exit_list(ops, &net_exit_list);
-=======
 		ops_pre_exit_list(ops, &net_exit_list);
 		synchronize_rcu();
 		ops_exit_list(ops, &net_exit_list);
 		ops_free_list(ops, &net_exit_list);
->>>>>>> tarkzim
 	}
 }
 

@@ -3545,7 +3545,6 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
 	 * need to be calculated.
 	 */
 	if (!order) {
-<<<<<<< ours
 		long usable_free;
 		long reserved;
 
@@ -3555,13 +3554,6 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
 		/* reserved may over estimate high-atomic reserves. */
 		usable_free -= min(usable_free, reserved);
 		if (usable_free > mark + z->lowmem_reserve[classzone_idx])
-=======
-		long fast_free;
-
-		fast_free = free_pages;
-		fast_free -= __zone_watermark_unusable_free(z, 0, alloc_flags);
-		if (fast_free > mark + z->lowmem_reserve[classzone_idx])
->>>>>>> tarkzim
 			return true;
 	}
 
@@ -3854,12 +3846,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 	pr_warn("%s: %pV, mode:%#x(%pGg), fatal_signal:%d, nodemask=%*pbl\n",
-<<<<<<< ours
 			current->comm, &vaf, gfp_mask, &gfp_mask, fatal_signal,
-=======
-			current->comm, &vaf, gfp_mask, &gfp_mask,
-			fatal_signal_pending(current) ? 1 : 0,
->>>>>>> tarkzim
 			nodemask_pr_args(nodemask));
 	va_end(args);
 
@@ -4697,7 +4684,6 @@ restart:
 
 retry:
 	retry_loop_count++;
-<<<<<<< ours
 	/*
 	 * Deal with possible cpuset update races or zonelist updates to avoid
 	 * infinite retries.
@@ -4706,8 +4692,6 @@ retry:
 	    check_retry_zonelist(zonelist_iter_cookie))
 		goto restart;
 
-=======
->>>>>>> tarkzim
 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
 	if (alloc_flags & ALLOC_KSWAPD)
 		wake_all_kswapds(order, gfp_mask, ac);
@@ -4780,12 +4764,8 @@ retry:
 	 * of free memory (see __compaction_suitable)
 	 */
 	if ((did_some_progress > 0 ||
-<<<<<<< ours
 			IS_ENABLED(CONFIG_HAVE_LOW_MEMORY_KILLER)) &&
 			can_compact &&
-=======
-			IS_ENABLED(CONFIG_HAVE_LOW_MEMORY_KILLER)) && can_compact &&
->>>>>>> tarkzim
 			should_compact_retry(ac, order, alloc_flags,
 				compact_result, &compact_priority,
 				&compaction_retries))
@@ -8069,7 +8049,6 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 }
 
 int watermark_boost_factor_sysctl_handler(struct ctl_table *table, int write,
-<<<<<<< ours
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
@@ -8097,8 +8076,6 @@ int kswapd_threads_sysctl_handler(struct ctl_table *table, int write,
 }
 
 int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
-=======
->>>>>>> tarkzim
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;

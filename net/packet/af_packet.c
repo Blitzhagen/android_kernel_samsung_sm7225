@@ -499,15 +499,8 @@ static void *packet_current_frame(struct packet_sock *po,
 	return packet_lookup_frame(po, rb, rb->head, status);
 }
 
-<<<<<<< ours
 static u16 vlan_get_tci(const struct sk_buff *skb, struct net_device *dev)
 {
-=======
-static u16 vlan_get_tci(struct sk_buff *skb, struct net_device *dev)
-{
-	u8 *skb_orig_data = skb->data;
-	int skb_orig_len = skb->len;
->>>>>>> tarkzim
 	struct vlan_hdr vhdr, *vh;
 	unsigned int header_len;
 
@@ -528,24 +521,14 @@ static u16 vlan_get_tci(struct sk_buff *skb, struct net_device *dev)
 	else
 		return 0;
 
-<<<<<<< ours
 	vh = skb_header_pointer(skb, skb_mac_offset(skb) + header_len,
 				sizeof(vhdr), &vhdr);
-=======
-	skb_push(skb, skb->data - skb_mac_header(skb));
-	vh = skb_header_pointer(skb, header_len, sizeof(vhdr), &vhdr);
-	if (skb_orig_data != skb->data) {
-		skb->data = skb_orig_data;
-		skb->len = skb_orig_len;
-	}
->>>>>>> tarkzim
 	if (unlikely(!vh))
 		return 0;
 
 	return ntohs(vh->h_vlan_TCI);
 }
 
-<<<<<<< ours
 static __be16 vlan_get_protocol_dgram(const struct sk_buff *skb)
 {
 	__be16 proto = skb->protocol;
@@ -553,23 +536,6 @@ static __be16 vlan_get_protocol_dgram(const struct sk_buff *skb)
 	if (unlikely(eth_type_vlan(proto)))
 		proto = __vlan_get_protocol_offset(skb, proto,
 						   skb_mac_offset(skb), NULL);
-=======
-static __be16 vlan_get_protocol_dgram(struct sk_buff *skb)
-{
-	__be16 proto = skb->protocol;
-
-	if (unlikely(eth_type_vlan(proto))) {
-		u8 *skb_orig_data = skb->data;
-		int skb_orig_len = skb->len;
-
-		skb_push(skb, skb->data - skb_mac_header(skb));
-		proto = __vlan_get_protocol(skb, proto, NULL);
-		if (skb_orig_data != skb->data) {
-			skb->data = skb_orig_data;
-			skb->len = skb_orig_len;
-		}
-	}
->>>>>>> tarkzim
 
 	return proto;
 }
@@ -4496,13 +4462,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	spin_lock(&po->bind_lock);
 	was_running = po->running;
 	num = po->num;
-<<<<<<< ours
 	WRITE_ONCE(po->num, 0);
 	if (was_running)
-=======
-	if (was_running) {
-		WRITE_ONCE(po->num, 0);
->>>>>>> tarkzim
 		__unregister_prot_hook(sk, false);
 
 	spin_unlock(&po->bind_lock);
@@ -4536,17 +4497,12 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	mutex_unlock(&po->pg_vec_lock);
 
 	spin_lock(&po->bind_lock);
-<<<<<<< ours
 	WRITE_ONCE(po->num, num);
 	/*
 	 * NETDEV_UNREGISTER may have invalidated the binding while bind_lock
 	 * was dropped above.  Do not re-add a fanout hook to a dead device.
 	 */
 	if (was_running && READ_ONCE(po->ifindex) != -1)
-=======
-	if (was_running) {
-		WRITE_ONCE(po->num, num);
->>>>>>> tarkzim
 		register_prot_hook(sk);
 
 	spin_unlock(&po->bind_lock);

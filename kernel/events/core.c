@@ -1858,7 +1858,6 @@ static void perf_event__id_header_size(struct perf_event *event)
 static bool perf_event_validate_size(struct perf_event *event)
 {
 	struct perf_event *sibling, *group_leader = event->group_leader;
-<<<<<<< ours
 
 	if (__perf_event_read_size(event->attr.read_format,
 				   group_leader->nr_siblings + 1) > 16*1024)
@@ -1883,16 +1882,6 @@ static bool perf_event_validate_size(struct perf_event *event)
 					   group_leader->nr_siblings + 1) > 16*1024)
 			return false;
 	}
-=======
-
-	if (__perf_event_read_size(event->attr.read_format,
-				   group_leader->nr_siblings + 1) > 16*1024)
-		return false;
-
-	if (__perf_event_read_size(group_leader->attr.read_format,
-				   group_leader->nr_siblings + 1) > 16*1024)
-		return false;
->>>>>>> tarkzim
 
 	for_each_sibling_event(sibling, group_leader) {
 		if (__perf_event_read_size(sibling->attr.read_format,
@@ -1997,18 +1986,11 @@ static void perf_group_detach(struct perf_event *event)
 	if (event->group_leader != event) {
 		list_del_init(&event->sibling_list);
 		event->group_leader->nr_siblings--;
-<<<<<<< ours
-=======
 		event->group_leader->group_generation++;
->>>>>>> tarkzim
 
 		if (event->shared)
 			event->group_leader = event;
 
-<<<<<<< ours
-		event->group_leader->group_generation++;
-=======
->>>>>>> tarkzim
 		goto out;
 	}
 
@@ -8251,16 +8233,6 @@ static void perf_event_bpf_emit_ksymbols(struct bpf_prog *prog,
 					 enum perf_bpf_event_type type)
 {
 	bool unregister = type == PERF_BPF_EVENT_PROG_UNLOAD;
-<<<<<<< ours
-	char sym[KSYM_NAME_LEN];
-	int i;
-
-	if (prog->aux->func_cnt == 0) {
-		bpf_get_prog_name(prog, sym);
-		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF,
-				   (u64)(unsigned long)prog->bpf_func,
-				   prog->jited_len, unregister, sym);
-=======
 	int i;
 
 	if (prog->aux->func_cnt == 0) {
@@ -8268,24 +8240,15 @@ static void perf_event_bpf_emit_ksymbols(struct bpf_prog *prog,
 				   (u64)(unsigned long)prog->bpf_func,
 				   prog->jited_len, unregister,
 				   prog->aux->ksym.name);
->>>>>>> tarkzim
 	} else {
 		for (i = 0; i < prog->aux->func_cnt; i++) {
 			struct bpf_prog *subprog = prog->aux->func[i];
 
-<<<<<<< ours
-			bpf_get_prog_name(subprog, sym);
-			perf_event_ksymbol(
-				PERF_RECORD_KSYMBOL_TYPE_BPF,
-				(u64)(unsigned long)subprog->bpf_func,
-				subprog->jited_len, unregister, sym);
-=======
 			perf_event_ksymbol(
 				PERF_RECORD_KSYMBOL_TYPE_BPF,
 				(u64)(unsigned long)subprog->bpf_func,
 				subprog->jited_len, unregister,
 				prog->aux->ksym.name);
->>>>>>> tarkzim
 		}
 	}
 }

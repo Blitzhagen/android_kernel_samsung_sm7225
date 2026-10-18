@@ -2,25 +2,6 @@
 /* internal file - do not include directly */
 
 #ifdef CONFIG_NET
-<<<<<<< ours
-BPF_PROG_TYPE(BPF_PROG_TYPE_SOCKET_FILTER, sk_filter)
-BPF_PROG_TYPE(BPF_PROG_TYPE_SCHED_CLS, tc_cls_act)
-BPF_PROG_TYPE(BPF_PROG_TYPE_SCHED_ACT, tc_cls_act)
-BPF_PROG_TYPE(BPF_PROG_TYPE_XDP, xdp)
-#ifdef CONFIG_CGROUP_BPF
-BPF_PROG_TYPE(BPF_PROG_TYPE_CGROUP_SKB, cg_skb)
-BPF_PROG_TYPE(BPF_PROG_TYPE_CGROUP_SOCK, cg_sock)
-BPF_PROG_TYPE(BPF_PROG_TYPE_CGROUP_SOCK_ADDR, cg_sock_addr)
-#endif
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_IN, lwt_in)
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_OUT, lwt_out)
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_XMIT, lwt_xmit)
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_SEG6LOCAL, lwt_seg6local)
-BPF_PROG_TYPE(BPF_PROG_TYPE_SOCK_OPS, sock_ops)
-BPF_PROG_TYPE(BPF_PROG_TYPE_SK_SKB, sk_skb)
-BPF_PROG_TYPE(BPF_PROG_TYPE_SK_MSG, sk_msg)
-BPF_PROG_TYPE(BPF_PROG_TYPE_FLOW_DISSECTOR, flow_dissector)
-=======
 BPF_PROG_TYPE(BPF_PROG_TYPE_SOCKET_FILTER, sk_filter,
 	      struct __sk_buff, struct sk_buff)
 BPF_PROG_TYPE(BPF_PROG_TYPE_SCHED_CLS, tc_cls_act,
@@ -53,7 +34,6 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_SK_MSG, sk_msg,
 	      struct sk_msg_md, struct sk_msg)
 BPF_PROG_TYPE(BPF_PROG_TYPE_FLOW_DISSECTOR, flow_dissector,
 	      struct __sk_buff, struct bpf_flow_dissector)
->>>>>>> tarkzim
 #endif
 #ifdef CONFIG_BPF_EVENTS
 BPF_PROG_TYPE(BPF_PROG_TYPE_KPROBE, kprobe,
@@ -124,11 +104,8 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_ARRAY_OF_MAPS, array_of_maps_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_HASH_OF_MAPS, htab_of_maps_map_ops)
 #ifdef CONFIG_NET
 BPF_MAP_TYPE(BPF_MAP_TYPE_DEVMAP, dev_map_ops)
-<<<<<<< ours
-=======
 BPF_MAP_TYPE(BPF_MAP_TYPE_DEVMAP_HASH, dev_map_hash_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_SK_STORAGE, sk_storage_map_ops)
->>>>>>> tarkzim
 #if defined(CONFIG_BPF_STREAM_PARSER)
 BPF_MAP_TYPE(BPF_MAP_TYPE_SOCKMAP, sock_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_SOCKHASH, sock_hash_ops)
@@ -146,8 +123,6 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY, reuseport_array_ops)
 #endif
 BPF_MAP_TYPE(BPF_MAP_TYPE_QUEUE, queue_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_STACK, stack_map_ops)
-<<<<<<< ours
-=======
 #if defined(CONFIG_BPF_JIT)
 BPF_MAP_TYPE(BPF_MAP_TYPE_STRUCT_OPS, bpf_struct_ops_map_ops)
 #endif
@@ -163,4 +138,3 @@ BPF_LINK_TYPE(BPF_LINK_TYPE_ITER, iter)
 BPF_LINK_TYPE(BPF_LINK_TYPE_NETNS, netns)
 BPF_LINK_TYPE(BPF_LINK_TYPE_XDP, xdp)
 #endif
->>>>>>> tarkzim

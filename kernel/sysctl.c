@@ -2848,16 +2848,11 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		proc_put_char(&buffer, &left, '\n');
 	if (write && !err && left)
 		proc_skip_spaces(&p, &left);
-<<<<<<< ours
 	if (write) {
 		kfree(kbuf);
 		if (first)
 			return err ? : -EINVAL;
 	}
-=======
-	if (write && first)
-		return err ? : -EINVAL;
->>>>>>> tarkzim
 	*lenp -= left;
 out:
 	*ppos += *lenp;
@@ -2897,13 +2892,10 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 	if (left > PAGE_SIZE - 1)
 		left = PAGE_SIZE - 1;
 
-<<<<<<< ours
 	p = kbuf = memdup_user_nul(buffer, left);
 	if (IS_ERR(kbuf))
 		return -EINVAL;
 
-=======
->>>>>>> tarkzim
 	proc_skip_spaces(&p, &left);
 	if (!left) {
 		err = -EINVAL;
@@ -3384,16 +3376,11 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 		proc_put_char(&buffer, &left, '\n');
 	if (write && !err)
 		proc_skip_spaces(&p, &left);
-<<<<<<< ours
 	if (write) {
 		kfree(kbuf);
 		if (first)
 			return err ? : -EINVAL;
 	}
-=======
-	if (write && first)
-		return err ? : -EINVAL;
->>>>>>> tarkzim
 	*lenp -= left;
 out:
 	*ppos += *lenp;
@@ -3861,21 +3848,13 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 }
 
 int proc_douintvec_capacity(struct ctl_table *table, int write,
-<<<<<<< ours
 			    void __user *buffer, size_t *lenp, loff_t *ppos)
-=======
-			    void *buffer, size_t *lenp, loff_t *ppos)
->>>>>>> tarkzim
 {
 	return -ENOSYS;
 }
 
 int proc_douintvec_ravg_window(struct ctl_table *table, int write,
-<<<<<<< ours
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
-=======
-			       void *buffer, size_t *lenp, loff_t *ppos)
->>>>>>> tarkzim
 {
 	return -ENOSYS;
 }

@@ -63,10 +63,7 @@ struct bpf_cpu_map_entry {
 	struct task_struct *kthread;
 
 	struct bpf_cpumap_val value;
-<<<<<<< ours
-=======
 	struct bpf_prog *prog;
->>>>>>> tarkzim
 
 	atomic_t refcnt; /* Control when this struct can be free'ed */
 	struct rcu_head rcu;
@@ -228,8 +225,6 @@ static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
 	}
 }
 
-<<<<<<< ours
-=======
 static int cpu_map_bpf_prog_run_xdp(struct bpf_cpu_map_entry *rcpu,
 				    void **frames, int n,
 				    struct xdp_cpumap_stats *stats)
@@ -299,7 +294,6 @@ static int cpu_map_bpf_prog_run_xdp(struct bpf_cpu_map_entry *rcpu,
 	return nframes;
 }
 
->>>>>>> tarkzim
 #define CPUMAP_BATCH 8
 
 static int cpu_map_kthread_run(void *data)
@@ -315,20 +309,12 @@ static int cpu_map_kthread_run(void *data)
 	 * kthread_stop signal until queue is empty.
 	 */
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
-<<<<<<< ours
-		unsigned int drops = 0, sched = 0;
-		void *frames[CPUMAP_BATCH];
-		void *skbs[CPUMAP_BATCH];
-		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
-		int i, n, m;
-=======
 		struct xdp_cpumap_stats stats = {}; /* zero stats */
 		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
 		unsigned int drops = 0, sched = 0;
 		void *frames[CPUMAP_BATCH];
 		void *skbs[CPUMAP_BATCH];
 		int i, n, m, nframes;
->>>>>>> tarkzim
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
@@ -351,13 +337,8 @@ static int cpu_map_kthread_run(void *data)
 		 * kthread CPU pinned. Lockless access to ptr_ring
 		 * consume side valid as no-resize allowed of queue.
 		 */
-<<<<<<< ours
-		n = __ptr_ring_consume_batched(rcpu->queue, frames, CPUMAP_BATCH);
-
-=======
 		n = __ptr_ring_consume_batched(rcpu->queue, frames,
 					       CPUMAP_BATCH);
->>>>>>> tarkzim
 		for (i = 0; i < n; i++) {
 			void *f = frames[i];
 			struct page *page = virt_to_page(f);
@@ -369,17 +350,6 @@ static int cpu_map_kthread_run(void *data)
 			prefetchw(page);
 		}
 
-<<<<<<< ours
-		m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, n, skbs);
-		if (unlikely(m == 0)) {
-			for (i = 0; i < n; i++)
-				skbs[i] = NULL; /* effect: xdp_return_frame */
-			drops = n;
-		}
-
-		local_bh_disable();
-		for (i = 0; i < n; i++) {
-=======
 		/* Support running another XDP prog on this CPU */
 		nframes = cpu_map_bpf_prog_run_xdp(rcpu, frames, n, &stats);
 		if (nframes) {
@@ -393,7 +363,6 @@ static int cpu_map_kthread_run(void *data)
 
 		local_bh_disable();
 		for (i = 0; i < nframes; i++) {
->>>>>>> tarkzim
 			struct xdp_frame *xdpf = frames[i];
 			struct sk_buff *skb = skbs[i];
 			int ret;
@@ -410,11 +379,7 @@ static int cpu_map_kthread_run(void *data)
 				drops++;
 		}
 		/* Feedback loop via tracepoint */
-<<<<<<< ours
-		trace_xdp_cpumap_kthread(rcpu->map_id, n, drops, sched);
-=======
 		trace_xdp_cpumap_kthread(rcpu->map_id, n, drops, sched, &stats);
->>>>>>> tarkzim
 
 		local_bh_enable(); /* resched point, may call do_softirq() */
 	}
@@ -424,8 +389,6 @@ static int cpu_map_kthread_run(void *data)
 	return 0;
 }
 
-<<<<<<< ours
-=======
 bool cpu_map_prog_allowed(struct bpf_map *map)
 {
 	return map->map_type == BPF_MAP_TYPE_CPUMAP &&
@@ -451,7 +414,6 @@ static int __cpu_map_load_bpf_program(struct bpf_cpu_map_entry *rcpu, int fd)
 	return 0;
 }
 
->>>>>>> tarkzim
 static struct bpf_cpu_map_entry *
 __cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
 {

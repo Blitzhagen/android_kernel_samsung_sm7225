@@ -589,17 +589,10 @@ __read_extent_tree_block(const char *function, unsigned int line,
 	struct buffer_head		*bh;
 	int				err;
 	gfp_t				gfp_flags = __GFP_MOVABLE | GFP_NOFS;
-<<<<<<< ours
 
 	if (flags & EXT4_EX_NOFAIL)
 		gfp_flags |= __GFP_NOFAIL;
 
-=======
-
-	if (flags & EXT4_EX_NOFAIL)
-		gfp_flags |= __GFP_NOFAIL;
-
->>>>>>> tarkzim
 	bh = sb_getblk_gfp(inode->i_sb, pblk, gfp_flags);
 	if (unlikely(!bh))
 		return ERR_PTR(-ENOMEM);
@@ -612,7 +605,6 @@ __read_extent_tree_block(const char *function, unsigned int line,
 	}
 	if (buffer_verified(bh) && !(flags & EXT4_EX_FORCE_CACHE))
 		return bh;
-<<<<<<< ours
 	if (!ext4_has_feature_journal(inode->i_sb) ||
 	    (inode->i_ino !=
 	     le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_journal_inum))) {
@@ -621,12 +613,6 @@ __read_extent_tree_block(const char *function, unsigned int line,
 		if (err)
 			goto errout;
 	}
-=======
-	err = __ext4_ext_check(function, line, inode,
-			       ext_block_hdr(bh), depth, pblk, (NULL));
-	if (err)
-		goto errout;
->>>>>>> tarkzim
 	set_buffer_verified(bh);
 	/*
 	 * If this is a leaf block, cache all of its entries
@@ -3379,13 +3365,9 @@ static int ext4_split_extent_at(handle_t *handle,
 		ext4_ext_mark_unwritten(ex2);
 
 	err = ext4_ext_insert_extent(handle, inode, ppath, &newex, flags);
-<<<<<<< ours
 	if (err && err != -ENOSPC && err != -EDQUOT && err != -ENOMEM)
 		goto out_err;
 	if (!err)
-=======
-	if (err != -ENOSPC && err != -EDQUOT && err != -ENOMEM)
->>>>>>> tarkzim
 		goto out;
 
 	/*
@@ -3401,12 +3383,8 @@ static int ext4_split_extent_at(handle_t *handle,
 	if (IS_ERR(path)) {
 		EXT4_ERROR_INODE(inode, "Failed split extent on %u, err %ld",
 				 split, PTR_ERR(path));
-<<<<<<< ours
 		err = PTR_ERR(path);
 		goto out_err;
-=======
-		return PTR_ERR(path);
->>>>>>> tarkzim
 	}
 	depth = ext_depth(inode);
 	ex = path[depth].p_ext;
@@ -3458,12 +3436,9 @@ fix_extent_len:
 	ex->ee_len = orig_ex.ee_len;
 	ext4_ext_dirty(handle, inode, path + path->p_depth);
 	return err;
-<<<<<<< ours
 out_err:
 	/* Remove all remaining potentially stale extents. */
 	ext4_es_remove_extent(inode, ee_block, ee_len);
-=======
->>>>>>> tarkzim
 out:
 	ext4_ext_show_leaf(inode, *ppath);
 	return err;

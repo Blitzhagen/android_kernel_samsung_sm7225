@@ -201,29 +201,18 @@ static int ext4_getfsmap_meta_helper(struct super_block *sb,
 			  ext4_group_first_block_no(sb, agno));
 	fs_end = fs_start + EXT4_C2B(sbi, len);
 
-<<<<<<< ours
 	/*
 	 * Return relevant extents from the meta_list. We emit all extents that
 	 * partially/fully overlap with the query range
 	 */
 	list_for_each_entry_safe(p, tmp, &info->gfi_meta_list, fmr_list) {
 		if (p->fmr_physical + p->fmr_length <= info->gfi_next_fsblk) {
-=======
-	/* Return relevant extents from the meta_list */
-	list_for_each_entry_safe(p, tmp, &info->gfi_meta_list, fmr_list) {
-		if (p->fmr_physical < info->gfi_next_fsblk) {
->>>>>>> tarkzim
 			list_del(&p->fmr_list);
 			kfree(p);
 			continue;
 		}
-<<<<<<< ours
 		if (p->fmr_physical <= fs_end &&
 		    p->fmr_physical + p->fmr_length > fs_start) {
-=======
-		if (p->fmr_physical <= fs_start ||
-		    p->fmr_physical + p->fmr_length <= fs_end) {
->>>>>>> tarkzim
 			/* Emit the retained free extent record if present */
 			if (info->gfi_lastfree.fmr_owner) {
 				error = ext4_getfsmap_helper(sb, info,
@@ -644,12 +633,7 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 	irec.fmr_flags = 0;
 
 	info->gfi_last = true;
-<<<<<<< ours
 	error = ext4_getfsmap_helper(sb, info, &irec);
-=======
-	error = ext4_getfsmap_datadev_helper(sb, end_ag, last_cluster + 1,
-					     0, info);
->>>>>>> tarkzim
 	if (error)
 		goto err;
 

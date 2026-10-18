@@ -355,11 +355,7 @@ BPF_CALL_0(bpf_get_current_cgroup_id)
 {
 	struct cgroup *cgrp = task_dfl_cgroup(current);
 
-<<<<<<< ours
-	return cgrp->kn->id;
-=======
 	return cgroup_id(cgrp);
->>>>>>> tarkzim
 }
 
 const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
@@ -368,11 +364,6 @@ const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-<<<<<<< ours
-#ifdef CONFIG_CGROUP_BPF
-DECLARE_PER_CPU(struct bpf_cgroup_storage*,
-		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
-=======
 BPF_CALL_1(bpf_get_current_ancestor_cgroup_id, int, ancestor_level)
 {
 	struct cgroup *cgrp = task_dfl_cgroup(current);
@@ -394,7 +385,6 @@ const struct bpf_func_proto bpf_get_current_ancestor_cgroup_id_proto = {
 #ifdef CONFIG_CGROUP_BPF
 DECLARE_PER_CPU(struct bpf_cgroup_storage_info,
 		bpf_cgroup_storage_info[BPF_CGROUP_STORAGE_NEST_MAX]);
->>>>>>> tarkzim
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
@@ -403,12 +393,6 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 	 * verifier checks that its value is correct.
 	 */
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
-<<<<<<< ours
-	struct bpf_cgroup_storage *storage;
-	void *ptr;
-
-	storage = this_cpu_read(bpf_cgroup_storage[stype]);
-=======
 	struct bpf_cgroup_storage *storage = NULL;
 	void *ptr;
 	int i;
@@ -420,7 +404,6 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 		storage = this_cpu_read(bpf_cgroup_storage_info[i].storage[stype]);
 		break;
 	}
->>>>>>> tarkzim
 
 	if (stype == BPF_CGROUP_STORAGE_SHARED)
 		ptr = &READ_ONCE(storage->buf)->data[0];
@@ -438,9 +421,6 @@ const struct bpf_func_proto bpf_get_local_storage_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 #endif
-<<<<<<< ours
-#endif
-=======
 
 #define BPF_STRTOX_BASE_MASK 0x1F
 
@@ -780,4 +760,3 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return NULL;
 	}
 }
->>>>>>> tarkzim

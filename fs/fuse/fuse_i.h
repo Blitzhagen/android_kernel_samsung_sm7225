@@ -36,6 +36,12 @@
 #include <linux/statfs.h>
 #include <linux/freezer.h>
 
+#ifdef CONFIG_FUSE_SUPPORT_STLOG
+#include <linux/fslog.h>
+#else
+#define ST_LOG(fmt, ...)
+#endif
+
 #define FUSE_SUPER_MAGIC 0x65735546
 
 /** Default max number of pages that can be used in a single read request */

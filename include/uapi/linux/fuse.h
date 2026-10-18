@@ -157,8 +157,6 @@
  * 
  *  7.28
  *  - add FUSE_MAX_PAGES, add max_pages to init_out
-<<<<<<< ours
-=======
  *
  *  7.28
  *  - add FUSE_COPY_FILE_RANGE
@@ -180,7 +178,6 @@
  *
  *  7.32
  *  - add flags to fuse_attr, add FUSE_ATTR_SUBMOUNT, add FUSE_SUBMOUNTS
->>>>>>> tarkzim
  */
 
 #ifndef _LINUX_FUSE_H
@@ -319,8 +316,6 @@ struct fuse_file_lock {
  * FUSE_POSIX_ACL: filesystem supports posix acls
  * FUSE_ABORT_ERROR: reading the device after abort returns ECONNABORTED
  * FUSE_MAX_PAGES: init_out.max_pages contains the max number of req pages
-<<<<<<< ours
-=======
  * FUSE_CACHE_SYMLINKS: cache READLINK responses
  * FUSE_NO_OPENDIR_SUPPORT: kernel supports zero-message opendir
  * FUSE_EXPLICIT_INVAL_DATA: only invalidate cached pages on explicit request
@@ -328,7 +323,6 @@ struct fuse_file_lock {
  *		       foffset and moffset fields in struct
  *		       fuse_setupmapping_out and fuse_removemapping_one.
  * FUSE_SUBMOUNTS: kernel supports auto-mounting directory submounts
->>>>>>> tarkzim
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -353,15 +347,12 @@ struct fuse_file_lock {
 #define FUSE_POSIX_ACL		(1 << 20)
 #define FUSE_ABORT_ERROR	(1 << 21)
 #define FUSE_MAX_PAGES		(1 << 22)
-<<<<<<< ours
-=======
 #define FUSE_CACHE_SYMLINKS	(1 << 23)
 #define FUSE_NO_OPENDIR_SUPPORT (1 << 24)
 #define FUSE_EXPLICIT_INVAL_DATA (1 << 25)
 #define FUSE_MAP_ALIGNMENT	(1 << 26)
 #define FUSE_SUBMOUNTS		(1 << 27)
 #define FUSE_PASSTHROUGH	(1 << 31)
->>>>>>> tarkzim
 
 /**
  * CUSE INIT request/reply flags
@@ -437,53 +428,6 @@ struct fuse_file_lock {
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
-<<<<<<< ours
-enum fuse_opcode {
-	FUSE_LOOKUP	   = 1,
-	FUSE_FORGET	   = 2,  /* no reply */
-	FUSE_GETATTR	   = 3,
-	FUSE_SETATTR	   = 4,
-	FUSE_READLINK	   = 5,
-	FUSE_SYMLINK	   = 6,
-	FUSE_MKNOD	   = 8,
-	FUSE_MKDIR	   = 9,
-	FUSE_UNLINK	   = 10,
-	FUSE_RMDIR	   = 11,
-	FUSE_RENAME	   = 12,
-	FUSE_LINK	   = 13,
-	FUSE_OPEN	   = 14,
-	FUSE_READ	   = 15,
-	FUSE_WRITE	   = 16,
-	FUSE_STATFS	   = 17,
-	FUSE_RELEASE       = 18,
-	FUSE_FSYNC         = 20,
-	FUSE_SETXATTR      = 21,
-	FUSE_GETXATTR      = 22,
-	FUSE_LISTXATTR     = 23,
-	FUSE_REMOVEXATTR   = 24,
-	FUSE_FLUSH         = 25,
-	FUSE_INIT          = 26,
-	FUSE_OPENDIR       = 27,
-	FUSE_READDIR       = 28,
-	FUSE_RELEASEDIR    = 29,
-	FUSE_FSYNCDIR      = 30,
-	FUSE_GETLK         = 31,
-	FUSE_SETLK         = 32,
-	FUSE_SETLKW        = 33,
-	FUSE_ACCESS        = 34,
-	FUSE_CREATE        = 35,
-	FUSE_INTERRUPT     = 36,
-	FUSE_BMAP          = 37,
-	FUSE_DESTROY       = 38,
-	FUSE_IOCTL         = 39,
-	FUSE_POLL          = 40,
-	FUSE_NOTIFY_REPLY  = 41,
-	FUSE_BATCH_FORGET  = 42,
-	FUSE_FALLOCATE     = 43,
-	FUSE_READDIRPLUS   = 44,
-	FUSE_RENAME2       = 45,
-	FUSE_LSEEK         = 46,
-=======
 /**
  * fuse_attr flags
  *
@@ -539,7 +483,6 @@ enum fuse_opcode {
 	FUSE_COPY_FILE_RANGE	= 47,
 	FUSE_SETUPMAPPING	= 48,
 	FUSE_REMOVEMAPPING	= 49,
->>>>>>> tarkzim
 	FUSE_CANONICAL_PATH= 2016,
 
 	/* CUSE specific operations */
@@ -798,11 +741,7 @@ struct fuse_init_out {
 	uint32_t	max_write;
 	uint32_t	time_gran;
 	uint16_t	max_pages;
-<<<<<<< ours
-	uint16_t	padding;
-=======
 	uint16_t	map_alignment;
->>>>>>> tarkzim
 	uint32_t	unused[8];
 };
 

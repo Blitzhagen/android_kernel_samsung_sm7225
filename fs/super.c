@@ -1004,12 +1004,8 @@ int reconfigure_super(struct fs_context *fc)
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) |
 			(sb_flags & MS_RMT_MASK) | MS_I_VERSION;
 #else
-<<<<<<< ours
-	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (sb_flags & MS_RMT_MASK);
-=======
 	WRITE_ONCE(sb->s_flags, ((sb->s_flags & ~fc->sb_flags_mask) |
 				 (fc->sb_flags & fc->sb_flags_mask)));
->>>>>>> tarkzim
 #endif
 	/* Needs to be ordered wrt mnt_is_readonly() */
 	smp_wmb();
@@ -1558,29 +1554,6 @@ EXPORT_SYMBOL(mount_single);
 int vfs_get_tree(struct fs_context *fc)
 {
 	struct super_block *sb;
-<<<<<<< ours
-	int error = -ENOMEM;
-	struct security_mnt_opts opts;
-
-	security_init_mnt_opts(&opts);
-
-	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		char *secdata = alloc_secdata();
-		if (!secdata)
-			return ERR_PTR(-ENOMEM);
-
-		error = security_sb_copy_data(data, secdata);
-		if (error) {
-			free_secdata(secdata);
-			return ERR_PTR(error);
-		}
-
-		error = security_sb_parse_opts_str(secdata, &opts);
-		free_secdata(secdata);
-		if (error)
-			return ERR_PTR(error);
-	}
-=======
 	int error;
 
 	if (fc->fs_type->fs_flags & FS_REQUIRES_DEV && !fc->source)
@@ -1588,7 +1561,6 @@ int vfs_get_tree(struct fs_context *fc)
 
 	if (fc->root)
 		return -EBUSY;
->>>>>>> tarkzim
 
 	/* Get the mountable root in fc->root, with a ref on the root and a ref
 	 * on the superblock.
@@ -1618,17 +1590,11 @@ int vfs_get_tree(struct fs_context *fc)
 	smp_wmb();
 	sb->s_flags |= SB_BORN;
 
-<<<<<<< ours
-	error = security_sb_kern_mount(sb, flags, &opts);
-	if (error)
-		goto out_sb;
-=======
 	error = security_sb_set_mnt_opts(sb, fc->security, 0, NULL);
 	if (unlikely(error)) {
 		fc_drop_locked(fc);
 		return error;
 	}
->>>>>>> tarkzim
 
 	/*
 	 * filesystems should never set s_maxbytes larger than MAX_LFS_FILESIZE
@@ -1639,19 +1605,7 @@ int vfs_get_tree(struct fs_context *fc)
 	WARN((sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
 		"negative value (%lld)\n", fc->fs_type->name, sb->s_maxbytes);
 
-<<<<<<< ours
-	up_write(&sb->s_umount);
-	security_free_mnt_opts(&opts);
-	return root;
-out_sb:
-	dput(root);
-	deactivate_locked_super(sb);
-out_free_secdata:
-	security_free_mnt_opts(&opts);
-	return ERR_PTR(error);
-=======
 	return 0;
->>>>>>> tarkzim
 }
 EXPORT_SYMBOL(vfs_get_tree);
 

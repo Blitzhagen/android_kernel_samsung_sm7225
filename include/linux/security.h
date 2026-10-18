@@ -111,10 +111,7 @@ enum lsm_event {
 enum lockdown_reason {
 	LOCKDOWN_NONE,
 	LOCKDOWN_INTEGRITY_MAX,
-<<<<<<< ours
-=======
 	LOCKDOWN_BPF_READ,
->>>>>>> tarkzim
 	LOCKDOWN_CONFIDENTIALITY_MAX,
 };
 
@@ -277,17 +274,10 @@ void security_bprm_committed_creds(struct linux_binprm *bprm);
 int security_fs_context_parse_param(struct fs_context *fc, struct fs_parameter *param);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
-<<<<<<< ours
-int security_sb_copy_data(char *orig, char *copy);
-int security_sb_remount(struct super_block *sb, void *data);
-int security_sb_kern_mount(struct super_block *sb, int flags,
-			   struct security_mnt_opts *opts);
-=======
 void security_free_mnt_opts(void **mnt_opts);
 int security_sb_eat_lsm_opts(char *options, void **mnt_opts);
 int security_sb_remount(struct super_block *sb, void *mnt_opts);
 int security_sb_kern_mount(struct super_block *sb);
->>>>>>> tarkzim
 int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(const char *dev_name, const struct path *path,
@@ -614,12 +604,7 @@ static inline int security_sb_remount(struct super_block *sb,
 	return 0;
 }
 
-<<<<<<< ours
-static inline int security_sb_kern_mount(struct super_block *sb, int flags,
-					 struct security_mnt_opts *opts)
-=======
 static inline int security_sb_kern_mount(struct super_block *sb)
->>>>>>> tarkzim
 {
 	return 0;
 }
@@ -1947,45 +1932,4 @@ static inline int security_perf_event_write(struct perf_event *event)
 #endif /* CONFIG_SECURITY */
 #endif /* CONFIG_PERF_EVENTS */
 
-<<<<<<< ours
-#ifdef CONFIG_PERF_EVENTS
-struct perf_event_attr;
-struct perf_event;
-
-#ifdef CONFIG_SECURITY
-extern int security_perf_event_open(struct perf_event_attr *attr, int type);
-extern int security_perf_event_alloc(struct perf_event *event);
-extern void security_perf_event_free(struct perf_event *event);
-extern int security_perf_event_read(struct perf_event *event);
-extern int security_perf_event_write(struct perf_event *event);
-#else
-static inline int security_perf_event_open(struct perf_event_attr *attr,
-					   int type)
-{
-	return 0;
-}
-
-static inline int security_perf_event_alloc(struct perf_event *event)
-{
-	return 0;
-}
-
-static inline void security_perf_event_free(struct perf_event *event)
-{
-}
-
-static inline int security_perf_event_read(struct perf_event *event)
-{
-	return 0;
-}
-
-static inline int security_perf_event_write(struct perf_event *event)
-{
-	return 0;
-}
-#endif /* CONFIG_SECURITY */
-#endif /* CONFIG_PERF_EVENTS */
-
-=======
->>>>>>> tarkzim
 #endif /* ! __LINUX_SECURITY_H */

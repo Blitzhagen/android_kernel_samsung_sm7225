@@ -4949,14 +4949,11 @@ static inline int ext4_iget_extra_inode(struct inode *inode,
 	    *magic == cpu_to_le32(EXT4_XATTR_MAGIC)) {
 		int err;
 
-<<<<<<< ours
 		err = xattr_check_inode(inode, IHDR(inode, raw_inode),
 					ITAIL(inode, raw_inode));
 		if (err)
 			return err;
 
-=======
->>>>>>> tarkzim
 		ext4_set_inode_state(inode, EXT4_STATE_XATTR);
 		err = ext4_find_inline_data_nolock(inode);
 		if (!err && ext4_has_inline_data(inode))
@@ -5037,7 +5034,6 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		goto bad_inode;
 	raw_inode = ext4_raw_inode(&iloc);
 
-<<<<<<< ours
 	if ((ino == EXT4_ROOT_INO) && (raw_inode->i_links_count == 0)) {
 		print_iloc_info(sb, iloc);
 		ext4_error_inode(inode, function, line, 0,
@@ -5046,8 +5042,6 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		goto bad_inode;
 	}
 
-=======
->>>>>>> tarkzim
 	if ((flags & EXT4_IGET_HANDLE) &&
 	    (raw_inode->i_links_count == 0) && (raw_inode->i_mode == 0)) {
 		ret = -ESTALE;
@@ -5130,10 +5124,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 				ret = -EFSCORRUPTED;
 			} else
 				ret = -ESTALE;
-<<<<<<< ours
 			print_iloc_info(sb, iloc);
-=======
->>>>>>> tarkzim
 			goto bad_inode;
 		}
 		/* The only unlinked inodes we let through here have

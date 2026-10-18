@@ -343,8 +343,6 @@ extern pgprot_t protection_map[16];
  * @FAULT_FLAG_REMOTE: The fault is not for current task/mm.
  * @FAULT_FLAG_INSTRUCTION: The fault was during an instruction fetch.
  * @FAULT_FLAG_INTERRUPTIBLE: The fault can be interrupted by non-fatal signals.
-<<<<<<< ours
-=======
  *
  * About @FAULT_FLAG_ALLOW_RETRY and @FAULT_FLAG_TRIED: we can specify
  * whether we would allow page faults to retry by specifying these two
@@ -364,7 +362,6 @@ extern pgprot_t protection_map[16];
  * continuous faults with flags (b).  We should always try to detect pending
  * signals before a retry to make sure the continuous page faults can still be
  * interrupted if necessary.
->>>>>>> tarkzim
  */
 #define FAULT_FLAG_WRITE			0x01
 #define FAULT_FLAG_MKWRITE			0x02
@@ -377,11 +374,8 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_INSTRUCTION  		0x100
 #define FAULT_FLAG_INTERRUPTIBLE		0x200
 #define FAULT_FLAG_PREFAULT_OLD			0x400
-<<<<<<< ours
-=======
 /* Speculative fault, not holding mmap_sem */
 #define FAULT_FLAG_SPECULATIVE	0x200
->>>>>>> tarkzim
 
 /*
  * The default fault flags that should be used by most of the
@@ -390,8 +384,6 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_DEFAULT  (FAULT_FLAG_ALLOW_RETRY | \
 			     FAULT_FLAG_KILLABLE | \
 			     FAULT_FLAG_INTERRUPTIBLE)
-<<<<<<< ours
-=======
 
 /**
  * fault_flag_allow_retry_first - check ALLOW_RETRY the first time
@@ -410,7 +402,6 @@ static inline bool fault_flag_allow_retry_first(unsigned int flags)
 	return (flags & FAULT_FLAG_ALLOW_RETRY) &&
 	    (!(flags & FAULT_FLAG_TRIED));
 }
->>>>>>> tarkzim
 
 #define FAULT_FLAG_TRACE \
 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
@@ -1413,7 +1404,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
 	page->index = 0;
 }
 
-<<<<<<< ours
 /*
  * Different kinds of faults, as returned by handle_mm_fault().
  * Used to decide whether a process gets delivered SIGBUS or
@@ -1460,9 +1450,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
 /* Encode hstate index for a hwpoisoned large page */
 #define VM_FAULT_SET_HINDEX(x) ((x) << 12)
 #define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
-=======
 #define VM_FAULT_PTNOTSAME 0x4000	/* Page table entries have changed */
->>>>>>> tarkzim
 
 /*
  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
@@ -3168,11 +3156,7 @@ extern struct reclaim_param reclaim_task_anon(struct task_struct *task,
 extern struct reclaim_param reclaim_task_nomap(struct task_struct *task,
 		int nr_to_reclaim);
 extern int reclaim_address_space(struct address_space *mapping,
-<<<<<<< ours
-		struct reclaim_param *rp);
-=======
 		struct reclaim_param *rp, struct vm_area_struct *vma);
->>>>>>> tarkzim
 extern int proc_reclaim_notifier_register(struct notifier_block *nb);
 extern int proc_reclaim_notifier_unregister(struct notifier_block *nb);
 #endif

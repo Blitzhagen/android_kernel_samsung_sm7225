@@ -16,10 +16,6 @@
 
 #define HTAB_CREATE_FLAG_MASK						\
 	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE |	\
-<<<<<<< ours
-	 BPF_F_RDONLY | BPF_F_WRONLY | BPF_F_ZERO_SEED)
-
-=======
 	 BPF_F_ACCESS_MASK | BPF_F_ZERO_SEED)
 
 #define BATCH_OPS(_name)			\
@@ -82,7 +78,6 @@
  * spinlock maps to raw_spinlock and the extra code is optimized out by the
  * compiler.
  */
->>>>>>> tarkzim
 struct bucket {
 	struct hlist_nulls_head head;
 	union {
@@ -375,13 +370,8 @@ static int htab_map_alloc_check(union bpf_attr *attr)
 		/* Guard against local DoS, and discourage production use. */
 		return -EPERM;
 
-<<<<<<< ours
-	if (attr->map_flags & ~HTAB_CREATE_FLAG_MASK)
-		/* reserved bits should not be used */
-=======
 	if (attr->map_flags & ~HTAB_CREATE_FLAG_MASK ||
 	    !bpf_map_flags_access_ok(attr->map_flags))
->>>>>>> tarkzim
 		return -EINVAL;
 
 	if (!lru && percpu_lru)
@@ -502,14 +492,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	else
 		htab->hashrnd = get_random_int();
 
-<<<<<<< ours
-	for (i = 0; i < htab->n_buckets; i++) {
-		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
-		raw_spin_lock_init(&htab->buckets[i].lock);
-	}
-=======
 	htab_init_buckets(htab);
->>>>>>> tarkzim
 
 	if (prealloc) {
 		err = prealloc_init(htab);
@@ -847,34 +830,6 @@ static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
 
 static void pcpu_init_value(struct bpf_htab *htab, void __percpu *pptr,
 			    void *value, bool onallcpus)
-<<<<<<< ours
-{
-	/* When using prealloc and not setting the initial value on all cpus,
-	 * zero-fill element values for other cpus (just as what happens when
-	 * not using prealloc). Otherwise, bpf program has no way to ensure
-	 * known initial values for cpus other than current one
-	 * (onallcpus=false always when coming from bpf prog).
-	 */
-	if (htab_is_prealloc(htab) && !onallcpus) {
-		u32 size = round_up(htab->map.value_size, 8);
-		int current_cpu = raw_smp_processor_id();
-		int cpu;
-
-		for_each_possible_cpu(cpu) {
-			if (cpu == current_cpu)
-				bpf_long_memcpy(per_cpu_ptr(pptr, cpu), value,
-						size);
-			else
-				memset(per_cpu_ptr(pptr, cpu), 0, size);
-		}
-	} else {
-		pcpu_copy_value(htab, pptr, value, onallcpus);
-	}
-}
-
-static bool fd_htab_map_needs_adjust(const struct bpf_htab *htab)
-=======
->>>>>>> tarkzim
 {
 	/* When using prealloc and not setting the initial value on all cpus,
 	 * zero-fill element values for other cpus (just as what happens when
@@ -2020,10 +1975,7 @@ static void htab_percpu_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
-<<<<<<< ours
-=======
 static int htab_percpu_map_btf_id;
->>>>>>> tarkzim
 const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = htab_map_alloc_check,
@@ -2034,13 +1986,10 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_update_elem = htab_percpu_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
-<<<<<<< ours
-=======
 	BATCH_OPS(htab_percpu),
 	.map_btf_name = "bpf_htab",
 	.map_btf_id = &htab_percpu_map_btf_id,
 	.iter_seq_info = &iter_seq_info,
->>>>>>> tarkzim
 };
 
 static int htab_lru_percpu_map_btf_id;
@@ -2054,13 +2003,10 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 	.map_update_elem = htab_lru_percpu_map_update_elem,
 	.map_delete_elem = htab_lru_map_delete_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
-<<<<<<< ours
-=======
 	BATCH_OPS(htab_lru_percpu),
 	.map_btf_name = "bpf_htab",
 	.map_btf_id = &htab_lru_percpu_map_btf_id,
 	.iter_seq_info = &iter_seq_info,
->>>>>>> tarkzim
 };
 
 static int fd_htab_map_alloc_check(union bpf_attr *attr)
