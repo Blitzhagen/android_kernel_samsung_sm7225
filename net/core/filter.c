@@ -2107,7 +2107,7 @@ static inline int __bpf_rx_skb(struct net_device *dev, struct sk_buff *skb)
 static inline int __bpf_rx_skb_no_mac(struct net_device *dev,
 				      struct sk_buff *skb)
 {
-	int ret = ____dev_forward_skb(dev, skb);
+	int ret = ____dev_forward_skb(dev, skb, true);
 
 	if (likely(!ret)) {
 		skb->dev = dev;
