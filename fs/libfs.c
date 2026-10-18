@@ -245,57 +245,7 @@ static const struct super_operations simple_super_operations = {
 	.statfs		= simple_statfs,
 };
 
-static int pseudo_fs_get_tree(struct fs_context *fc)
-{
-	struct pseudo_fs_context *ctx = fc->fs_private;
-	struct dentry *root;
-
-	root = mount_pseudo_xattr(fc->fs_type,
-				  ctx->ops, ctx->xattr,
-			          ctx->dops, ctx->magic);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-
-	fc->root = root;
-	return 0;
-}
-
-static void pseudo_fs_free(struct fs_context *fc)
-{
-	kfree(fc->fs_private);
-}
-
-static const struct fs_context_operations pseudo_fs_context_ops = {
-	.free		= pseudo_fs_free,
-	.get_tree	= pseudo_fs_get_tree,
-};
-
-/*
- * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
- * will never be mountable)
- */
-struct pseudo_fs_context *init_pseudo(struct fs_context *fc,
-					unsigned long magic)
-{
-	struct pseudo_fs_context *ctx;
-
-	ctx = kzalloc(sizeof(struct pseudo_fs_context), GFP_KERNEL);
-	if (likely(ctx)) {
-		ctx->magic = magic;
-		fc->fs_private = ctx;
-		fc->ops = &pseudo_fs_context_ops;
-	}
-	return ctx;
-}
-EXPORT_SYMBOL(init_pseudo);
-
-/*
- * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
- * will never be mountable)
- */
-struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops, const struct xattr_handler **xattr,
-	const struct dentry_operations *dops, unsigned long magic)
+static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = fc->fs_private;
 	struct inode *root;

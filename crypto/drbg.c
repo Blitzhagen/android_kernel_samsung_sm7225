@@ -1521,12 +1521,6 @@ static int drbg_prepare_hrng(struct drbg_state *drbg)
 		pr_info("DRBG: Continuing without Jitter RNG\n");
 	}
 
-		drbg->jent = NULL;
-		if (fips_enabled)
-			return err;
-		pr_info("DRBG: Continuing without Jitter RNG\n");
-	}
-
 	return 0;
 }
 
