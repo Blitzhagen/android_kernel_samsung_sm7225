@@ -48,7 +48,6 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 		else
 			return (pmd_t *)__get_free_page(PGALLOC_GFP);
 	}
-	else
 #endif
 	struct page *page;
 
