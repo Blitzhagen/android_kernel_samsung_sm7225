@@ -706,6 +706,16 @@ EXPORT_SYMBOL(kdp_override_creds);
 EXPORT_SYMBOL(override_creds);
 #endif
 
+#ifdef CONFIG_KDP_CRED
+const struct cred *override_creds(const struct cred *new)
+{
+	struct cred *new_ro = (struct cred *)new;
+
+	return kdp_override_creds(&new_ro);
+}
+EXPORT_SYMBOL(override_creds);
+#endif
+
 /**
  * revert_creds - Revert a temporary subjective credentials override
  * @old: The credentials to be restored

@@ -38,6 +38,14 @@ static inline void chacha20_block(u32 *state, u8 *stream)
 {
 	chacha_block(state, stream, 20);
 }
+
+static inline void chacha_init_consts(u32 *state)
+{
+	state[0]  = 0x61707865;
+	state[1]  = 0x3320646e;
+	state[2]  = 0x79622d32;
+	state[3]  = 0x6b206574;
+}
 void hchacha_block(const u32 *in, u32 *out, int nrounds);
 
 void crypto_chacha_init(u32 *state, struct chacha_ctx *ctx, u8 *iv);

@@ -96,6 +96,30 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+void dev_lstats_read(struct net_device *dev, u64 *packets, u64 *bytes)
+{
+	int i;
+
+	*packets = 0;
+	*bytes = 0;
+
+	for_each_possible_cpu(i) {
+		const struct pcpu_lstats *lb_stats;
+		u64 tbytes, tpackets;
+		unsigned int start;
+
+		lb_stats = per_cpu_ptr(dev->lstats, i);
+		do {
+			start = u64_stats_fetch_begin_irq(&lb_stats->syncp);
+			tpackets = lb_stats->packets;
+			tbytes = lb_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&lb_stats->syncp, start));
+		*bytes   += tbytes;
+		*packets += tpackets;
+	}
+}
+EXPORT_SYMBOL(dev_lstats_read);
+
 static void loopback_get_stats64(struct net_device *dev,
 				 struct rtnl_link_stats64 *stats)
 {
