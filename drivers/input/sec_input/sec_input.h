@@ -240,11 +240,7 @@ const struct file_operations ops_name = {				\
 
 #define ABS_MT_CUSTOM		0x3e	/* custom event */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 #define SW_PEN_INSERT		0x0f  /* set = pen insert, remove */
-#else
-#define SW_PEN_INSERT		0x13  /* set = pen insert, remove */
-#endif
 #define SW_PEN_REVERSE_INSERT	0x0d  /* set = pen reverse insert, remove */
 
 #define EXYNOS_DISPLAY_INPUT_NOTIFIER ((IS_ENABLED(CONFIG_EXYNOS_DPU30) || IS_ENABLED(CONFIG_DRM_SAMSUNG_DPU)) && IS_ENABLED(CONFIG_PANEL_NOTIFY))

@@ -44,13 +44,8 @@
 /*
  * Switch events
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 #define SW_FLIP				0x10  /* set = flip cover open, close*/
 #define SW_HALL_LOGICAL		0x0a  /* set = logical hall ic attach/detach */
-#else
-#define SW_FLIP				0x15  /* set = flip cover open, close*/
-#define SW_HALL_LOGICAL		0x1f  /* set = logical hall ic attach/detach */
-#endif
 #define SW_POGO_HALL		0x0d  /* set = pogo cover attach/detach */
 
 enum LID_POSITION {

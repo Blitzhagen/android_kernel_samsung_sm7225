@@ -110,4 +110,4 @@ enum epen_ble_charge_state {
 #define MPU_WEZ01			0x46
 
 /* Switch events */
-#define SW_FLIP                 0x15  /* set = flip cover open, close*/
+#define SW_FLIP                 0x10  /* set = flip cover open, close*/
