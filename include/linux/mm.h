@@ -1447,9 +1447,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
 	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
 	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
 
-/* Encode hstate index for a hwpoisoned large page */
-#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
-#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
 #define VM_FAULT_PTNOTSAME 0x4000	/* Page table entries have changed */
 
 /*
