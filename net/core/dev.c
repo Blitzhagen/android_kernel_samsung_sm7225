@@ -8301,14 +8301,19 @@ EXPORT_SYMBOL(dev_change_proto_down_generic);
 u32 __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
 		    enum bpf_netdev_command cmd)
 {
-	if (proto_down)
-		netif_carrier_off(dev);
-	else
-		netif_carrier_on(dev);
-	dev->proto_down = proto_down;
-	return 0;
+	struct netdev_bpf xdp;
+
+	if (!bpf_op)
+		return 0;
+
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = cmd;
+
+	/* Query must always succeed. */
+	WARN_ON(bpf_op(dev, &xdp) < 0 && cmd == XDP_QUERY_PROG);
+
+	return xdp.prog_id;
 }
-EXPORT_SYMBOL(dev_change_proto_down_generic);
 
 struct bpf_xdp_link {
 	struct bpf_link link;
