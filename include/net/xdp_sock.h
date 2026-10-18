@@ -61,6 +61,8 @@ struct xsk_map_node {
 	struct list_head node;
 	struct xsk_map *map;
 	struct xdp_sock **map_entry;
+};
+
 struct xsk_map {
 	struct bpf_map map;
 	spinlock_t lock; /* Synchronize map updates */
