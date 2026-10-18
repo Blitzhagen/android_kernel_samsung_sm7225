@@ -403,7 +403,6 @@ static int set_encryption_policy(struct inode *inode,
 
 	if (!fscrypt_supported_policy(policy, inode))
 		return -EINVAL;
-	}
 
 	switch (policy->version) {
 	case FSCRYPT_POLICY_V1:
