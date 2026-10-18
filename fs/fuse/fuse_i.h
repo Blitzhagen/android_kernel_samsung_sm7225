@@ -13,11 +13,8 @@
 # define pr_fmt(fmt) "fuse: " fmt
 #endif
 
-<<<<<<< ours
-=======
 #include <linux/filter.h>
 #include <linux/pagemap.h>
->>>>>>> tarkzim
 #include <linux/fuse.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -36,20 +33,10 @@
 #include <linux/pid_namespace.h>
 #include <linux/refcount.h>
 #include <linux/user_namespace.h>
-<<<<<<< ours
-#include <linux/freezer.h>
-
-#ifdef CONFIG_FUSE_SUPPORT_STLOG
-#include <linux/fslog.h>
-#else
-#define ST_LOG(fmt, ...)
-#endif
-=======
 #include <linux/statfs.h>
 #include <linux/freezer.h>
 
 #define FUSE_SUPER_MAGIC 0x65735546
->>>>>>> tarkzim
 
 /** Default max number of pages that can be used in a single read request */
 #define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
@@ -243,12 +230,6 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
-<<<<<<< ours
-	/** Can be filled in by open, to use direct I/O on this file. */
-	FUSE_I_ATTR_FORCE_SYNC,
-
-=======
->>>>>>> tarkzim
 	/* Bad inode */
 	FUSE_I_BAD,
 };
@@ -490,13 +471,6 @@ struct fuse_req {
 
 struct fuse_iqueue;
 
-<<<<<<< ours
-	/** Path used for completing d_canonical_path */
-	struct path *canonical_path;
-
-	/** AIO control block */
-	struct fuse_io_priv *io;
-=======
 /**
  * Input queue callbacks
  *
@@ -511,7 +485,6 @@ struct fuse_iqueue_ops {
 	 */
 	void (*wake_forget_and_unlock)(struct fuse_iqueue *fiq, bool sync)
 		__releases(fiq->lock);
->>>>>>> tarkzim
 
 	/**
 	 * Signal that an INTERRUPT request has been queued
@@ -672,12 +645,9 @@ struct fuse_conn {
 	/** Maxmum number of pages that can be used in a single request */
 	unsigned int max_pages;
 
-<<<<<<< ours
-=======
 	/** Constrain ->max_pages to this value during feature negotiation */
 	unsigned int max_pages_limit;
 
->>>>>>> tarkzim
 	/** Input queue */
 	struct fuse_iqueue iq;
 
@@ -985,8 +955,6 @@ static inline u64 get_node_id(struct inode *inode)
 	return get_fuse_inode(inode)->nodeid;
 }
 
-<<<<<<< ours
-=======
 static inline bool fuse_stale_inode(const struct inode *inode, int generation,
 				    struct fuse_attr *attr)
 {
@@ -994,7 +962,6 @@ static inline bool fuse_stale_inode(const struct inode *inode, int generation,
 		inode_wrong_type(inode, attr->mode);
 }
 
->>>>>>> tarkzim
 static inline void fuse_make_bad(struct inode *inode)
 {
 	set_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state);
@@ -1005,8 +972,6 @@ static inline bool fuse_is_bad(struct inode *inode)
 	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
 }
 
-<<<<<<< ours
-=======
 static inline int invalid_nodeid(u64 nodeid)
 {
 	return !nodeid || nodeid == FUSE_ROOT_ID;
@@ -1017,7 +982,6 @@ static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
 	return atomic64_read(&fc->attr_version);
 }
 
->>>>>>> tarkzim
 /** Device operations */
 extern const struct file_operations fuse_dev_operations;
 
@@ -1154,11 +1118,6 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
  * End a finished request
  */
 void fuse_request_end(struct fuse_req *req);
-
-/**
- * End a finished request
- */
-void fuse_request_end(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
@@ -1350,8 +1309,6 @@ struct posix_acl;
 struct posix_acl *fuse_get_acl(struct inode *inode, int type);
 int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 
-<<<<<<< ours
-=======
 /* readdir.c */
 int fuse_readdir(struct file *file, struct dir_context *ctx);
 
@@ -2036,7 +1993,6 @@ static inline int fuse_bpf_run(struct bpf_prog *prog, struct fuse_bpf_args *fba)
 })
 #endif /* CONFIG_FUSE_BPF */
 
->>>>>>> tarkzim
 #ifdef CONFIG_FREEZER
 static inline void fuse_freezer_do_not_count(void)
 {
@@ -2081,12 +2037,4 @@ static inline void fuse_freezer_count(void) {}
 	__ret;									\
 })
 
-<<<<<<< ours
-/**
- * Get the next unique ID for a request
- */
-u64 fuse_get_unique(struct fuse_iqueue *fiq);
-
-=======
->>>>>>> tarkzim
 #endif /* _FS_FUSE_I_H */

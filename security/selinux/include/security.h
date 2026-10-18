@@ -72,15 +72,12 @@
 
 struct netlbl_lsm_secattr;
 
-<<<<<<< ours
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
 extern int selinux_enabled __kdp_ro;
 #else
 extern int selinux_enabled;
 #endif
-=======
 extern int selinux_enabled_boot;
->>>>>>> tarkzim
 
 /* Policy capabilities */
 enum {
@@ -120,11 +117,8 @@ struct selinux_state {
 	bool initialized;
 	bool policycap[__POLICYDB_CAPABILITY_MAX];
 	bool android_netlink_route;
-<<<<<<< ours
 	bool android_netlink_getneigh;
 
-=======
->>>>>>> tarkzim
 	struct selinux_avc *avc;
 	struct selinux_ss *ss;
 } __randomize_layout;
@@ -147,7 +141,6 @@ static inline void selinux_mark_initialized(struct selinux_state *state)
 }
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-<<<<<<< ours
 //If the binary is no-ship, selinux_enforcing value can be changed.
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
 extern int selinux_enforcing __kdp_ro_aligned;
@@ -157,25 +150,15 @@ extern int selinux_enforcing;
 static inline bool enforcing_enabled(struct selinux_state *state)
 {
 	return selinux_enforcing; // SEC_SELINUX_PORTING_COMMON Change to use RKP 
-=======
-extern int selinux_enforcing;
-static inline bool enforcing_enabled(struct selinux_state *state)
-{
-	return READ_ONCE(state->enforcing);
->>>>>>> tarkzim
 }
 
 static inline void enforcing_set(struct selinux_state *state, bool value)
 {
-<<<<<<< ours
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
 	uh_call(UH_APP_KDP, PROTECT_SELINUX_VAR, (u64)&selinux_enforcing, (u64)value, 0, 0);
 #else
 	selinux_enforcing = value; // SEC_SELINUX_PORTING_COMMON Change to use RKP
 #endif
-=======
-	WRITE_ONCE(state->enforcing, value);
->>>>>>> tarkzim
 }
 #else
 static inline bool enforcing_enabled(struct selinux_state *state)
@@ -254,7 +237,6 @@ static inline bool selinux_android_nlroute_getlink(void)
 	return state->android_netlink_route;
 }
 
-<<<<<<< ours
 static inline bool selinux_android_nlroute_getneigh(void)
 {
 	struct selinux_state *state = &selinux_state;
@@ -262,8 +244,6 @@ static inline bool selinux_android_nlroute_getneigh(void)
 	return state->android_netlink_getneigh;
 }
 
-=======
->>>>>>> tarkzim
 int security_mls_enabled(struct selinux_state *state);
 int security_load_policy(struct selinux_state *state,
 			 void *data, size_t len);

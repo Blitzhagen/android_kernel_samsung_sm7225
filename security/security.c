@@ -53,19 +53,11 @@ static __initdata const char *chosen_lsm_order;
 static __initdata const char *chosen_major_lsm;
 
 static __initconst const char * const builtin_lsm_order = CONFIG_LSM;
-<<<<<<< ours
 
 /* Ordered list of LSMs to initialize. */
 static __initdata struct lsm_info **ordered_lsms;
 static __initdata struct lsm_info *exclusive;
 
-=======
-
-/* Ordered list of LSMs to initialize. */
-static __initdata struct lsm_info **ordered_lsms;
-static __initdata struct lsm_info *exclusive;
-
->>>>>>> tarkzim
 static __initdata bool debug;
 #define init_debug(...)						\
 	do {							\
@@ -179,11 +171,8 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 	if (needed->lbs_inode && blob_sizes.lbs_inode == 0)
 		blob_sizes.lbs_inode = sizeof(struct rcu_head);
 	lsm_set_blob_size(&needed->lbs_inode, &blob_sizes.lbs_inode);
-<<<<<<< ours
-=======
 	lsm_set_blob_size(&needed->lbs_ipc, &blob_sizes.lbs_ipc);
 	lsm_set_blob_size(&needed->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
->>>>>>> tarkzim
 	lsm_set_blob_size(&needed->lbs_task, &blob_sizes.lbs_task);
 }
 
@@ -203,91 +192,6 @@ static void __init prepare_lsm(struct lsm_info *lsm)
 		}
 
 		lsm_set_blob_sizes(lsm->blobs);
-<<<<<<< ours
-	}
-}
-
-/* Initialize a given LSM, if it is enabled. */
-static void __init initialize_lsm(struct lsm_info *lsm)
-{
-	if (is_enabled(lsm)) {
-		int ret;
-
-		init_debug("initializing %s\n", lsm->name);
-		ret = lsm->init();
-		WARN(ret, "%s failed to initialize: %d\n", lsm->name, ret);
-	}
-}
-
-/* Populate ordered LSMs list from comma-separated LSM name list. */
-static void __init ordered_lsm_parse(const char *order, const char *origin)
-{
-	struct lsm_info *lsm;
-	char *sep, *name, *next;
-
-	/* LSM_ORDER_FIRST is always first. */
-	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-		if (lsm->order == LSM_ORDER_FIRST)
-			append_ordered_lsm(lsm, "first");
-	}
-
-	/* Process "security=", if given. */
-	if (chosen_major_lsm) {
-		struct lsm_info *major;
-
-		/*
-		 * To match the original "security=" behavior, this
-		 * explicitly does NOT fallback to another Legacy Major
-		 * if the selected one was separately disabled: disable
-		 * all non-matching Legacy Major LSMs.
-		 */
-		for (major = __start_lsm_info; major < __end_lsm_info;
-		     major++) {
-			if ((major->flags & LSM_FLAG_LEGACY_MAJOR) &&
-			    strcmp(major->name, chosen_major_lsm) != 0) {
-				set_enabled(major, false);
-				init_debug("security=%s disabled: %s\n",
-					   chosen_major_lsm, major->name);
-			}
-		}
-	}
-
-	sep = kstrdup(order, GFP_KERNEL);
-	next = sep;
-	/* Walk the list, looking for matching LSMs. */
-	while ((name = strsep(&next, ",")) != NULL) {
-		bool found = false;
-
-		for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-			if (lsm->order == LSM_ORDER_MUTABLE &&
-			    strcmp(lsm->name, name) == 0) {
-				append_ordered_lsm(lsm, origin);
-				found = true;
-			}
-		}
-
-		if (!found)
-			init_debug("%s ignored: %s\n", origin, name);
-	}
-
-	/* Process "security=", if given. */
-	if (chosen_major_lsm) {
-		for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-			if (exists_ordered_lsm(lsm))
-				continue;
-			if (strcmp(lsm->name, chosen_major_lsm) == 0)
-				append_ordered_lsm(lsm, "security=");
-		}
-	}
-
-	/* Disable all LSMs not in the ordered list. */
-	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-		if (exists_ordered_lsm(lsm))
-			continue;
-		set_enabled(lsm, false);
-		init_debug("%s disabled: %s\n", origin, lsm->name);
-=======
->>>>>>> tarkzim
 	}
 
 	kfree(sep);
@@ -494,7 +398,6 @@ int __init security_init(void)
 
 /* Save user chosen LSM */
 static int __init choose_major_lsm(char *str)
-<<<<<<< ours
 {
 	chosen_major_lsm = str;
 	return 1;
@@ -507,20 +410,6 @@ static int __init choose_lsm_order(char *str)
 	chosen_lsm_order = str;
 	return 1;
 }
-=======
-{
-	chosen_major_lsm = str;
-	return 1;
-}
-__setup("security=", choose_major_lsm);
-
-/* Explicitly choose LSM initialization order. */
-static int __init choose_lsm_order(char *str)
-{
-	chosen_lsm_order = str;
-	return 1;
-}
->>>>>>> tarkzim
 __setup("lsm=", choose_lsm_order);
 
 /* Enable LSM order debugging. */
@@ -706,8 +595,6 @@ int lsm_task_alloc(struct task_struct *task)
 }
 
 /**
-<<<<<<< ours
-=======
  * lsm_ipc_alloc - allocate a composite ipc blob
  * @kip: the ipc that needs a blob
  *
@@ -750,7 +637,6 @@ int lsm_msg_msg_alloc(struct msg_msg *mp)
 }
 
 /**
->>>>>>> tarkzim
  * lsm_early_task - during initialization allocate a composite task blob
  * @task: the task that needs a blob
  *
@@ -994,16 +880,9 @@ int security_sb_remount(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_remount);
 
-<<<<<<< ours
-int security_sb_kern_mount(struct super_block *sb, int flags,
-			   struct security_mnt_opts *opts)
-{
-	return call_int_hook(sb_kern_mount, 0, sb, flags, opts);
-=======
 int security_sb_kern_mount(struct super_block *sb)
 {
 	return call_int_hook(sb_kern_mount, 0, sb);
->>>>>>> tarkzim
 }
 
 int security_sb_show_options(struct seq_file *m, struct super_block *sb)
@@ -1657,19 +1536,11 @@ int security_mmap_file(struct file *file, unsigned long prot,
 	int ret;
 
 	ret = call_int_hook(mmap_file, 0, file, prot, prot_adj, flags);
-<<<<<<< ours
 	if (ret)
 		return ret;
 	ret = five_file_mmap(file, prot);
 	if (ret)
 		return ret;
-=======
-	if (ret)
-		return ret;
-	ret = five_file_mmap(file, prot);
-	if (ret)
-		return ret;
->>>>>>> tarkzim
 	return ima_file_mmap(file, prot, prot_adj, flags);
 }
 

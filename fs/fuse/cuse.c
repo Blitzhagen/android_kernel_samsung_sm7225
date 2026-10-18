@@ -314,16 +314,10 @@ struct cuse_init_args {
  * required data structures for it.  Please read the comment at the
  * top of this file for high level overview.
  */
-<<<<<<< ours
-static void cuse_process_init_reply(struct fuse_conn *fc,
-				    struct fuse_args *args, int error)
-{
-=======
 static void cuse_process_init_reply(struct fuse_mount *fm,
 				    struct fuse_args *args, int error)
 {
 	struct fuse_conn *fc = fm->fc;
->>>>>>> tarkzim
 	struct cuse_init_args *ia = container_of(args, typeof(*ia), ap.args);
 	struct fuse_args_pages *ap = &ia->ap;
 	struct cuse_conn *cc = fc_to_cc(fc), *pos;
@@ -432,11 +426,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 {
 	int rc;
 	struct page *page;
-<<<<<<< ours
-	struct fuse_conn *fc = &cc->fc;
-=======
 	struct fuse_mount *fm = &cc->fm;
->>>>>>> tarkzim
 	struct cuse_init_args *ia;
 	struct fuse_args_pages *ap;
 
@@ -463,13 +453,8 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ap->args.out_args[0].size = sizeof(ia->out);
 	ap->args.out_args[0].value = &ia->out;
 	ap->args.out_args[1].size = CUSE_INIT_INFO_MAX;
-<<<<<<< ours
-	ap->args.out_argvar = 1;
-	ap->args.out_pages = 1;
-=======
 	ap->args.out_argvar = true;
 	ap->args.out_pages = true;
->>>>>>> tarkzim
 	ap->num_pages = 1;
 	ap->pages = &ia->page;
 	ap->descs = &ia->desc;
@@ -477,11 +462,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ia->desc.length = ap->args.out_args[1].size;
 	ap->args.end = cuse_process_init_reply;
 
-<<<<<<< ours
-	rc = fuse_simple_background(fc, &ap->args, GFP_KERNEL);
-=======
 	rc = fuse_simple_background(fm, &ap->args, GFP_KERNEL);
->>>>>>> tarkzim
 	if (rc) {
 		kfree(ia);
 err_free_page:

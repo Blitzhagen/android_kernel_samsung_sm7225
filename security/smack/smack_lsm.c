@@ -740,11 +740,7 @@ out_err:
 	kfree(fshat);
 	kfree(fsroot);
 	kfree(fstransmute);
-<<<<<<< ours
-	security_free_mnt_opts(opts);
-=======
 	security_free_mnt_opts(mnt_opts);
->>>>>>> tarkzim
 	return rc;
 }
 
@@ -878,23 +874,6 @@ static int smack_set_mnt_opts(struct super_block *sb,
 }
 
 /**
-<<<<<<< ours
- * smack_sb_kern_mount - Smack specific mount processing
- * @sb: the file system superblock
- * @flags: the mount flags
- * @data: the smack mount options
- *
- * Returns 0 on success, an error code on failure
- */
-static int smack_sb_kern_mount(struct super_block *sb, int flags,
-			       struct security_mnt_opts *opts)
-{
-	return smack_set_mnt_opts(sb, opts, 0, NULL);
-}
-
-/**
-=======
->>>>>>> tarkzim
  * smack_sb_statfs - Smack check on statfs
  * @dentry: identifies the file system in question
  *
@@ -4650,11 +4629,8 @@ struct lsm_blob_sizes smack_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_smack),
 	.lbs_file = sizeof(struct smack_known *),
 	.lbs_inode = sizeof(struct inode_smack),
-<<<<<<< ours
-=======
 	.lbs_ipc = sizeof(struct smack_known *),
 	.lbs_msg_msg = sizeof(struct smack_known *),
->>>>>>> tarkzim
 };
 
 static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {

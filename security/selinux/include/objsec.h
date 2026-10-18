@@ -42,19 +42,6 @@ struct task_security_struct {
 	void *bp_cred;
 #endif
 }; __randomize_layout;
-<<<<<<< ours
-
-/*
- * get the subjective security ID of the current task
- */
-static inline u32 current_sid(void)
-{
-	const struct task_security_struct *tsec = current_security();
-
-	return tsec->sid;
-}
-=======
->>>>>>> tarkzim
 
 enum label_initialized {
 	LABEL_INVALID,		/* invalid or not initialized */
@@ -161,21 +148,12 @@ struct pkey_security_struct {
 
 struct bpf_security_struct {
 	u32 sid;  /* SID of bpf obj creator */
-<<<<<<< ours
 };
 
 struct perf_event_security_struct {
 	u32 sid;  /* SID of perf_event obj creator */
 };
 
-=======
-};
-
-struct perf_event_security_struct {
-	u32 sid;  /* SID of perf_event obj creator */
-};
-
->>>>>>> tarkzim
 extern struct lsm_blob_sizes selinux_blob_sizes;
 static inline struct task_security_struct *selinux_cred(const struct cred *cred)
 {
@@ -198,19 +176,12 @@ static inline struct inode_security_struct *selinux_inode(
 static inline struct msg_security_struct *selinux_msg_msg(
 						const struct msg_msg *msg_msg)
 {
-<<<<<<< ours
-	return msg_msg->security;
-=======
 	return msg_msg->security + selinux_blob_sizes.lbs_msg_msg;
->>>>>>> tarkzim
 }
 
 static inline struct ipc_security_struct *selinux_ipc(
 						const struct kern_ipc_perm *ipc)
 {
-<<<<<<< ours
-	return ipc->security;
-=======
 	return ipc->security + selinux_blob_sizes.lbs_ipc;
 }
 
@@ -222,7 +193,6 @@ static inline u32 current_sid(void)
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
 
 	return tsec->sid;
->>>>>>> tarkzim
 }
 
 #endif /* _SELINUX_OBJSEC_H_ */

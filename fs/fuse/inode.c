@@ -61,26 +61,6 @@ MODULE_PARM_DESC(max_user_congthresh,
 #ifdef CONFIG_BLOCK
 static struct file_system_type fuseblk_fs_type;
 #endif
-<<<<<<< ours
-
-struct fuse_fs_context {
-	const char	*subtype;
-	bool		is_bdev;
-	int fd;
-	unsigned rootmode;
-	kuid_t user_id;
-	kgid_t group_id;
-	unsigned fd_present:1;
-	unsigned rootmode_present:1;
-	unsigned user_id_present:1;
-	unsigned group_id_present:1;
-	unsigned default_permissions:1;
-	unsigned allow_other:1;
-	unsigned max_read;
-	unsigned blksize;
-};
-=======
->>>>>>> tarkzim
 
 struct fuse_forget_link *fuse_alloc_forget(void)
 {
@@ -110,21 +90,11 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	init_rwsem(&fi->i_mmap_sem);
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
-<<<<<<< ours
-	if (!fi->forget) {
-		kmem_cache_free(fuse_inode_cachep, fi);
-		return NULL;
-	}
-
-	return &fi->inode;
-}
-=======
 	if (!fi->forget)
 		goto out_free;
 
 	if (IS_ENABLED(CONFIG_FUSE_DAX) && !fuse_dax_inode_alloc(sb, fi))
 		goto out_free_forget;
->>>>>>> tarkzim
 
 	return &fi->inode;
 
@@ -177,14 +147,6 @@ static void fuse_evict_inode(struct inode *inode)
 	}
 }
 
-<<<<<<< ours
-static int fuse_reconfigure(struct fs_context *fc)
-{
-	struct super_block *sb = fc->root->d_sb;
-
-	sync_filesystem(sb);
-	if (fc->sb_flags & SB_MANDLOCK)
-=======
 #ifdef CONFIG_FUSE_BPF
 static void fuse_destroy_inode(struct inode *inode)
 {
@@ -200,7 +162,6 @@ static int fuse_reconfigure(struct fs_context *fsc)
 
 	sync_filesystem(sb);
 	if (fsc->sb_flags & SB_MANDLOCK)
->>>>>>> tarkzim
 		return -EINVAL;
 
 	return 0;
@@ -296,7 +257,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	bool is_wb = fc->writeback_cache && !test_bit(FUSE_I_ATTR_FORCE_SYNC, &fi->state);
+	bool is_wb = fc->writeback_cache;
 	loff_t oldsize;
 	struct timespec64 old_mtime;
 
@@ -504,13 +465,8 @@ retry:
 		inode->i_generation = generation;
 		fuse_init_inode(inode, attr);
 		unlock_new_inode(inode);
-<<<<<<< ours
-	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
-		/* Inode has changed type, any I/O on the old should fail */
-=======
 	} else if (fuse_stale_inode(inode, generation, attr)) {
 		/* nodeid was reused, any I/O on the old inode should fail */
->>>>>>> tarkzim
 		fuse_make_bad(inode);
 		if (inode != d_inode(sb->s_root)) {
 			remove_inode_hash(inode);
@@ -556,10 +512,6 @@ struct inode *fuse_ilookup(struct fuse_conn *fc, u64 nodeid,
 int fuse_reverse_inval_inode(struct fuse_conn *fc, u64 nodeid,
 			     loff_t offset, loff_t len)
 {
-<<<<<<< ours
-	struct fuse_conn *fc = get_fuse_conn_super(sb);
-=======
->>>>>>> tarkzim
 	struct fuse_inode *fi;
 	struct inode *inode;
 	pgoff_t pg_start;
@@ -699,106 +651,6 @@ static const struct fs_parameter_spec fuse_param_specs[] = {
 	fsparam_flag	("allow_other",		OPT_ALLOW_OTHER),
 	fsparam_u32	("max_read",		OPT_MAX_READ),
 	fsparam_u32	("blksize",		OPT_BLKSIZE),
-<<<<<<< ours
-	__fsparam(fs_param_is_string, "subtype", OPT_SUBTYPE,
-		  fs_param_v_optional),
-	{}
-};
-
-static const struct fs_parameter_description fuse_fs_parameters = {
-	.name		= "fuse",
-	.specs		= fuse_param_specs,
-};
-
-static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
-{
-	struct fs_parse_result result;
-	struct fuse_fs_context *ctx = fc->fs_private;
-	int opt;
-
-	/*
-	 * Ignore options coming from mount(MS_REMOUNT) for backward
-	 * compatibility.
-	 */
-	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
-		return 0;
-
-	opt = fs_parse(fc, &fuse_fs_parameters, param, &result);
-	if (opt < 0)
-		return opt;
-
-	switch (opt) {
-	case OPT_SOURCE:
-		if (fc->source)
-			return invalf(fc, "fuse: Multiple sources specified");
-		fc->source = param->string;
-		param->string = NULL;
-		break;
-
-	case OPT_SUBTYPE:
-		if (ctx->subtype)
-			return invalf(fc, "fuse: Multiple subtypes specified");
-		ctx->subtype = param->string;
-		param->string = NULL;
-		return 0;
-
-	case OPT_FD:
-		ctx->fd = result.uint_32;
-		ctx->fd_present = 1;
-		break;
-
-	case OPT_ROOTMODE:
-		if (!fuse_valid_type(result.uint_32))
-			return invalf(fc, "fuse: Invalid rootmode");
-		ctx->rootmode = result.uint_32;
-		ctx->rootmode_present = 1;
-		break;
-
-	case OPT_USER_ID:
-		ctx->user_id = make_kuid(fc->user_ns, result.uint_32);
-		if (!uid_valid(ctx->user_id))
-			return invalf(fc, "fuse: Invalid user_id");
-		ctx->user_id_present = 1;
-		break;
-
-	case OPT_GROUP_ID:
-		ctx->group_id = make_kgid(fc->user_ns, result.uint_32);
-		if (!gid_valid(ctx->group_id))
-			return invalf(fc, "fuse: Invalid group_id");
-		ctx->group_id_present = 1;
-		break;
-
-	case OPT_DEFAULT_PERMISSIONS:
-		ctx->default_permissions = 1;
-		break;
-
-	case OPT_ALLOW_OTHER:
-		ctx->allow_other = 1;
-		break;
-
-	case OPT_MAX_READ:
-		ctx->max_read = result.uint_32;
-		break;
-
-	case OPT_BLKSIZE:
-		if (!ctx->is_bdev)
-			return invalf(fc, "fuse: blksize only supported for fuseblk");
-		ctx->blksize = result.uint_32;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static void fuse_free_fc(struct fs_context *fc)
-{
-	struct fuse_fs_context *ctx = fc->fs_private;
-
-	if (ctx) {
-=======
 	fsparam_string	("subtype",		OPT_SUBTYPE),
 	fsparam_u32	("root_bpf",		OPT_ROOT_BPF),
 	fsparam_u32	("root_dir",		OPT_ROOT_DIR),
@@ -943,7 +795,6 @@ static void fuse_free_fsc(struct fs_context *fsc)
 			fput(ctx->root_dir);
 		if (ctx->root_bpf)
 			bpf_prog_put(ctx->root_bpf);
->>>>>>> tarkzim
 		kfree(ctx->subtype);
 		kfree(ctx);
 	}
@@ -1032,15 +883,12 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	fc->pid_ns = get_pid_ns(task_active_pid_ns(current));
 	fc->user_ns = get_user_ns(user_ns);
 	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
-<<<<<<< ours
-=======
 	fc->max_pages_limit = FUSE_MAX_MAX_PAGES;
 
 	INIT_LIST_HEAD(&fc->mounts);
 	list_add(&fm->fc_entry, &fc->mounts);
 	fm->fc = fc;
 	refcount_set(&fm->count, 1);
->>>>>>> tarkzim
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -1407,11 +1255,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 				fc->abort_err = 1;
 			if (arg->flags & FUSE_MAX_PAGES) {
 				fc->max_pages =
-<<<<<<< ours
-					min_t(unsigned int, FUSE_MAX_MAX_PAGES,
-					max_t(unsigned int, arg->max_pages, 1));
-			}
-=======
 					min_t(unsigned int, fc->max_pages_limit,
 					max_t(unsigned int, arg->max_pages, 1));
 			}
@@ -1426,7 +1269,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 				fm->sb->s_stack_depth =
 					FILESYSTEM_MAX_STACK_DEPTH;
 			}
->>>>>>> tarkzim
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
 			fc->no_lock = 1;
@@ -1440,10 +1282,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-<<<<<<< ours
-	ST_LOG("<%s> dev = %u:%u  fuse Initialized",
-			__func__, MAJOR(fc->dev), MINOR(fc->dev));
-=======
 	kfree(ia);
 
 	if (!ok) {
@@ -1451,7 +1289,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 		fc->conn_error = 1;
 	}
 
->>>>>>> tarkzim
 	fuse_set_initialized(fc);
 	wake_up_all(&fc->blocked_waitq);
 }
@@ -1473,25 +1310,6 @@ void fuse_send_init(struct fuse_mount *fm)
 		FUSE_DO_READDIRPLUS | FUSE_READDIRPLUS_AUTO | FUSE_ASYNC_DIO |
 		FUSE_WRITEBACK_CACHE | FUSE_NO_OPEN_SUPPORT |
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
-<<<<<<< ours
-		FUSE_ABORT_ERROR | FUSE_MAX_PAGES;
-	req->in.h.opcode = FUSE_INIT;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(*arg);
-	req->in.args[0].value = arg;
-	req->out.numargs = 1;
-	/* Variable length argument used for backward compatibility
-	   with interface version < 7.5.  Rest of init_out is zeroed
-	   by do_get_request(), so a short reply is not a problem */
-	req->out.argvar = 1;
-	req->out.args[0].size = sizeof(struct fuse_init_out);
-	req->out.args[0].value = &req->misc.init_out;
-	req->end = process_init_reply;
-
-	ST_LOG("<%s> dev = %u:%u  fuse send Init request",
-			__func__, MAJOR(fc->dev), MINOR(fc->dev));
-	fuse_request_send_background(fc, req);
-=======
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
 		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA |
 		FUSE_PASSTHROUGH;
@@ -1530,7 +1348,6 @@ static int free_fuse_passthrough(int id, void *p, void *data)
 	kfree(p);
 
 	return 0;
->>>>>>> tarkzim
 }
 
 void fuse_free_conn(struct fuse_conn *fc)
@@ -1562,13 +1379,8 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	if (err)
 		return err;
 
-<<<<<<< ours
-	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
-=======
->>>>>>> tarkzim
 	/* fuse does it's own writeback accounting */
-	sb->s_bdi->capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT |
-				  BDI_CAP_SEC_DEBUG;
+	sb->s_bdi->capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT;
 
 	/*
 	 * For a single fuse filesystem use max 1% of dirty +
@@ -1647,42 +1459,8 @@ void fuse_dev_free(struct fuse_dev *fud)
 }
 EXPORT_SYMBOL_GPL(fuse_dev_free);
 
-<<<<<<< ours
-static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
-{
-	struct fuse_fs_context *ctx = fsc->fs_private;
-	struct fuse_dev *fud;
-	struct fuse_conn *fc;
-	struct inode *root;
-	struct file *file;
-	struct dentry *root_dentry;
-	struct fuse_req *init_req;
-	int err;
-	int is_bdev = sb->s_bdev != NULL;
-
-	err = -EINVAL;
-	if (sb->s_flags & SB_MANDLOCK)
-		goto err;
-
-	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
-
-	if (is_bdev) {
-#ifdef CONFIG_BLOCK
-		err = -EINVAL;
-		if (!sb_set_blocksize(sb, ctx->blksize))
-			goto err;
-#endif
-	} else {
-		sb->s_blocksize = PAGE_SIZE;
-		sb->s_blocksize_bits = PAGE_SHIFT;
-	}
-
-	sb->s_subtype = ctx->subtype;
-	ctx->subtype = NULL;
-=======
 static void fuse_sb_defaults(struct super_block *sb)
 {
->>>>>>> tarkzim
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
 	sb->s_xattr = fuse_xattr_handlers;
@@ -1692,23 +1470,7 @@ static void fuse_sb_defaults(struct super_block *sb)
 	sb->s_iflags |= SB_I_IMA_UNVERIFIABLE_SIGNATURE;
 	if (sb->s_user_ns != &init_user_ns)
 		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
-<<<<<<< ours
-
-	file = fget(ctx->fd);
-	err = -EINVAL;
-	if (!file)
-		goto err;
-
-	/*
-	 * Require mount to happen from the same user namespace which
-	 * opened /dev/fuse to prevent potential attacks.
-	 */
-	if (file->f_op != &fuse_dev_operations ||
-	    file->f_cred->user_ns != sb->s_user_ns)
-		goto err_fput;
-=======
 	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
->>>>>>> tarkzim
 
 	/*
 	 * If we are not in the initial user namespace posix
@@ -1812,15 +1574,6 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->allow_other = ctx->allow_other;
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
-<<<<<<< ours
-	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
-
-	/* Used by get_root_inode() */
-	sb->s_fs_info = fc;
-
-	err = -ENOMEM;
-	root = fuse_get_root_inode(sb, ctx->rootmode);
-=======
 	fc->legacy_opts_show = ctx->legacy_opts_show;
 	fc->max_read = max_t(unsigned int, 4096, ctx->max_read);
 	fc->destroy = ctx->destroy;
@@ -1831,7 +1584,6 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode, ctx->root_bpf,
 				   ctx->root_dir);
->>>>>>> tarkzim
 	sb->s_d_op = &fuse_root_dentry_operations;
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
@@ -1933,53 +1685,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	return err;
 }
 
-<<<<<<< ours
-static int fuse_get_tree(struct fs_context *fc)
-{
-	struct fuse_fs_context *ctx = fc->fs_private;
-
-	if (!ctx->fd_present || !ctx->rootmode_present ||
-	    !ctx->user_id_present || !ctx->group_id_present)
-		return -EINVAL;
-
-#ifdef CONFIG_BLOCK
-	if (ctx->is_bdev)
-		return get_tree_bdev(fc, fuse_fill_super);
-#endif
-
-	return get_tree_nodev(fc, fuse_fill_super);
-}
-
-static const struct fs_context_operations fuse_context_ops = {
-	.free		= fuse_free_fc,
-	.parse_param	= fuse_parse_param,
-	.reconfigure	= fuse_reconfigure,
-	.get_tree	= fuse_get_tree,
-};
-
-/*
- * Set up the filesystem mount context.
- */
-static int fuse_init_fs_context(struct fs_context *fc)
-{
-	struct fuse_fs_context *ctx;
-
-	ctx = kzalloc(sizeof(struct fuse_fs_context), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->max_read = ~0;
-	ctx->blksize = FUSE_DEFAULT_BLKSIZE;
-
-#ifdef CONFIG_BLOCK
-	if (fc->fs_type == &fuseblk_fs_type)
-		ctx->is_bdev = true;
-#endif
-
-	fc->fs_private = ctx;
-	fc->ops = &fuse_context_ops;
-	return 0;
-=======
 static int fuse_get_tree(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
@@ -1994,7 +1699,6 @@ static int fuse_get_tree(struct fs_context *fsc)
 #endif
 
 	return get_tree_nodev(fsc, fuse_fill_super);
->>>>>>> tarkzim
 }
 
 static const struct fs_context_operations fuse_context_ops = {

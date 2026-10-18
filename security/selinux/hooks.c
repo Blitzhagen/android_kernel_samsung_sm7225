@@ -89,15 +89,12 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/bpf.h>
-<<<<<<< ours
 // [ SEC_SELINUX_PORTING_COMMON 
 #include <linux/delay.h> 
 // ] SEC_SELINUX_PORTING_COMMON 
-=======
 #include <linux/kernfs.h>
 #include <linux/stringhash.h>	/* for hashlen_string() */
 
->>>>>>> tarkzim
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
@@ -118,7 +115,6 @@ static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 static DEFINE_MUTEX(selinux_sdcardfs_lock);
 // ] SEC_SELINUX_PORTING_COMMON
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-<<<<<<< ours
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
 static int selinux_enforcing_boot __kdp_ro;
 int selinux_enforcing __kdp_ro_aligned;
@@ -126,9 +122,6 @@ int selinux_enforcing __kdp_ro_aligned;
 static int selinux_enforcing_boot;
 int selinux_enforcing;
 #endif
-=======
-static int selinux_enforcing_boot __initdata;
->>>>>>> tarkzim
 
 static int __init enforcing_setup(char *str)
 {
@@ -138,15 +131,10 @@ static int __init enforcing_setup(char *str)
 // [ SEC_SELINUX_PORTING_COMMON
 #ifdef CONFIG_ALWAYS_ENFORCE
 		selinux_enforcing_boot = 1;
-<<<<<<< ours
 		selinux_enforcing = 1;
 #else
 		selinux_enforcing_boot = enforcing ? 1 : 0;
 		selinux_enforcing = enforcing ? 1 : 0;
-=======
-#else
-		selinux_enforcing_boot = enforcing ? 1 : 0;
->>>>>>> tarkzim
 #endif
 // ] SEC_SELINUX_PORTING_COMMON
 	}
@@ -159,7 +147,6 @@ __setup("enforcing=", enforcing_setup);
 
 int selinux_enabled_boot __initdata = 1;
 #ifdef CONFIG_SECURITY_SELINUX_BOOTPARAM
-<<<<<<< ours
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
 int selinux_enabled __kdp_ro = CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE;
 #else
@@ -186,16 +173,6 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled __kdp_ro = 1;
 #else
 int selinux_enabled = 1;
-=======
-static int __init selinux_enabled_setup(char *str)
-{
-	unsigned long enabled;
-	if (!kstrtoul(str, 0, &enabled))
-		selinux_enabled_boot = enabled ? 1 : 0;
-	return 1;
-}
-__setup("selinux=", selinux_enabled_setup);
->>>>>>> tarkzim
 #endif
 #endif
 
@@ -322,11 +299,7 @@ static int __inode_security_revalidate(struct inode *inode,
 
 	might_sleep_if(may_sleep);
 
-<<<<<<< ours
-	if (ss_initialized && // SEC_SELINUX_PORTING_COMMON Change to use RKP
-=======
 	if (selinux_initialized(&selinux_state) &&
->>>>>>> tarkzim
 	    isec->initialized != LABEL_INITIALIZED) {
 		if (!may_sleep)
 			return -ECHILD;
@@ -415,8 +388,6 @@ static void superblock_free_security(struct super_block *sb)
 	kfree(sbsec);
 }
 
-<<<<<<< ours
-=======
 struct selinux_mnt_opts {
 	const char *fscontext, *context, *rootcontext, *defcontext;
 };
@@ -431,7 +402,6 @@ static void selinux_free_mnt_opts(void *mnt_opts)
 	kfree(opts);
 }
 
->>>>>>> tarkzim
 enum {
 	Opt_error = -1,
 	Opt_context = 0,
@@ -629,108 +599,6 @@ out:
 	return rc;
 }
 
-<<<<<<< ours
-/*
- * This function should allow an FS to ask what it's mount security
- * options were so it can use those later for submounts, displaying
- * mount options, or whatever.
- */
-static int selinux_get_mnt_opts(const struct super_block *sb,
-				struct security_mnt_opts *opts)
-{
-	int rc = 0, i;
-	struct superblock_security_struct *sbsec = sb->s_security;
-	char *context = NULL;
-	u32 len;
-	char tmp;
-
-	security_init_mnt_opts(opts);
-
-	if (!(sbsec->flags & SE_SBINITIALIZED))
-		return -EINVAL;
-
-	if (!ss_initialized) // SEC_SELINUX_PORTING_COMMON Change to use RKP
-		return -EINVAL;
-
-	/* make sure we always check enough bits to cover the mask */
-	BUILD_BUG_ON(SE_MNTMASK >= (1 << NUM_SEL_MNT_OPTS));
-
-	tmp = sbsec->flags & SE_MNTMASK;
-	/* count the number of mount options for this sb */
-	for (i = 0; i < NUM_SEL_MNT_OPTS; i++) {
-		if (tmp & 0x01)
-			opts->num_mnt_opts++;
-		tmp >>= 1;
-	}
-	/* Check if the Label support flag is set */
-	if (sbsec->flags & SBLABEL_MNT)
-		opts->num_mnt_opts++;
-
-	opts->mnt_opts = kcalloc(opts->num_mnt_opts, sizeof(char *), GFP_ATOMIC);
-	if (!opts->mnt_opts) {
-		rc = -ENOMEM;
-		goto out_free;
-	}
-
-	opts->mnt_opts_flags = kcalloc(opts->num_mnt_opts, sizeof(int), GFP_ATOMIC);
-	if (!opts->mnt_opts_flags) {
-		rc = -ENOMEM;
-		goto out_free;
-	}
-
-	i = 0;
-	if (sbsec->flags & FSCONTEXT_MNT) {
-		rc = security_sid_to_context(&selinux_state, sbsec->sid,
-					     &context, &len);
-		if (rc)
-			goto out_free;
-		opts->mnt_opts[i] = context;
-		opts->mnt_opts_flags[i++] = FSCONTEXT_MNT;
-	}
-	if (sbsec->flags & CONTEXT_MNT) {
-		rc = security_sid_to_context(&selinux_state,
-					     sbsec->mntpoint_sid,
-					     &context, &len);
-		if (rc)
-			goto out_free;
-		opts->mnt_opts[i] = context;
-		opts->mnt_opts_flags[i++] = CONTEXT_MNT;
-	}
-	if (sbsec->flags & DEFCONTEXT_MNT) {
-		rc = security_sid_to_context(&selinux_state, sbsec->def_sid,
-					     &context, &len);
-		if (rc)
-			goto out_free;
-		opts->mnt_opts[i] = context;
-		opts->mnt_opts_flags[i++] = DEFCONTEXT_MNT;
-	}
-	if (sbsec->flags & ROOTCONTEXT_MNT) {
-		struct dentry *root = sbsec->sb->s_root;
-		struct inode_security_struct *isec = backing_inode_security(root);
-
-		rc = security_sid_to_context(&selinux_state, isec->sid,
-					     &context, &len);
-		if (rc)
-			goto out_free;
-		opts->mnt_opts[i] = context;
-		opts->mnt_opts_flags[i++] = ROOTCONTEXT_MNT;
-	}
-	if (sbsec->flags & SBLABEL_MNT) {
-		opts->mnt_opts[i] = NULL;
-		opts->mnt_opts_flags[i++] = SBLABEL_MNT;
-	}
-
-	BUG_ON(i != opts->num_mnt_opts);
-
-	return 0;
-
-out_free:
-	security_free_mnt_opts(opts);
-	return rc;
-}
-
-=======
->>>>>>> tarkzim
 static int bad_option(struct superblock_security_struct *sbsec, char flag,
 		      u32 old_sid, u32 new_sid)
 {
@@ -782,13 +650,8 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 
 	mutex_lock(&sbsec->lock);
 
-<<<<<<< ours
-	if (!ss_initialized) {  // SEC_SELINUX_PORTING_COMMON Change to use RKP
-		if (!num_opts) {
-=======
 	if (!selinux_initialized(&selinux_state)) {
 		if (!opts) {
->>>>>>> tarkzim
 			/* Defer initialization until selinux_complete_init,
 			   after the initial policy is loaded and the security
 			   server is ready to handle calls. */
@@ -880,15 +743,6 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 
 	if (!strcmp(sb->s_type->name, "debugfs") ||
 	    !strcmp(sb->s_type->name, "tracefs") ||
-<<<<<<< ours
-	    !strcmp(sb->s_type->name, "sysfs") ||
-// [ SEC_SELINUX_PORTING_COMMON
-		!strcmp(sb->s_type->name, "configfs") ||
-// ] SEC_SELINUX_PORTING_COMMON
-	    !strcmp(sb->s_type->name, "pstore") ||
-	    !strcmp(sb->s_type->name, "bpf") ||
-	    !strcmp(sb->s_type->name, "binder") ||
-=======
 // [ SEC_SELINUX_PORTING_COMMON
 		!strcmp(sb->s_type->name, "configfs") ||
 // ] SEC_SELINUX_PORTING_COMMON
@@ -898,7 +752,6 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		sbsec->flags |= SE_SBGENFS;
 
 	if (!strcmp(sb->s_type->name, "sysfs") ||
->>>>>>> tarkzim
 	    !strcmp(sb->s_type->name, "cgroup") ||
 	    !strcmp(sb->s_type->name, "cgroup2"))
 		sbsec->flags |= SE_SBGENFS | SE_SBGENFS_XATTR;
@@ -1071,12 +924,7 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	 * if the parent was able to be mounted it clearly had no special lsm
 	 * mount options.  thus we can safely deal with this superblock later
 	 */
-<<<<<<< ours
- 
-	if (!ss_initialized) // SEC_SELINUX_PORTING_COMMON Change to use RKP
-=======
 	if (!selinux_initialized(&selinux_state))
->>>>>>> tarkzim
 		return 0;
 
 	/*
@@ -1182,8 +1030,6 @@ Einval:
 	pr_warn(SEL_MOUNT_FAIL_MSG);
 	return -EINVAL;
 }
-<<<<<<< ours
-=======
 
 static int selinux_add_mnt_opt(const char *option, const char *val, int len,
 			       void **mnt_opts)
@@ -1213,7 +1059,6 @@ static int selinux_add_mnt_opt(const char *option, const char *val, int len,
 	}
 	return rc;
 }
->>>>>>> tarkzim
 
 static int show_sid(struct seq_file *m, u32 sid)
 {
@@ -2764,30 +2609,6 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 static int selinux_sb_alloc_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec;
-<<<<<<< ours
-
-	sbsec = kzalloc(sizeof(struct superblock_security_struct), GFP_KERNEL);
-	if (!sbsec)
-		return -ENOMEM;
-
-	mutex_init(&sbsec->lock);
-	INIT_LIST_HEAD(&sbsec->isec_head);
-	spin_lock_init(&sbsec->isec_lock);
-	sbsec->sb = sb;
-	sbsec->sid = SECINITSID_UNLABELED;
-	sbsec->def_sid = SECINITSID_FILE;
-	sbsec->mntpoint_sid = SECINITSID_UNLABELED;
-	sb->s_security = sbsec;
-
-	return 0;
-}
-
-static void selinux_sb_free_security(struct super_block *sb)
-{
-	superblock_free_security(sb);
-}
-=======
->>>>>>> tarkzim
 
 	sbsec = kzalloc(sizeof(struct superblock_security_struct), GFP_KERNEL);
 	if (!sbsec)
@@ -2929,25 +2750,10 @@ out_bad_option:
 	return -EINVAL;
 }
 
-<<<<<<< ours
-static int selinux_sb_kern_mount(struct super_block *sb, int flags,
-				 struct security_mnt_opts *opts)
-{
-	const struct cred *cred = current_cred();
-	struct common_audit_data ad;
-	int rc = selinux_set_mnt_opts(sb, opts, 0, NULL);
-	if (rc)
-		goto out;
-
-	/* Allow all mounts performed by the kernel */
-	if (flags & (MS_KERNMOUNT | MS_SUBMOUNT))
-		goto out;
-=======
 static int selinux_sb_kern_mount(struct super_block *sb)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
->>>>>>> tarkzim
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = sb->s_root;
@@ -3112,12 +2918,8 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 		isec->initialized = LABEL_INITIALIZED;
 	}
 
-<<<<<<< ours
-	if (!ss_initialized || !(sbsec->flags & SBLABEL_MNT))  // SEC_SELINUX_PORTING_COMMON Change to use RKP
-=======
 	if (!selinux_initialized(&selinux_state) ||
 	    !(sbsec->flags & SBLABEL_MNT))
->>>>>>> tarkzim
 		return -EOPNOTSUPP;
 
 	if (name)
@@ -3396,11 +3198,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
 	}
 
-<<<<<<< ours
-	if (!ss_initialized)
-=======
 	if (!selinux_initialized(&selinux_state))
->>>>>>> tarkzim
 		return (inode_owner_or_capable(inode) ? 0 : -EPERM);
 
 	sbsec = inode->i_sb->s_security;
@@ -3486,11 +3284,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 		return;
 	}
 
-<<<<<<< ours
-	if (!ss_initialized) {
-=======
 	if (!selinux_initialized(&selinux_state)) {
->>>>>>> tarkzim
 		/* If we haven't even been initialized, then we can't validate
 		 * against a policy, so leave the label as invalid. It may
 		 * resolve to a valid label on the next revalidation try if
@@ -6101,40 +5895,6 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 	u32 perm;
 	struct nlmsghdr *nlh;
 	struct sk_security_struct *sksec = sk->sk_security;
-<<<<<<< ours
-
-	if (skb->len < NLMSG_HDRLEN) {
-		err = -EINVAL;
-		goto out;
-	}
-	nlh = nlmsg_hdr(skb);
-
-	err = selinux_nlmsg_lookup(sksec->sclass, nlh->nlmsg_type, &perm);
-	if (err) {
-		if (err == -EINVAL) {
-			pr_warn_ratelimited("SELinux: unrecognized netlink"
-			       " message: protocol=%hu nlmsg_type=%hu sclass=%s"
-			       " pid=%d comm=%s\n",
-			       sk->sk_protocol, nlh->nlmsg_type,
-			       secclass_map[sksec->sclass - 1].name,
-			       task_pid_nr(current), current->comm);
-			if (!enforcing_enabled(&selinux_state) ||
-			    security_get_allow_unknown(&selinux_state))
-				err = 0;
-		}
-
-		/* Ignore */
-		if (err == -ENOENT)
-			err = 0;
-		goto out;
-	}
-
-	err = sock_has_perm(sk, perm);
-out:
-	return err;
-}
-=======
->>>>>>> tarkzim
 
 	if (skb->len < NLMSG_HDRLEN) {
 		err = -EINVAL;
@@ -7143,18 +6903,13 @@ struct lsm_blob_sizes selinux_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_security_struct),
 	.lbs_file = sizeof(struct file_security_struct),
 	.lbs_inode = sizeof(struct inode_security_struct),
-<<<<<<< ours
-=======
 	.lbs_ipc = sizeof(struct ipc_security_struct),
 	.lbs_msg_msg = sizeof(struct msg_security_struct),
->>>>>>> tarkzim
 };
 
 #ifdef CONFIG_KDP_CRED
 static struct security_hook_list selinux_hooks[] __lsm_ro_after_init_kdp = {
 #else
-<<<<<<< ours
-=======
 /*
  * IMPORTANT NOTE: When adding new hooks, please be careful to keep this order:
  * 1. any hooks that don't belong to (2.) or (3.) below,
@@ -7170,7 +6925,6 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init_kdp = {
  * safely. Breaking the ordering rules above might lead to NULL pointer derefs
  * when disabling SELinux at runtime.
  */
->>>>>>> tarkzim
 static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 #endif
 	LSM_HOOK_INIT(binder_set_context_mgr, selinux_binder_set_context_mgr),
@@ -7388,16 +7142,10 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 #ifdef CONFIG_PERF_EVENTS
 	LSM_HOOK_INIT(perf_event_open, selinux_perf_event_open),
-<<<<<<< ours
-	LSM_HOOK_INIT(perf_event_alloc, selinux_perf_event_alloc),
-=======
->>>>>>> tarkzim
 	LSM_HOOK_INIT(perf_event_free, selinux_perf_event_free),
 	LSM_HOOK_INIT(perf_event_read, selinux_perf_event_read),
 	LSM_HOOK_INIT(perf_event_write, selinux_perf_event_write),
 #endif
-<<<<<<< ours
-=======
 
 	/*
 	 * PUT "CLONING" (ACCESSING + ALLOCATING) HOOKS HERE
@@ -7442,7 +7190,6 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 #ifdef CONFIG_PERF_EVENTS
 	LSM_HOOK_INIT(perf_event_alloc, selinux_perf_event_alloc),
 #endif
->>>>>>> tarkzim
 };
 
 static __init int selinux_init(void)
@@ -7494,15 +7241,7 @@ static __init int selinux_init(void)
 
 static void delayed_superblock_init(struct super_block *sb, void *unused)
 {
-<<<<<<< ours
-	struct security_mnt_opts opts;
-
-	security_init_mnt_opts(&opts);
-	selinux_set_mnt_opts(sb, &opts, 0, NULL);
-	security_free_mnt_opts(&opts);
-=======
 	selinux_set_mnt_opts(sb, NULL, 0, NULL);
->>>>>>> tarkzim
 }
 
 void selinux_complete_init(void)
@@ -7519,11 +7258,7 @@ void selinux_complete_init(void)
 DEFINE_LSM(selinux) = {
 	.name = "selinux",
 	.flags = LSM_FLAG_LEGACY_MAJOR | LSM_FLAG_EXCLUSIVE,
-<<<<<<< ours
 	.enabled = &selinux_enabled,
-=======
-	.enabled = &selinux_enabled_boot,
->>>>>>> tarkzim
 	.blobs = &selinux_blob_sizes,
 	.init = selinux_init,
 };
@@ -7591,17 +7326,12 @@ static struct pernet_operations selinux_net_ops = {
 static int __init selinux_nf_ip_init(void)
 {
 	int err;
-<<<<<<< ours
 // [ SEC_SELINUX_PORTING_COMMON
 #ifdef CONFIG_ALWAYS_ENFORCE
 		selinux_enabled = 1;
 #endif
 // ] SEC_SELINUX_PORTING_COMMON
 	if (!selinux_enabled)
-=======
-
-	if (!selinux_enabled_boot)
->>>>>>> tarkzim
 		return 0;
 
 	pr_debug("SELinux:  Registering netfilter hooks\n");
@@ -7632,32 +7362,19 @@ static void selinux_nf_ip_exit(void)
 #endif /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
-static int selinux_disabled;
 int selinux_disable(struct selinux_state *state)
 {
-<<<<<<< ours
-	if (ss_initialized) {
-=======
 	if (selinux_initialized(state)) {
->>>>>>> tarkzim
 		/* Not permitted after initial policy load. */
 		return -EINVAL;
 	}
 
-<<<<<<< ours
-	if (selinux_disabled) {
-=======
 	if (selinux_disabled(state)) {
->>>>>>> tarkzim
 		/* Only do this once. */
 		return -EINVAL;
 	}
 
-<<<<<<< ours
-	selinux_disabled = 1
-=======
 	selinux_mark_disabled(state);
->>>>>>> tarkzim
 
 	pr_info("SELinux:  Disabled at runtime.\n");
 

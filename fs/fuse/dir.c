@@ -291,17 +291,6 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 		ret = fuse_simple_request(fm, &args);
 		dput(parent);
 
-<<<<<<< ours
-		/*
-		 * TODO This doesn't seem sufficient, though we don't plan to
-		 * change the backing file ever, so not sure what is correct
-		 * here yet, especially as we can't return an error to user
-		 */
-		if (bpf_outarg.backing_action == FUSE_ACTION_REPLACE)
-			__close_fd(fm->fc->task->files, bpf_outarg.backing_fd);
-
-=======
->>>>>>> tarkzim
 		/* Zero nodeid is same as -ENOENT */
 		if (!ret && !outarg.nodeid)
 			ret = -ENOENT;
@@ -353,59 +342,7 @@ invalid:
 	goto out;
 }
 
-<<<<<<< ours
-/*
- * Get the canonical path. Since we must translate to a path, this must be done
- * in the context of the userspace daemon, however, the userspace daemon cannot
- * look up paths on its own. Instead, we handle the lookup as a special case
- * inside of the write request.
- */
-static void fuse_dentry_canonical_path(const struct path *path, struct path *canonical_path) {
-	struct inode *inode = path->dentry->d_inode;
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
-	int err;
-	char *path_name;
-
-	req = fuse_get_req(fc, 1);
-	err = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto default_path;
-
-	path_name = (char*)__get_free_page(GFP_KERNEL);
-	if (!path_name) {
-		fuse_put_request(fc, req);
-		goto default_path;
-	}
-
-	req->in.h.opcode = FUSE_CANONICAL_PATH;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 0;
-	req->out.numargs = 1;
-	req->out.args[0].size = PATH_MAX;
-	req->out.args[0].value = path_name;
-	req->canonical_path = canonical_path;
-	req->out.argvar = 1;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
-	free_page((unsigned long)path_name);
-	if (!err)
-		return;
-default_path:
-	canonical_path->dentry = path->dentry;
-	canonical_path->mnt = path->mnt;
-	path_get(canonical_path);
-}
-
-static int invalid_nodeid(u64 nodeid)
-{
-	return !nodeid || nodeid == FUSE_ROOT_ID;
-}
-
-=======
 #if BITS_PER_LONG < 64 || defined(CONFIG_FUSE_BPF)
->>>>>>> tarkzim
 static int fuse_dentry_init(struct dentry *dentry)
 {
 	dentry->d_fsdata = kzalloc(sizeof(struct fuse_dentry),
@@ -574,34 +511,14 @@ out:
 	return ERR_PTR(err);
 }
 
-/* @fs.sec -- 63ff82f9216c9b6d003e7d45699d54b833344719 -- */
-static int fuse_dentry_delete(const struct dentry *dentry)
-{
-	struct fuse_inode *fi;
-
-	if (d_really_is_negative(dentry))
-		return 0;
-
-	fi = get_fuse_inode(d_inode(dentry));
-	if (test_bit(FUSE_I_ATTR_FORCE_SYNC, &fi->state))
-		return 1;
-
-	return 0;
-}
-
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
-<<<<<<< ours
-	.d_init		= fuse_dentry_init,
-	.d_release	= fuse_dentry_release,
-=======
 #if BITS_PER_LONG < 64 || defined(CONFIG_FUSE_BPF)
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
 #endif
 	.d_automount	= fuse_dentry_automount,
->>>>>>> tarkzim
 	.d_canonical_path = fuse_dentry_canonical_path,
 };
 
@@ -609,10 +526,7 @@ const struct dentry_operations fuse_root_dentry_operations = {
 #if BITS_PER_LONG < 64 || defined(CONFIG_FUSE_BPF)
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
-<<<<<<< ours
-=======
 #endif
->>>>>>> tarkzim
 	.d_canonical_path = fuse_dentry_canonical_path,
 };
 
@@ -738,8 +652,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	bool outarg_valid = true;
 	bool locked;
 
-<<<<<<< ours
-=======
 #ifdef CONFIG_FUSE_BPF
 	struct fuse_err_ret fer;
 
@@ -751,7 +663,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 		return fer.result;
 #endif
 
->>>>>>> tarkzim
 	if (fuse_is_bad(dir))
 		return ERR_PTR(-EIO);
 
@@ -1144,14 +1055,6 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 	if (fuse_is_bad(dir))
 		return -EIO;
 
-<<<<<<< ours
-	args.in.h.opcode = FUSE_UNLINK;
-	args.in.h.nodeid = get_node_id(dir);
-	args.in.numargs = 1;
-	args.in.args[0].size = entry->d_name.len + 1;
-	args.in.args[0].value = entry->d_name.name;
-	err = fuse_simple_request(fc, &args);
-=======
 #ifdef CONFIG_FUSE_BPF
 	{
 		struct fuse_err_ret fer;
@@ -1172,7 +1075,6 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 	args.in_args[0].size = entry->d_name.len + 1;
 	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fm, &args);
->>>>>>> tarkzim
 	if (!err) {
 		struct inode *inode = d_inode(entry);
 		struct fuse_inode *fi = get_fuse_inode(inode);
@@ -1206,14 +1108,6 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	if (fuse_is_bad(dir))
 		return -EIO;
 
-<<<<<<< ours
-	args.in.h.opcode = FUSE_RMDIR;
-	args.in.h.nodeid = get_node_id(dir);
-	args.in.numargs = 1;
-	args.in.args[0].size = entry->d_name.len + 1;
-	args.in.args[0].value = entry->d_name.name;
-	err = fuse_simple_request(fc, &args);
-=======
 #ifdef CONFIG_FUSE_BPF
 	{
 		struct fuse_err_ret fer;
@@ -1234,7 +1128,6 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	args.in_args[0].size = entry->d_name.len + 1;
 	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fm, &args);
->>>>>>> tarkzim
 	if (!err) {
 		clear_nlink(d_inode(entry));
 		fuse_dir_changed(dir);
@@ -1466,30 +1359,6 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 		inarg.getattr_flags |= FUSE_GETATTR_FH;
 		inarg.fh = ff->fh;
 	}
-<<<<<<< ours
-	args.in.h.opcode = FUSE_GETATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
-	err = fuse_simple_request(fc, &args);
-	if (!err) {
-		if (fuse_invalid_attr(&outarg.attr) ||
-		    (inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
-			fuse_make_bad(inode);
-			err = -EIO;
-		} else {
-			fuse_change_attributes(inode, &outarg.attr,
-					       attr_timeout(&outarg),
-					       attr_version);
-			if (stat)
-				fuse_fillattr(inode, &outarg.attr, stat);
-		}
-	}
-=======
 	args.opcode = FUSE_GETATTR;
 	args.nodeid = get_node_id(inode);
 	args.in_numargs = 1;
@@ -1501,7 +1370,6 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	err = fuse_simple_request(fm, &args);
 	if (!err)
 		err = finalize_attr(inode, &outarg, attr_version, stat);
->>>>>>> tarkzim
 	return err;
 }
 
@@ -1529,11 +1397,7 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 		sync = true;
 	else if (flags & AT_STATX_DONT_SYNC)
 		sync = false;
-<<<<<<< ours
-	else if (test_bit(FUSE_I_ATTR_FORCE_SYNC, &fi->state))
-=======
 	else if (request_mask & READ_ONCE(fi->inval_mask))
->>>>>>> tarkzim
 		sync = true;
 	else
 		sync = time_before64(fi->i_time, get_jiffies_64());
@@ -1727,9 +1591,6 @@ static int fuse_permission(struct inode *inode, int mask)
 	if (fuse_is_bad(inode))
 		return -EIO;
 
-	if (fuse_is_bad(inode))
-		return -EIO;
-
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
@@ -1748,13 +1609,8 @@ static int fuse_permission(struct inode *inode, int mask)
 	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
 		u32 perm_mask = STATX_MODE | STATX_UID | STATX_GID;
 
-<<<<<<< ours
-		if (time_before64(fi->i_time, get_jiffies_64()) ||
-		    test_bit(FUSE_I_ATTR_FORCE_SYNC, &fi->state)) {
-=======
 		if (perm_mask & READ_ONCE(fi->inval_mask) ||
 		    time_before64(fi->i_time, get_jiffies_64())) {
->>>>>>> tarkzim
 			refreshed = true;
 
 			err = fuse_perm_getattr(inode, mask);
@@ -1822,80 +1678,9 @@ static int fuse_readlink_page(struct inode *inode, struct page *page)
 
 	if (WARN_ON(res >= PAGE_SIZE))
 		return -EIO;
-<<<<<<< ours
-	if (fuse_invalid_attr(&o->attr))
-		return -EIO;
-
-	fc = get_fuse_conn(dir);
-
-	name.hash = full_name_hash(parent, name.name, name.len);
-	dentry = d_lookup(parent, &name);
-	if (!dentry) {
-retry:
-		dentry = d_alloc_parallel(parent, &name, &wq);
-		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
-	}
-	if (!d_in_lookup(dentry)) {
-		struct fuse_inode *fi;
-		inode = d_inode(dentry);
-		if (!inode ||
-		    get_node_id(inode) != o->nodeid ||
-		    ((o->attr.mode ^ inode->i_mode) & S_IFMT)) {
-			d_invalidate(dentry);
-			dput(dentry);
-			goto retry;
-		}
-		if (fuse_is_bad(inode)) {
-			dput(dentry);
-			return -EIO;
-		}
-
-		fi = get_fuse_inode(inode);
-		spin_lock(&fc->lock);
-		fi->nlookup++;
-		spin_unlock(&fc->lock);
-
-		forget_all_cached_acls(inode);
-		fuse_change_attributes(inode, &o->attr,
-				       entry_attr_timeout(o),
-				       attr_version);
-		/*
-		 * The other branch comes via fuse_iget()
-		 * which bumps nlookup inside
-		 */
-	} else {
-		inode = fuse_iget(dir->i_sb, o->nodeid, o->generation,
-				  &o->attr, entry_attr_timeout(o),
-				  attr_version);
-		if (!inode)
-			inode = ERR_PTR(-ENOMEM);
-
-		alias = d_splice_alias(inode, dentry);
-		d_lookup_done(dentry);
-		if (alias) {
-			dput(dentry);
-			dentry = alias;
-		}
-		if (IS_ERR(dentry)) {
-			if (!IS_ERR(inode)) {
-				struct fuse_inode *fi = get_fuse_inode(inode);
-
-				spin_lock(&fc->lock);
-				fi->nlookup--;
-				spin_unlock(&fc->lock);
-			}
-			return PTR_ERR(dentry);
-		}
-	}
-	if (fc->readdirplus_auto)
-		set_bit(FUSE_I_INIT_RDPLUS, &get_fuse_inode(inode)->state);
-	fuse_change_entry_timeout(dentry, o);
-=======
 
 	link = page_address(page);
 	link[res] = '\0';
->>>>>>> tarkzim
 
 	return 0;
 }
@@ -1929,29 +1714,9 @@ static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
 	if (fc->cache_symlinks)
 		return page_get_link_raw(dentry, inode, callback);
 
-<<<<<<< ours
-static int fuse_readdir(struct file *file, struct dir_context *ctx)
-{
-	int plus, err;
-	size_t nbytes;
-	struct page *page;
-	struct inode *inode = file_inode(file);
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
-	u64 attr_version = 0;
-	bool locked;
-
-	if (fuse_is_bad(inode))
-		return -EIO;
-
-	req = fuse_get_req(fc, 1);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-=======
 	err = -ECHILD;
 	if (!dentry)
 		goto out_err;
->>>>>>> tarkzim
 
 	page = alloc_page(GFP_KERNEL);
 	err = -ENOMEM;
@@ -1968,37 +1733,8 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 
 	return page_address(page);
 
-<<<<<<< ours
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
-
-	if (fuse_is_bad(inode))
-		return ERR_PTR(-EIO);
-
-	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!link)
-		return ERR_PTR(-ENOMEM);
-
-	args.in.h.opcode = FUSE_READLINK;
-	args.in.h.nodeid = get_node_id(inode);
-	args.out.argvar = 1;
-	args.out.numargs = 1;
-	args.out.args[0].size = PAGE_SIZE - 1;
-	args.out.args[0].value = link;
-	ret = fuse_simple_request(fc, &args);
-	if (ret < 0) {
-		kfree(link);
-		link = ERR_PTR(ret);
-	} else {
-		link[ret] = '\0';
-		set_delayed_call(done, kfree_link, link);
-	}
-	fuse_invalidate_atime(inode);
-	return link;
-=======
 out_err:
 	return ERR_PTR(err);
->>>>>>> tarkzim
 }
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
@@ -2022,8 +1758,6 @@ static int fuse_dir_fsync(struct file *file, loff_t start, loff_t end,
 	if (is_bad_inode(inode))
 		return -EIO;
 
-<<<<<<< ours
-=======
 #ifdef CONFIG_FUSE_BPF
 	{
 		struct fuse_err_ret fer;
@@ -2037,7 +1771,6 @@ static int fuse_dir_fsync(struct file *file, loff_t start, loff_t end,
 	}
 #endif
 
->>>>>>> tarkzim
 	if (fc->no_fsyncdir)
 		return 0;
 
@@ -2091,11 +1824,7 @@ void fuse_set_nowrite(struct inode *inode)
 	spin_lock(&fi->lock);
 	BUG_ON(fi->writectr < 0);
 	fi->writectr += FUSE_NOWRITE;
-<<<<<<< ours
-	spin_unlock(&fc->lock);
-=======
 	spin_unlock(&fi->lock);
->>>>>>> tarkzim
 	fuse_wait_event(fi->page_waitq, fi->writectr == FUSE_NOWRITE);
 }
 
@@ -2285,11 +2014,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	}
 
 	if (fuse_invalid_attr(&outarg.attr) ||
-<<<<<<< ours
-	    (inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
-=======
 	    inode_wrong_type(inode, outarg.attr.mode)) {
->>>>>>> tarkzim
 		fuse_make_bad(inode);
 		err = -EIO;
 		goto error;
