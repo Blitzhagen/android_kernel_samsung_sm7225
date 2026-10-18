@@ -27,14 +27,11 @@
 #include <linux/task_work.h>
 #include <linux/sched/task.h>
 #include <linux/fslog.h>
-<<<<<<< ours
 
 #ifdef CONFIG_KDP_NS
 #include <linux/kdp.h>
 #endif
-=======
 #include <linux/fs_context.h>
->>>>>>> tarkzim
 
 #include "pnode.h"
 #include "internal.h"
@@ -136,7 +133,6 @@ static inline int is_exception(char *comm)
 
 static inline void sys_umount_trace_print(struct mount *mnt, int flags)
 {
-<<<<<<< ours
 #ifdef CONFIG_KDP_NS
 	struct super_block *sb = mnt->mnt->mnt_sb;
 	int mnt_flags = mnt->mnt->mnt_flags;
@@ -144,10 +140,6 @@ static inline void sys_umount_trace_print(struct mount *mnt, int flags)
 	struct super_block *sb = mnt->mnt.mnt_sb;
 	int mnt_flags = mnt->mnt.mnt_flags;
 #endif
-=======
-	struct super_block *sb = mnt->mnt.mnt_sb;
-	int mnt_flags = mnt->mnt.mnt_flags;
->>>>>>> tarkzim
 	/* We don`t want to see what zygote`s umount */
 	if (((sb->s_magic == SDFAT_SUPER_MAGIC) ||
 		(sb->s_magic == MSDOS_SUPER_MAGIC)) &&
@@ -260,14 +252,11 @@ static struct mount *alloc_vfsmnt(const char *name)
 		err = mnt_alloc_id(mnt);
 		if (err)
 			goto out_free_cache;
-<<<<<<< ours
 #ifdef CONFIG_KDP_NS
 		err = kdp_mnt_alloc_vfsmount(mnt);
 		if (err)
 			goto out_free_cache;
 #endif
-=======
->>>>>>> tarkzim
 		if (name) {
 			mnt->mnt_devname = kstrdup_const(name, GFP_KERNEL);
 			if (!mnt->mnt_devname)
@@ -284,15 +273,11 @@ static struct mount *alloc_vfsmnt(const char *name)
 		mnt->mnt_count = 1;
 		mnt->mnt_writers = 0;
 #endif
-<<<<<<< ours
 #ifdef CONFIG_KDP_NS
 		kdp_set_ns_data(mnt->mnt, NULL);
 #else
 		mnt->mnt.data = NULL;
 #endif
-=======
-		mnt->mnt.data = NULL;
->>>>>>> tarkzim
 
 		INIT_HLIST_NODE(&mnt->mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
@@ -562,13 +547,10 @@ static int mnt_make_readonly(struct mount *mnt)
 {
 	int ret = 0;
 
-<<<<<<< ours
 	lock_mount_hash();
 #ifdef CONFIG_KDP_NS
 	kdp_set_mnt_flags(mnt->mnt, MNT_WRITE_HOLD);
 #else
-=======
->>>>>>> tarkzim
 	mnt->mnt.mnt_flags |= MNT_WRITE_HOLD;
 #endif
 	/*
@@ -596,15 +578,11 @@ static int mnt_make_readonly(struct mount *mnt)
 	if (mnt_get_writers(mnt) > 0)
 		ret = -EBUSY;
 	else {
-<<<<<<< ours
 #ifdef CONFIG_KDP_NS
 		kdp_set_mnt_flags(mnt->mnt, MNT_READONLY);
 #else
 		mnt->mnt.mnt_flags |= MNT_READONLY;
 #endif
-=======
-		mnt->mnt.mnt_flags |= MNT_READONLY;
->>>>>>> tarkzim
 	}
 	/*
 	 * MNT_READONLY must become visible before ~MNT_WRITE_HOLD, so writers
@@ -615,7 +593,6 @@ static int mnt_make_readonly(struct mount *mnt)
 	kdp_clear_mnt_flags(mnt->mnt, MNT_WRITE_HOLD);
 #else
 	mnt->mnt.mnt_flags &= ~MNT_WRITE_HOLD;
-<<<<<<< ours
 #endif
 	unlock_mount_hash();
 	return ret;
@@ -632,11 +609,6 @@ static void __mnt_unmake_readonly(struct mount *mnt)
 	unlock_mount_hash();
 }
 
-=======
-	return ret;
-}
-
->>>>>>> tarkzim
 int sb_prepare_remount_readonly(struct super_block *sb)
 {
 	struct mount *mnt;
@@ -685,7 +657,6 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 
 static void free_vfsmnt(struct mount *mnt)
 {
-<<<<<<< ours
 #ifdef CONFIG_KDP_NS
 	kfree(mnt->mnt->data);
 #else
@@ -699,10 +670,6 @@ static void free_vfsmnt(struct mount *mnt)
 	if(mnt->mnt && is_kdp_vfsmnt_cache((unsigned long)mnt->mnt))
 		kdp_free_vfsmount(mnt->mnt);
 #endif
-=======
-	kfree(mnt->mnt.data);
-	kfree_const(mnt->mnt_devname);
->>>>>>> tarkzim
 	kmem_cache_free(mnt_cache, mnt);
 }
 
@@ -1128,27 +1095,17 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 	if (!mnt)
 		return ERR_PTR(-ENOMEM);
 
-<<<<<<< ours
-	if (type->alloc_mnt_data) {
-		mnt->mnt.data = type->alloc_mnt_data();
-=======
 	if (fc->fs_type->alloc_mnt_data) {
 		mnt->mnt.data = fc->fs_type->alloc_mnt_data();
->>>>>>> tarkzim
 		if (!mnt->mnt.data) {
 			mnt_free_id(mnt);
 			free_vfsmnt(mnt);
 			return ERR_PTR(-ENOMEM);
 		}
-<<<<<<< ours
-	}
-	if (flags & SB_KERNMOUNT)
-=======
 		if (sb->s_op->update_mnt_data)
 			sb->s_op->update_mnt_data(mnt->mnt.data, fc);
 	}
 	if (fc->sb_flags & SB_KERNMOUNT)
->>>>>>> tarkzim
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
 	atomic_inc(&fc->root->d_sb->s_active);
@@ -1989,8 +1946,6 @@ static inline bool may_mandlock(void)
 {
 	pr_warn("VFS: \"mand\" mount option not supported");
 	return false;
-<<<<<<< ours
-=======
 }
 #endif
 
@@ -2012,7 +1967,6 @@ static inline int can_umount(const struct path *path, int flags)
 	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	return 0;
->>>>>>> tarkzim
 }
 #endif
 
@@ -2244,7 +2198,6 @@ void drop_collected_mounts(struct vfsmount *mnt)
 
 static bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 {
-<<<<<<< ours
 	struct mount *child;
 
 	list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
@@ -2259,17 +2212,6 @@ static bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 			return true;
 	}
 	return false;
-=======
-        struct mount *child;
-        list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
-                if (!is_subdir(child->mnt_mountpoint, dentry))
-                        continue;
-
-                if (child->mnt.mnt_flags & MNT_LOCKED)
-                        return true;
-        }
-        return false;
->>>>>>> tarkzim
 }
 
 /**
@@ -2306,10 +2248,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	return new_mnt->mnt;
 #else
 	return &new_mnt->mnt;
-<<<<<<< ours
 #endif
-=======
->>>>>>> tarkzim
 
 invalid:
 	up_read(&namespace_sem);
@@ -2653,10 +2592,7 @@ static int do_change_type(struct path *path, int ms_flags)
 	return err;
 }
 
-<<<<<<< ours
 
-=======
->>>>>>> tarkzim
 /*
  * do loopback mount.
  */
@@ -2836,30 +2772,36 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 
 	if (!can_change_locked_flags(mnt, mnt_flags))
 		return -EPERM;
-<<<<<<< ours
-	}
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
-	    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (mnt_flags & MNT_ATIME_MASK))) {
-		return -EPERM;
-	}
-	err = security_sb_remount(sb, data);
-	if (err)
-		return err;
 
-	down_write(&sb->s_umount);
-	if (ms_flags & MS_BIND)
-		err = change_mount_flags(path->mnt, ms_flags);
-	else if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
+	if (sb->s_op->remount_fs2) {
+		err = security_sb_remount(sb, data);
+		if (err)
+			return err;
+
+		down_write(&sb->s_umount);
 		err = -EPERM;
-	else {
-		err = do_remount_sb(sb, sb_flags, data, 0);
-		namespace_lock();
-		lock_mount_hash();
-		propagate_remount(mnt);
-		unlock_mount_hash();
-		namespace_unlock();
+		if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+			err = do_remount_sb2(path->mnt, sb, sb_flags, data, 0);
+			namespace_lock();
+			lock_mount_hash();
+			propagate_remount(mnt);
+			unlock_mount_hash();
+			namespace_unlock();
+		}
+		if (!err) {
+			lock_mount_hash();
+#ifdef CONFIG_KDP_NS
+			mnt_flags |= mnt->mnt->mnt_flags & ~MNT_USER_SETTABLE_MASK;
+			kdp_assign_mnt_flags(mnt->mnt, mnt_flags);
+#else
+			mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
+			mnt->mnt.mnt_flags = mnt_flags;
+#endif
+			unlock_mount_hash();
+		}
+		up_write(&sb->s_umount);
+		return err;
 	}
-=======
 
 	fc = fs_context_for_reconfigure(path->dentry, sb_flags, MS_RMT_MASK);
 	if (IS_ERR(fc))
@@ -2867,7 +2809,6 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 
 	fc->oldapi = true;
 	err = parse_monolithic_mount_data(fc, data);
->>>>>>> tarkzim
 	if (!err) {
 		down_write(&sb->s_umount);
 		err = -EPERM;
@@ -3116,23 +3057,7 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	if (!err)
 		err = do_new_mount_fc(fc, path, mnt_flags);
 
-<<<<<<< ours
-	err = do_add_mount(real_mount(mnt), path, mnt_flags);
-	if (err)
-		mntput(mnt);
-
-#ifdef CONFIG_KDP_NS
-	/* We check the value of error of do_add_mount */
-	if (err >= 0) {
-		err = kdp_do_new_mount(mnt, path);
-		if (err)
-			return err;
-	}
-#endif
-
-=======
 	put_fs_context(fc);
->>>>>>> tarkzim
 	return err;
 }
 
@@ -3904,10 +3829,7 @@ static void __init init_mount_tree(void)
 	kdp_set_mnt_flags(mnt, MNT_LOCKED);
 #else
 	mnt->mnt_flags |= MNT_LOCKED;
-<<<<<<< ours
 #endif
-=======
->>>>>>> tarkzim
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
 }
@@ -4037,7 +3959,6 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 		if (mnt->mnt->mnt_sb->s_type != new->mnt_sb->s_type)
 			continue;
 
-<<<<<<< ours
 		/* This mount is not fully visible if it's root directory
 		 * is not the root directory of the filesystem.
 		 */
@@ -4052,9 +3973,6 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 			mnt_flags |= MNT_LOCK_READONLY;
 #else
 		if (mnt->mnt.mnt_sb->s_type != new->mnt_sb->s_type)
-=======
-		if (mnt->mnt.mnt_sb->s_type != sb->s_type)
->>>>>>> tarkzim
 			continue;
 
 		/* This mount is not fully visible if it's root directory
@@ -4069,10 +3987,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 		/* Don't miss readonly hidden in the superblock flags */
 		if (sb_rdonly(mnt->mnt.mnt_sb))
 			mnt_flags |= MNT_LOCK_READONLY;
-<<<<<<< ours
 #endif
-=======
->>>>>>> tarkzim
 		/* Verify the mount flags are equal to or more permissive
 		 * than the proposed new mount.
 		 */

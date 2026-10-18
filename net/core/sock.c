@@ -143,19 +143,11 @@
 
 #include <net/tcp.h>
 #include <net/busy_poll.h>
-<<<<<<< ours
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-#include <linux/sched.h>
-#include <linux/pid.h>
-#include <net/ncm.h>
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 #ifdef CONFIG_KNOX_NCM
 #include <linux/sched.h>
 #include <linux/pid.h>
 #include <net/ncm.h>
 #endif
->>>>>>> tarkzim
 
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
@@ -453,7 +445,6 @@ int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 
 	if (atomic_read(&sk->sk_rmem_alloc) >= READ_ONCE(sk->sk_rcvbuf)) {
-<<<<<<< ours
 		if (sk->sk_rcvbuf < sysctl_rmem_max) {
 			/* increase sk_rcvbuf twice */
 			sk->sk_rcvbuf = min(sk->sk_rcvbuf * 2, (int)sysctl_rmem_max);
@@ -463,11 +454,6 @@ int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			trace_sock_rcvqueue_full(sk, skb);
 			return -ENOMEM;
 		}
-=======
-		atomic_inc(&sk->sk_drops);
-		trace_sock_rcvqueue_full(sk, skb);
-		return -ENOMEM;
->>>>>>> tarkzim
 	}
 
 	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
@@ -713,18 +699,13 @@ out:
 
 	return ret;
 }
-<<<<<<< ours
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 #ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 /** The function sets the domain name associated with the socket. **/
 static int sock_set_domain_name(struct sock *sk, char __user *optval,
 				int optlen)
 {
 	int ret = -EADDRNOTAVAIL;
 	char domain[DOMAIN_NAME_LEN_NAP];
-<<<<<<< ours
 
 	ret = -EINVAL;
 	if (optlen < 0)
@@ -745,28 +726,6 @@ out:
 	return ret;
 }
 
-=======
-
-	ret = -EINVAL;
-	if (optlen < 0)
-		goto out;
-
-	if (optlen > DOMAIN_NAME_LEN_NAP - 1)
-		optlen = DOMAIN_NAME_LEN_NAP - 1;
-
-	memset(domain, 0, sizeof(domain));
-
-	ret = -EFAULT;
-	if (copy_from_user(domain, optval, optlen))
-		goto out;
-	memcpy(sk->domain_name,domain, sizeof(sk->domain_name)-1);
-	ret = 0;
-
-out:
-	return ret;
-}
-
->>>>>>> tarkzim
 /** The function sets the uid associated with the dns socket. **/
 static int sock_set_dns_uid(struct sock *sk, char __user *optval, int optlen)
 {
@@ -827,11 +786,7 @@ out:
 	return ret;
 }
 
-<<<<<<< ours
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 #endif
->>>>>>> tarkzim
 
 bool sk_mc_loop(struct sock *sk)
 {
@@ -873,22 +828,14 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 
 	if (optname == SO_BINDTODEVICE)
 		return sock_setbindtodevice(sk, optval, optlen);
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	if (optname == SO_SET_DOMAIN_NAME)
 		return sock_set_domain_name(sk, optval, optlen);
 	if (optname == SO_SET_DNS_UID)
 		return sock_set_dns_uid(sk, optval, optlen);
 	if (optname == SO_SET_DNS_PID)
 		return sock_set_dns_pid(sk, optval, optlen);
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 	#endif
->>>>>>> tarkzim
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1771,11 +1718,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		      struct proto *prot, int kern)
 {
 	struct sock *sk;
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	struct pid *pid_struct = NULL;
 	struct task_struct *task = NULL;
 	int process_returnValue = -1;
@@ -1784,20 +1727,12 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 	struct task_struct *parent_task = NULL;
 	int parent_returnValue = -1;
 	char full_parent_process_name[PROCESS_NAME_LEN_NAP] = {0};
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 	#endif
->>>>>>> tarkzim
 
 	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
 		sk->sk_family = family;
-<<<<<<< ours
-		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 		#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 		/* assign values to members of sock structure when npa flag is present */
 		sk->knox_uid = current->cred->uid.val;
 		sk->knox_pid = current->tgid;
@@ -1839,11 +1774,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 				}
 			}
 		}
-<<<<<<< ours
-		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 		#endif
->>>>>>> tarkzim
 		/*
 		 * See comment in struct sock definition to understand
 		 * why we need sk_prot_creator -acme
@@ -2052,15 +1983,12 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		RCU_INIT_POINTER(newsk->sk_bpf_storage, NULL);
 #endif
 
-<<<<<<< ours
-=======
 		if (bpf_sk_storage_clone(sk, newsk)) {
 			sk_free_unlock_clone(newsk);
 			newsk = NULL;
 			goto out;
 		}
 
->>>>>>> tarkzim
 		/* Clear sk_user_data if parent had the pointer tagged
 		 * as not suitable for copying when cloning.
 		 */

@@ -58,15 +58,9 @@
 #include <net/ip.h>
 
 #include "nf_internals.h"
-<<<<<<< ours
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-#include <net/ncm.h>
-// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 #ifdef CONFIG_KNOX_NCM
 #include <net/ncm.h>
 #endif
->>>>>>> tarkzim
 
 __cacheline_aligned_in_smp spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 EXPORT_SYMBOL_GPL(nf_conntrack_locks);
@@ -478,21 +472,13 @@ clean_from_lists(struct nf_conn *ct)
 static void nf_ct_add_to_dying_list(struct nf_conn *ct)
 {
 	struct ct_pcpu *pcpu;
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	/* Add 'del_timer(&ct->npa_timeout)' if struct nf_conn->timeout is of type struct timer_list; */
 	/* send dying conntrack entry to collect data */
 	if ( (check_ncm_flag()) && (ct != NULL) && (atomic_read(&ct->startFlow)) ) {
 		knox_collect_conntrack_data(ct, NCM_FLOW_TYPE_CLOSE, 10);
 	}
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 	#endif
->>>>>>> tarkzim
 
 	/* add this conntrack to the (per cpu) dying list */
 	ct->cpu = smp_processor_id();
@@ -1221,10 +1207,7 @@ static void gc_worker(struct work_struct *work)
 	unsigned int i, hashsz, nf_conntrack_max95 = 0;
 	unsigned long next_run = GC_SCAN_INTERVAL;
 	struct conntrack_gc_work *gc_work;
-<<<<<<< ours
 
-=======
->>>>>>> tarkzim
 	gc_work = container_of(work, struct conntrack_gc_work, dwork.work);
 
 	i = gc_work->next_bucket;
@@ -1266,9 +1249,6 @@ static void gc_worker(struct work_struct *work)
 					knox_collect_conntrack_data(tmp, NCM_FLOW_TYPE_INTERMEDIATE, 20);
 				}
 			}
-<<<<<<< ours
-            // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 			#ifdef CONFIG_KNOX_NCM
 			else if ( (tmp != NULL) && (check_ncm_flag()) && (check_intermediate_flag()) && (atomic_read(&tmp->startFlow)) && (atomic_read(&tmp->intermediateFlow)) ) {
 				s32 npa_timeout = tmp->npa_timeout - ((u32)(jiffies));
@@ -1278,7 +1258,6 @@ static void gc_worker(struct work_struct *work)
 				}
 			}
             #endif
->>>>>>> tarkzim
 
 			if (nf_conntrack_max95 == 0 || gc_worker_skip_ct(tmp))
 				continue;
@@ -1348,15 +1327,9 @@ __nf_conntrack_alloc(struct net *net,
 		     gfp_t gfp, u32 hash)
 {
 	struct nf_conn *ct;
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-	struct timespec open_timespec;
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 	#ifdef CONFIG_KNOX_NCM
 	struct timespec open_timespec;
 	#endif
->>>>>>> tarkzim
 
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
@@ -1381,11 +1354,7 @@ __nf_conntrack_alloc(struct net *net,
 		goto out;
 
 	spin_lock_init(&ct->lock);
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
-=======
 	#ifdef CONFIG_KNOX_NCM
->>>>>>> tarkzim
 	/* initialize the conntrack structure members when memory is allocated */
 	if (ct != NULL) {
 		open_timespec = current_kernel_time();
@@ -1406,11 +1375,7 @@ __nf_conntrack_alloc(struct net *net,
 		ct->npa_timeout = 0;
 		atomic_set(&ct->intermediateFlow, 0);
 	}
-<<<<<<< ours
-	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
-=======
 	#endif
->>>>>>> tarkzim
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;

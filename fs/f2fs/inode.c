@@ -24,19 +24,11 @@ void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync)
 	if (is_inode_flag_set(inode, FI_NEW_INODE))
 		return;
 
-<<<<<<< ours
-	if (f2fs_readonly(F2FS_I_SB(inode)->sb))
-		return;
-
-	inode_inc_iversion(inode);
-
-=======
 		inode_inc_iversion(inode);
 
 	if (f2fs_readonly(F2FS_I_SB(inode)->sb))
 		return;
 
->>>>>>> tarkzim
 	if (f2fs_inode_dirtied(inode, sync))
 		return;
 
@@ -233,7 +225,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-<<<<<<< ours
 	if (ino_of_node(node_page) == fi->i_xattr_nid) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_warn(sbi, "%s: corrupted inode i_ino=%lx, xnid=%x, run fsck to fix.",
@@ -241,8 +232,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-=======
->>>>>>> tarkzim
 	if (f2fs_sb_has_flexible_inline_xattr(sbi)
 			&& !f2fs_has_extra_attr(inode)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
@@ -469,12 +458,8 @@ static int do_read_inode(struct inode *inode)
 					(fi->i_flags & F2FS_COMPR_FL)) {
 		if (F2FS_FITS_IN_INODE(ri, fi->i_extra_isize,
 					i_log_cluster_size)) {
-<<<<<<< ours
 			atomic_set(&fi->i_compr_blocks,
 					le64_to_cpu(ri->i_compr_blocks));
-=======
-			fi->i_compr_blocks = le64_to_cpu(ri->i_compr_blocks);
->>>>>>> tarkzim
 			fi->i_compress_algorithm = ri->i_compress_algorithm;
 			fi->i_log_cluster_size = ri->i_log_cluster_size;
 			fi->i_cluster_size = 1 << fi->i_log_cluster_size;
@@ -499,11 +484,7 @@ static int do_read_inode(struct inode *inode)
 	stat_inc_inline_inode(inode);
 	stat_inc_inline_dir(inode);
 	stat_inc_compr_inode(inode);
-<<<<<<< ours
 	stat_add_compr_blocks(inode, atomic_read(&fi->i_compr_blocks));
-=======
-	stat_add_compr_blocks(inode, F2FS_I(inode)->i_compr_blocks);
->>>>>>> tarkzim
 
 	return 0;
 }
@@ -662,12 +643,8 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
 							i_log_cluster_size)) {
 			ri->i_compr_blocks =
-<<<<<<< ours
 				cpu_to_le64(atomic_read(
 					&F2FS_I(inode)->i_compr_blocks));
-=======
-				cpu_to_le64(F2FS_I(inode)->i_compr_blocks);
->>>>>>> tarkzim
 			ri->i_compress_algorithm =
 				F2FS_I(inode)->i_compress_algorithm;
 			ri->i_log_cluster_size =
@@ -807,7 +784,6 @@ retry:
 		f2fs_update_inode_page(inode);
 		if (dquot_initialize_needed(inode))
 			set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
-<<<<<<< ours
 
 		/*
 		 * If both f2fs_truncate() and f2fs_update_inode_page() failed
@@ -824,9 +800,6 @@ retry:
 	}
 
 	dquot_free_inode(inode);
-=======
-	}
->>>>>>> tarkzim
 	sb_end_intwrite(inode->i_sb);
 no_delete:
 	dquot_drop(inode);
@@ -835,26 +808,19 @@ no_delete:
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
 	stat_dec_compr_inode(inode);
-<<<<<<< ours
 	stat_sub_compr_blocks(inode,
 			atomic_read(&F2FS_I(inode)->i_compr_blocks));
-=======
-	stat_sub_compr_blocks(inode, F2FS_I(inode)->i_compr_blocks);
->>>>>>> tarkzim
 
 	if (likely(!f2fs_cp_error(sbi) &&
 				!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		f2fs_bug_on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
 
-<<<<<<< ours
 	/*
 	 * anyway, it needs to remove the inode from sbi->inode_list[DIRTY_META]
 	 * list to avoid UAF in f2fs_sync_inode_meta() during checkpoint.
 	 */
 	f2fs_inode_synced(inode);
 
-=======
->>>>>>> tarkzim
 	/* for the case f2fs_new_inode() was failed, .i_ino is zero, skip it */
 	if (inode->i_ino)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino,

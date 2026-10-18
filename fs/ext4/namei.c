@@ -290,15 +290,9 @@ static struct dx_frame *dx_probe(struct ext4_filename *fname,
 				 struct dx_hash_info *hinfo,
 				 struct dx_frame *frame);
 static void dx_release(struct dx_frame *frames);
-<<<<<<< ours
 static int dx_make_map(struct inode *dir, struct buffer_head *bh,
 		       struct dx_hash_info *hinfo,
 		       struct dx_map_entry *map_tail);
-=======
-static int dx_make_map(struct inode *dir, struct ext4_dir_entry_2 *de,
-		       struct dx_hash_info *hinfo,
-		       struct dx_map_entry map[]);
->>>>>>> tarkzim
 static void dx_sort_map(struct dx_map_entry *map, unsigned count);
 static struct ext4_dir_entry_2 *dx_move_dirents(struct inode *dir, char *from,
 					char *to, struct dx_map_entry *offsets,
@@ -1286,11 +1280,7 @@ static inline int search_dirblock(struct buffer_head *bh,
  * Create map of hash values, offsets, and sizes, stored at end of block.
  * Returns number of entries mapped.
  */
-<<<<<<< ours
 static int dx_make_map(struct inode *dir, struct buffer_head *bh,
-=======
-static int dx_make_map(struct inode *dir, struct ext4_dir_entry_2 *de,
->>>>>>> tarkzim
 		       struct dx_hash_info *hinfo,
 		       struct dx_map_entry *map_tail)
 {
@@ -1300,12 +1290,9 @@ static int dx_make_map(struct inode *dir, struct ext4_dir_entry_2 *de,
 	char *base = bh->b_data;
 	struct dx_hash_info h = *hinfo;
 	int blocksize = EXT4_BLOCK_SIZE(dir->i_sb);
-<<<<<<< ours
 
 	if (ext4_has_metadata_csum(dir->i_sb))
 		buflen -= sizeof(struct ext4_dir_entry_tail);
-=======
->>>>>>> tarkzim
 
 	while ((char *) de < base + buflen) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh, base, buflen,
@@ -1527,11 +1514,7 @@ int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
 			 * a full check */
 			if (ext4_check_dir_entry(dir, NULL, de, bh, search_buf,
 						 buf_size, lblk, offset))
-<<<<<<< ours
 				return -1;
-=======
-				return -EFSCORRUPTED;
->>>>>>> tarkzim
 			*res_dir = de;
 			return 1;
 		}
@@ -1600,11 +1583,8 @@ static struct buffer_head *__ext4_find_entry(struct inode *dir,
 		int has_inline_data = 1;
 		ret = ext4_find_inline_entry(dir, fname, res_dir,
 					     &has_inline_data);
-<<<<<<< ours
 		if (lblk)
 			*lblk = 0;
-=======
->>>>>>> tarkzim
 		if (inlined)
 			*inlined = has_inline_data;
 		if (has_inline_data)
@@ -2005,16 +1985,11 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 
 	/* create map in the end of data2 block */
 	map = (struct dx_map_entry *) (data2 + blocksize);
-<<<<<<< ours
 	count = dx_make_map(dir, *bh, hinfo, map);
 	if (count < 0) {
 		err = count;
 		goto journal_error;
 	}
-=======
-	count = dx_make_map(dir, (struct ext4_dir_entry_2 *) data1,
-			     hinfo, map);
->>>>>>> tarkzim
 	map -= count;
 	dx_sort_map(map, count);
 	/* Ensure that neither split block is over half full */
@@ -2434,12 +2409,9 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		return -EINVAL;
 #endif
 
-<<<<<<< ours
 	if (fscrypt_is_nokey_name(dentry))
 		return -ENOKEY;
 
-=======
->>>>>>> tarkzim
 	retval = ext4_fname_setup_filename(dir, &dentry->d_name, 0, &fname);
 	if (retval)
 		return retval;
@@ -3134,16 +3106,11 @@ bool ext4_empty_dir(struct inode *inode)
 		de = (struct ext4_dir_entry_2 *) (bh->b_data +
 					(offset & (sb->s_blocksize - 1)));
 		if (ext4_check_dir_entry(inode, NULL, de, bh,
-<<<<<<< ours
 					 bh->b_data, bh->b_size, 0, offset)) {
 			offset = (offset | (sb->s_blocksize - 1)) + 1;
 			continue;
 		}
 		if (le32_to_cpu(de->inode)) {
-=======
-					 bh->b_data, bh->b_size, 0, offset) ||
-		    le32_to_cpu(de->inode)) {
->>>>>>> tarkzim
 			brelse(bh);
 			return false;
 		}
@@ -3729,15 +3696,9 @@ static struct buffer_head *ext4_get_first_dir_block(handle_t *handle,
 	struct buffer_head *bh;
 
 	if (!ext4_has_inline_data(inode)) {
-<<<<<<< ours
 		struct ext4_dir_entry_2 *de;
 		unsigned int offset;
 
-=======
-		/* The first directory block must not be a hole, so
-		 * treat it as DIRENT_HTREE
-		 */
->>>>>>> tarkzim
 		bh = ext4_read_dirblock(inode, 0, EITHER);
 		if (IS_ERR(bh)) {
 			*retval = PTR_ERR(bh);
@@ -3875,13 +3836,8 @@ static void ext4_resetent(handle_t *handle, struct ext4_renament *ent,
 	 * so the old->de may no longer valid and need to find it again
 	 * before reset old inode info.
 	 */
-<<<<<<< ours
 	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de,
 				 &old.inlined, NULL);
-=======
-	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de, NULL,
-				 &old.inlined);
->>>>>>> tarkzim
 	if (IS_ERR(old.bh))
 		retval = PTR_ERR(old.bh);
 	if (!old.bh)
@@ -4046,11 +4002,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de, NULL,
-<<<<<<< ours
 				&old.lblk);
-=======
-				 &old.inlined);
->>>>>>> tarkzim
 	if (IS_ERR(old.bh))
 		return PTR_ERR(old.bh);
 	/*

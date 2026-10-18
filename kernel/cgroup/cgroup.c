@@ -3609,17 +3609,6 @@ static int cpu_stat_show(struct seq_file *seq, void *v)
 #ifdef CONFIG_PSI
 static int cgroup_io_pressure_show(struct seq_file *seq, void *v)
 {
-<<<<<<< ours
-	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_IO);
-}
-static int cgroup_memory_pressure_show(struct seq_file *seq, void *v)
-{
-	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_MEM);
-}
-static int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
-{
-	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_CPU);
-=======
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 	struct psi_group *psi = cgroup_ino(cgrp) == 1 ? &psi_system : &cgrp->psi;
 
@@ -3638,7 +3627,6 @@ static int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
 	struct psi_group *psi = cgroup_ino(cgrp) == 1 ? &psi_system : &cgrp->psi;
 
 	return psi_show(seq, psi, PSI_CPU);
->>>>>>> tarkzim
 }
 
 static ssize_t cgroup_pressure_write(struct kernfs_open_file *of, char *buf,
@@ -3700,7 +3688,6 @@ static void cgroup_pressure_release(struct kernfs_open_file *of)
 {
 	psi_trigger_replace(&of->priv, NULL);
 }
-<<<<<<< ours
 
 bool cgroup_psi_enabled(void)
 {
@@ -3713,8 +3700,6 @@ bool cgroup_psi_enabled(void)
 	return false;
 }
 
-=======
->>>>>>> tarkzim
 #endif /* CONFIG_PSI */
 
 static int cgroup_freeze_show(struct seq_file *seq, void *v)
@@ -4993,10 +4978,7 @@ static struct cftype cgroup_base_files[] = {
 #ifdef CONFIG_PSI
 	{
 		.name = "io.pressure",
-<<<<<<< ours
 		.flags = CFTYPE_NOT_ON_ROOT | CFTYPE_PRESSURE,
-=======
->>>>>>> tarkzim
 		.seq_show = cgroup_io_pressure_show,
 		.write = cgroup_io_pressure_write,
 		.poll = cgroup_pressure_poll,
@@ -5004,10 +4986,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "memory.pressure",
-<<<<<<< ours
 		.flags = CFTYPE_NOT_ON_ROOT | CFTYPE_PRESSURE,
-=======
->>>>>>> tarkzim
 		.seq_show = cgroup_memory_pressure_show,
 		.write = cgroup_memory_pressure_write,
 		.poll = cgroup_pressure_poll,
@@ -5015,10 +4994,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cpu.pressure",
-<<<<<<< ours
 		.flags = CFTYPE_NOT_ON_ROOT | CFTYPE_PRESSURE,
-=======
->>>>>>> tarkzim
 		.seq_show = cgroup_cpu_pressure_show,
 		.write = cgroup_cpu_pressure_write,
 		.poll = cgroup_pressure_poll,
@@ -5432,13 +5408,8 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 
 out_psi_free:
 	psi_cgroup_free(cgrp);
-<<<<<<< ours
 out_idr_free:
 	cgroup_idr_remove(&root->cgroup_idr, cgrp->id);
-=======
-out_kernfs_remove:
-	kernfs_remove(cgrp->kn);
->>>>>>> tarkzim
 out_stat_exit:
 	if (cgroup_on_dfl(parent))
 		cgroup_rstat_exit(cgrp);
@@ -6271,7 +6242,6 @@ static int __init cgroup_disable(char *str)
 			static_branch_disable(cgroup_subsys_enabled_key[i]);
 			pr_info("Disabling %s control group subsystem\n",
 				ss->name);
-<<<<<<< ours
 		}
 
 		for (i = 0; i < OPT_FEATURE_COUNT; i++) {
@@ -6281,8 +6251,6 @@ static int __init cgroup_disable(char *str)
 			pr_info("Disabling %s control group feature\n",
 				cgroup_opt_feature_names[i]);
 			break;
-=======
->>>>>>> tarkzim
 		}
 	}
 	return 1;
@@ -6493,25 +6461,16 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
 #endif	/* CONFIG_SOCK_CGROUP_DATA */
 
 #ifdef CONFIG_CGROUP_BPF
-<<<<<<< ours
-int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-		      struct bpf_prog *replace_prog, enum bpf_attach_type type,
-=======
 int cgroup_bpf_attach(struct cgroup *cgrp,
 		      struct bpf_prog *prog, struct bpf_prog *replace_prog,
 		      struct bpf_cgroup_link *link,
 		      enum bpf_attach_type type,
->>>>>>> tarkzim
 		      u32 flags)
 {
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-<<<<<<< ours
-	ret = __cgroup_bpf_attach(cgrp, prog, replace_prog, type, flags);
-=======
 	ret = __cgroup_bpf_attach(cgrp, prog, replace_prog, link, type, flags);
->>>>>>> tarkzim
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
@@ -6522,11 +6481,7 @@ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-<<<<<<< ours
-	ret = __cgroup_bpf_detach(cgrp, prog, type);
-=======
 	ret = __cgroup_bpf_detach(cgrp, prog, NULL, type);
->>>>>>> tarkzim
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }

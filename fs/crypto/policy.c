@@ -33,7 +33,6 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 }
 
 static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
-<<<<<<< ours
 {
 	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
 	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
@@ -79,53 +78,6 @@ static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
 					 const char *type,
 					 int max_ino_bits, int max_lblk_bits)
 {
-=======
-{
-	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
-	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
-		return true;
-
-	if (contents_mode == FSCRYPT_MODE_AES_128_CBC &&
-	    filenames_mode == FSCRYPT_MODE_AES_128_CTS)
-		return true;
-
-	if (contents_mode == FSCRYPT_MODE_ADIANTUM &&
-	    filenames_mode == FSCRYPT_MODE_ADIANTUM)
-		return true;
-
-	if (contents_mode == FSCRYPT_MODE_PRIVATE &&
-	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
-		return true;
-
-	return false;
-}
-
-static bool supported_direct_key_modes(const struct inode *inode,
-				       u32 contents_mode, u32 filenames_mode)
-{
-	const struct fscrypt_mode *mode;
-
-	if (contents_mode != filenames_mode) {
-		fscrypt_warn(inode,
-			     "Direct key flag not allowed with different contents and filenames modes");
-		return false;
-	}
-	mode = &fscrypt_modes[contents_mode];
-
-	if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
-		fscrypt_warn(inode, "Direct key flag not allowed with %s",
-			     mode->friendly_name);
-		return false;
-	}
-	return true;
-}
-
-static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
-					 const struct inode *inode,
-					 const char *type,
-					 int max_ino_bits, int max_lblk_bits)
-{
->>>>>>> tarkzim
 	struct super_block *sb = inode->i_sb;
 	int ino_bits = 64, lblk_bits = 64;
 
@@ -301,7 +253,6 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 		get_random_bytes(ctx->nonce, sizeof(ctx->nonce));
 
 #if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
-<<<<<<< ours
 		BUILD_BUG_ON((sizeof(*ctx) - sizeof(ctx->knox_flags))
 				!= offsetof(struct fscrypt_context_v1, knox_flags));
 		ctx->knox_flags = 0;
@@ -309,11 +260,6 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 #else
 		return sizeof(*ctx);
 #endif
-=======
-		ctx->knox_flags = 0;
-#endif
-		return sizeof(*ctx);
->>>>>>> tarkzim
 	}
 	case FSCRYPT_POLICY_V2: {
 		const struct fscrypt_policy_v2 *policy = &policy_u->v2;
@@ -331,7 +277,6 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 		get_random_bytes(ctx->nonce, sizeof(ctx->nonce));
 
 #if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
-<<<<<<< ours
 		BUILD_BUG_ON((sizeof(*ctx) - sizeof(ctx->knox_flags))
 				!= offsetof(struct fscrypt_context_v2, knox_flags));
 		ctx->knox_flags = 0;
@@ -339,11 +284,6 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 #else
 		return sizeof(*ctx);
 #endif
-=======
-		ctx->knox_flags = 0;
-#endif
-		return sizeof(*ctx);
->>>>>>> tarkzim
 	}
 	}
 	BUG();
@@ -371,7 +311,6 @@ int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 	memset(policy_u, 0, sizeof(*policy_u));
 
 	if (!fscrypt_context_is_valid(ctx_u, ctx_size))
-<<<<<<< ours
 		return -EINVAL;
 
 	switch (ctx_u->version) {
@@ -463,113 +402,9 @@ static int set_encryption_policy(struct inode *inode,
 	int err;
 
 	if (!fscrypt_supported_policy(policy, inode))
-=======
-		return -EINVAL;
-
-	switch (ctx_u->version) {
-	case FSCRYPT_CONTEXT_V1: {
-		const struct fscrypt_context_v1 *ctx = &ctx_u->v1;
-		struct fscrypt_policy_v1 *policy = &policy_u->v1;
-
-		policy->version = FSCRYPT_POLICY_V1;
-		policy->contents_encryption_mode =
-			ctx->contents_encryption_mode;
-		policy->filenames_encryption_mode =
-			ctx->filenames_encryption_mode;
-		policy->flags = ctx->flags;
-		memcpy(policy->master_key_descriptor,
-		       ctx->master_key_descriptor,
-		       sizeof(policy->master_key_descriptor));
-		return 0;
-	}
-	case FSCRYPT_CONTEXT_V2: {
-		const struct fscrypt_context_v2 *ctx = &ctx_u->v2;
-		struct fscrypt_policy_v2 *policy = &policy_u->v2;
-
-		policy->version = FSCRYPT_POLICY_V2;
-		policy->contents_encryption_mode =
-			ctx->contents_encryption_mode;
-		policy->filenames_encryption_mode =
-			ctx->filenames_encryption_mode;
-		policy->flags = ctx->flags;
-		memcpy(policy->__reserved, ctx->__reserved,
-		       sizeof(policy->__reserved));
-		memcpy(policy->master_key_identifier,
-		       ctx->master_key_identifier,
-		       sizeof(policy->master_key_identifier));
-		return 0;
-	}
-	}
-	/* unreachable */
-	return -EINVAL;
-}
-
-/* Retrieve an inode's encryption policy */
-static int fscrypt_get_policy(struct inode *inode, union fscrypt_policy *policy)
-{
-	const struct fscrypt_info *ci;
-	union fscrypt_context ctx;
-	int ret;
-
-	ci = READ_ONCE(inode->i_crypt_info);
-	if (ci) {
-		/* key available, use the cached policy */
-		*policy = ci->ci_policy;
-		return 0;
-	}
-
-	if (!IS_ENCRYPTED(inode))
-		return -ENODATA;
-
-	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
-	if (ret < 0)
-		return (ret == -ERANGE) ? -EINVAL : ret;
-
-	return fscrypt_policy_from_context(policy, &ctx, ret);
-}
-
-static int set_encryption_policy(struct inode *inode,
-				 const union fscrypt_policy *policy)
-{
-	union fscrypt_context ctx;
-	int ctxsize;
-	int err;
-
-	if (!fscrypt_supported_policy(policy, inode))
-		return -EINVAL;
-
-	switch (policy->version) {
-	case FSCRYPT_POLICY_V1:
-		/*
-		 * The original encryption policy version provided no way of
-		 * verifying that the correct master key was supplied, which was
-		 * insecure in scenarios where multiple users have access to the
-		 * same encrypted files (even just read-only access).  The new
-		 * encryption policy version fixes this and also implies use of
-		 * an improved key derivation function and allows non-root users
-		 * to securely remove keys.  So as long as compatibility with
-		 * old kernels isn't required, it is recommended to use the new
-		 * policy version for all new encrypted directories.
-		 */
-		pr_warn_once("%s (pid %d) is setting deprecated v1 encryption policy; recommend upgrading to v2.\n",
-			     current->comm, current->pid);
-		break;
-	case FSCRYPT_POLICY_V2:
-		err = fscrypt_verify_key_added(inode->i_sb,
-					       policy->v2.master_key_identifier);
-		if (err)
-			return err;
-		if (policy->v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)
-			pr_warn_once("%s (pid %d) is setting an IV_INO_LBLK_32 encryption policy.  This should only be used if there are certain hardware limitations.\n",
-				     current->comm, current->pid);
-		break;
-	default:
-		WARN_ON(1);
->>>>>>> tarkzim
 		return -EINVAL;
 	}
 
-<<<<<<< ours
 	switch (policy->version) {
 	case FSCRYPT_POLICY_V1:
 		/*
@@ -600,8 +435,6 @@ static int set_encryption_policy(struct inode *inode,
 		return -EINVAL;
 	}
 
-=======
->>>>>>> tarkzim
 	ctxsize = fscrypt_new_context_from_policy(&ctx, policy);
 
 	return inode->i_sb->s_cop->set_context(inode, &ctx, ctxsize, NULL);
@@ -617,8 +450,6 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 	int ret;
 
 	if (get_user(policy.version, (const u8 __user *)arg))
-<<<<<<< ours
-=======
 		return -EFAULT;
 
 	size = fscrypt_policy_size(&policy);
@@ -638,7 +469,6 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 	 */
 	version = policy.version;
 	if (copy_from_user(&policy, arg, size))
->>>>>>> tarkzim
 		return -EFAULT;
 	policy.version = version;
 
@@ -756,7 +586,6 @@ int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
 	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (ret < 0)
 		return ret;
-<<<<<<< ours
 
 #if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
 	switch (ctx.version) {
@@ -777,8 +606,6 @@ int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
 	}
 #endif
 
-=======
->>>>>>> tarkzim
 	if (!fscrypt_context_is_valid(&ctx, ret))
 		return -EINVAL;
 	if (copy_to_user(arg, fscrypt_context_nonce(&ctx),
@@ -895,7 +722,6 @@ int fscrypt_inherit_context(struct inode *parent, struct inode *child,
 				"%s: Failed to set sensitive ongoing flag (err:%d)\n", __func__, res);
 		return res;
 	}
-<<<<<<< ours
 
 	switch (ctx.version) {
 	case FSCRYPT_CONTEXT_V1: {
@@ -909,8 +735,6 @@ int fscrypt_inherit_context(struct inode *parent, struct inode *child,
 		break;
 	}
 	}
-=======
->>>>>>> tarkzim
 #endif
 
 	res = parent->i_sb->s_cop->set_context(child, &ctx, ctxsize, fs_data);

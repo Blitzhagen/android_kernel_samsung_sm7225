@@ -406,10 +406,7 @@ class PrinterHelpers(Printer):
 
     type_fwds = [
             'struct bpf_fib_lookup',
-<<<<<<< ours
-=======
             'struct bpf_sk_lookup',
->>>>>>> tarkzim
             'struct bpf_perf_event_data',
             'struct bpf_perf_event_value',
             'struct bpf_sock',
@@ -425,8 +422,6 @@ class PrinterHelpers(Printer):
             'struct sk_reuseport_md',
             'struct sockaddr',
             'struct tcphdr',
-<<<<<<< ours
-=======
             'struct seq_file',
             'struct tcp6_sock',
             'struct tcp_sock',
@@ -434,16 +429,12 @@ class PrinterHelpers(Printer):
             'struct tcp_request_sock',
             'struct udp6_sock',
             'struct task_struct',
->>>>>>> tarkzim
 
             'struct __sk_buff',
             'struct sk_msg_md',
             'struct xdp_md',
-<<<<<<< ours
-=======
             'struct path',
             'struct btf_ptr',
->>>>>>> tarkzim
     ]
     known_types = {
             '...',
@@ -462,12 +453,9 @@ class PrinterHelpers(Printer):
             'struct bpf_fib_lookup',
             'struct bpf_perf_event_data',
             'struct bpf_perf_event_value',
-<<<<<<< ours
-=======
             'struct bpf_pidns_info',
             'struct bpf_redir_neigh',
             'struct bpf_sk_lookup',
->>>>>>> tarkzim
             'struct bpf_sock',
             'struct bpf_sock_addr',
             'struct bpf_sock_ops',
@@ -481,8 +469,6 @@ class PrinterHelpers(Printer):
             'struct sk_reuseport_md',
             'struct sockaddr',
             'struct tcphdr',
-<<<<<<< ours
-=======
             'struct seq_file',
             'struct tcp6_sock',
             'struct tcp_sock',
@@ -492,7 +478,6 @@ class PrinterHelpers(Printer):
             'struct task_struct',
             'struct path',
             'struct btf_ptr',
->>>>>>> tarkzim
     }
     mapped_types = {
             'u8': '__u8',
@@ -510,14 +495,11 @@ class PrinterHelpers(Printer):
             'struct sk_msg_buff': 'struct sk_msg_md',
             'struct xdp_buff': 'struct xdp_md',
     }
-<<<<<<< ours
-=======
     # Helpers overloaded for different context types.
     overloaded_helpers = [
         'bpf_get_socket_cookie',
         'bpf_sk_assign',
     ]
->>>>>>> tarkzim
 
     def print_header(self):
         header = '''\
@@ -574,11 +556,7 @@ class PrinterHelpers(Printer):
         for i, a in enumerate(proto['args']):
             t = a['type']
             n = a['name']
-<<<<<<< ours
-            if proto['name'] == 'bpf_get_socket_cookie' and i == 0:
-=======
             if proto['name'] in self.overloaded_helpers and i == 0:
->>>>>>> tarkzim
                     t = 'void'
                     n = 'ctx'
             one_arg = '{}{}'.format(comma, self.map_type(t))

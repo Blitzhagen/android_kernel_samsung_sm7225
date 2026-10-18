@@ -138,8 +138,6 @@ EXPORT_SYMBOL_GPL(clean_acked_data_flush);
 #endif
 
 #ifdef CONFIG_CGROUP_BPF
-<<<<<<< ours
-=======
 static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
 {
 	bool unknown_opt = tcp_sk(sk)->rx_opt.saw_unknown &&
@@ -174,7 +172,6 @@ static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
 	BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
 }
 
->>>>>>> tarkzim
 static void bpf_skops_established(struct sock *sk, int bpf_op,
 				  struct sk_buff *skb)
 {
@@ -186,24 +183,17 @@ static void bpf_skops_established(struct sock *sk, int bpf_op,
 	sock_ops.op = bpf_op;
 	sock_ops.is_fullsock = 1;
 	sock_ops.sk = sk;
-<<<<<<< ours
-	/* skb will be passed to the bpf prog in a later patch. */
-=======
 	/* sk with TCP_REPAIR_ON does not have skb in tcp_finish_connect */
 	if (skb)
 		bpf_skops_init_skb(&sock_ops, skb, tcp_hdrlen(skb));
->>>>>>> tarkzim
 
 	BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
 }
 #else
-<<<<<<< ours
-=======
 static void bpf_skops_parse_hdr(struct sock *sk, struct sk_buff *skb)
 {
 }
 
->>>>>>> tarkzim
 static void bpf_skops_established(struct sock *sk, int bpf_op,
 				  struct sk_buff *skb)
 {
@@ -3538,17 +3528,10 @@ static bool __tcp_oow_rate_limited(struct net *net, int mib_idx,
 {
 	/* Paired with the WRITE_ONCE() in this function. */
 	u32 val = READ_ONCE(*last_oow_ack_time);
-<<<<<<< ours
 
 	if (val) {
 		s32 elapsed = (s32)(tcp_jiffies32 - val);
 
-=======
-
-	if (val) {
-		s32 elapsed = (s32)(tcp_jiffies32 - val);
-
->>>>>>> tarkzim
 		if (0 <= elapsed &&
 		    elapsed < READ_ONCE(net->ipv4.sysctl_tcp_invalid_ratelimit)) {
 			NET_INC_STATS(net, mib_idx);
@@ -6693,34 +6676,13 @@ static void tcp_reqsk_record_syn(const struct sock *sk,
 	if (tcp_sk(sk)->save_syn) {
 		u32 len = skb_network_header_len(skb) + tcp_hdrlen(skb);
 		struct saved_syn *saved_syn;
-<<<<<<< ours
-=======
-		u32 mac_hdrlen;
-		void *base;
-
-		if (tcp_sk(sk)->save_syn == 2) {  /* Save full header. */
-			base = skb_mac_header(skb);
-			mac_hdrlen = skb_mac_header_len(skb);
-			len += mac_hdrlen;
-		} else {
-			base = skb_network_header(skb);
-			mac_hdrlen = 0;
-		}
->>>>>>> tarkzim
 
 		saved_syn = kmalloc(struct_size(saved_syn, data, len),
 				    GFP_ATOMIC);
 		if (saved_syn) {
-<<<<<<< ours
 			saved_syn->network_hdrlen = skb_network_header_len(skb);
 			saved_syn->tcp_hdrlen = tcp_hdrlen(skb);
 			memcpy(saved_syn->data, skb_network_header(skb), len);
-=======
-			saved_syn->mac_hdrlen = mac_hdrlen;
-			saved_syn->network_hdrlen = skb_network_header_len(skb);
-			saved_syn->tcp_hdrlen = tcp_hdrlen(skb);
-			memcpy(saved_syn->data, base, len);
->>>>>>> tarkzim
 			req->saved_syn = saved_syn;
 		}
 	}
@@ -6736,11 +6698,7 @@ u16 tcp_get_syncookie_mss(struct request_sock_ops *rsk_ops,
 	struct tcp_sock *tp = tcp_sk(sk);
 	u16 mss;
 
-<<<<<<< ours
-	if (sock_net(sk)->ipv4.sysctl_tcp_syncookies != 2 &&
-=======
 	if (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_syncookies) != 2 &&
->>>>>>> tarkzim
 	    !inet_csk_reqsk_queue_is_full(sk))
 		return 0;
 
@@ -6782,12 +6740,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	 * limitations, they conserve resources and peer is
 	 * evidently real one.
 	 */
-<<<<<<< ours
-	if ((net->ipv4.sysctl_tcp_syncookies == 2 ||
-	     inet_csk_reqsk_queue_is_full(sk)) && !isn) {
-=======
 	if ((syncookies == 2 || inet_csk_reqsk_queue_is_full(sk)) && !isn) {
->>>>>>> tarkzim
 		want_cookie = tcp_syn_flood_action(sk, rsk_ops->slab_name);
 		if (!want_cookie)
 			goto drop;

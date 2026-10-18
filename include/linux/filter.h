@@ -21,10 +21,7 @@
 #include <linux/kallsyms.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
-<<<<<<< ours
-=======
 #include <linux/sockptr.h>
->>>>>>> tarkzim
 
 #include <net/sch_generic.h>
 
@@ -511,13 +508,8 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 	static __always_inline						       \
 	u64 ____##name(__BPF_MAP(x, __BPF_DECL_ARGS, __BPF_V, __VA_ARGS__));   \
 	typedef u64 (*btf_##name)(__BPF_MAP(x, __BPF_DECL_ARGS, __BPF_V, __VA_ARGS__)); \
-<<<<<<< ours
-	u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__));	       \
-	u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__))	       \
-=======
 	attr u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__));    \
 	attr u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__))     \
->>>>>>> tarkzim
 	{								       \
 		return ((btf_##name)____##name)(__BPF_MAP(x,__BPF_CAST,__BPF_N,__VA_ARGS__));\
 	}								       \
@@ -667,9 +659,6 @@ static inline void bpf_jit_set_header_magic(struct bpf_binary_header *hdr)
 }
 #endif
 
-<<<<<<< ours
-#define BPF_PROG_RUN(filter, ctx)  ({ cant_sleep(); (*(filter)->bpf_func)(ctx, (filter)->insnsi); })
-=======
 DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 
 #define __BPF_PROG_RUN(prog, ctx, dfunc)	({			\
@@ -713,7 +702,6 @@ static inline u32 bpf_prog_run_pin_on_cpu(const struct bpf_prog *prog,
 	migrate_enable();
 	return ret;
 }
->>>>>>> tarkzim
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
@@ -723,8 +711,6 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
-<<<<<<< ours
-=======
 struct bpf_nh_params {
 	u32 nh_family;
 	union {
@@ -733,7 +719,6 @@ struct bpf_nh_params {
 	};
 };
 
->>>>>>> tarkzim
 struct bpf_redirect_info {
 	u32 flags;
 	u32 tgt_index;
@@ -910,16 +895,6 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 }
 
 static inline u8
-<<<<<<< ours
-bpf_ctx_narrow_load_shift(u32 off, u32 size, u32 size_default)
-{
-	u8 load_off = off & (size_default - 1);
-
-#ifdef __LITTLE_ENDIAN
-	return load_off * 8;
-#else
-	return (size_default - (load_off + size)) * 8;
-=======
 bpf_ctx_narrow_access_offset(u32 off, u32 size, u32 size_default)
 {
 	u8 access_off = off & (size_default - 1);
@@ -928,7 +903,6 @@ bpf_ctx_narrow_access_offset(u32 off, u32 size, u32 size_default)
 	return access_off;
 #else
 	return size_default - (access_off + size);
->>>>>>> tarkzim
 #endif
 }
 
@@ -1089,11 +1063,8 @@ void xdp_do_flush(void);
  */
 #define xdp_do_flush_map xdp_do_flush
 
-<<<<<<< ours
-=======
 void bpf_warn_invalid_xdp_action(u32 act);
 
->>>>>>> tarkzim
 #ifdef CONFIG_INET
 struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
 				  struct bpf_prog *prog, struct sk_buff *skb,
@@ -1283,14 +1254,6 @@ static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 {
 }
 
-<<<<<<< ours
-static inline void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
-{
-	sym[0] = '\0';
-}
-
-=======
->>>>>>> tarkzim
 #endif /* CONFIG_BPF_JIT */
 
 void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
@@ -1385,17 +1348,12 @@ struct bpf_sock_ops_kern {
 		u32 reply;
 		u32 replylong[4];
 	};
-<<<<<<< ours
-	u8	op;
-	u8	is_fullsock;
-=======
 	struct sk_buff	*syn_skb;
 	struct sk_buff	*skb;
 	void	*skb_data_end;
 	u8	op;
 	u8	is_fullsock;
 	u8	remaining_opt_len;
->>>>>>> tarkzim
 	u64	temp;			/* temp and everything after is not
 					 * initialized to 0 before calling
 					 * the BPF program. New fields that

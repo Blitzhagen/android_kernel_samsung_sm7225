@@ -194,10 +194,7 @@ struct f2fs_mount_info {
 #define F2FS_FEATURE_SB_CHKSUM		0x0800
 #define F2FS_FEATURE_CASEFOLD		0x1000
 #define F2FS_FEATURE_COMPRESSION	0x2000
-<<<<<<< ours
 #define F2FS_FEATURE_RO			0x4000
-=======
->>>>>>> tarkzim
 
 #define __F2FS_HAS_FEATURE(raw_super, mask)				\
 	((raw_super->feature & cpu_to_le32(mask)) != 0)
@@ -814,10 +811,7 @@ enum {
 	FI_VERITY_IN_PROGRESS,	/* building fs-verity Merkle tree */
 	FI_COMPRESSED_FILE,	/* indicate file's data can be compressed */
 	FI_MMAP_FILE,		/* indicate file was mmapped */
-<<<<<<< ours
 	FI_COMPRESS_RELEASED,	/* compressed blocks were released */
-=======
->>>>>>> tarkzim
 	FI_MAX,			/* max flag, never be used */
 };
 
@@ -870,11 +864,7 @@ struct f2fs_inode_info {
 	struct timespec64 i_disk_time[4];/* inode disk times */
 
 	/* for file compress */
-<<<<<<< ours
 	atomic_t i_compr_blocks;		/* # of compressed blocks */
-=======
-	u64 i_compr_blocks;			/* # of compressed blocks */
->>>>>>> tarkzim
 	unsigned char i_compress_algorithm;	/* algorithm type */
 	unsigned char i_log_cluster_size;	/* log of cluster size */
 	unsigned int i_cluster_size;		/* cluster size */
@@ -1266,13 +1256,8 @@ enum cp_reason_type {
 	CP_FASTBOOT_MODE,
 	CP_SPEC_LOG_NUM,
 	CP_RECOVER_DIR,
-<<<<<<< ours
 	CP_XATTR_DIR,
 	NR_CP_REASON,
-=======
-	NR_CP_REASON,
-	CP_XATTR_DIR,
->>>>>>> tarkzim
 };
 
 enum iostat_type {
@@ -1855,10 +1840,7 @@ struct f2fs_sb_info {
 	struct kmem_cache *inline_xattr_slab;	/* inline xattr entry */
 	unsigned int inline_xattr_slab_size;	/* default inline xattr slab size */
 
-<<<<<<< ours
 	unsigned int sec_hqm_preserve;
-=======
->>>>>>> tarkzim
 	struct f2fs_sec_stat_info sec_stat;
 	struct f2fs_sec_fsck_info sec_fsck_stat;
 
@@ -2762,19 +2744,11 @@ static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 		get_pages(sbi, F2FS_DIO_READ) ||
 		get_pages(sbi, F2FS_DIO_WRITE))
 		return false;
-<<<<<<< ours
 
 	if (type != DISCARD_TIME && SM_I(sbi) && SM_I(sbi)->dcc_info &&
 			atomic_read(&SM_I(sbi)->dcc_info->queued_discard))
 		return false;
 
-=======
-
-	if (type != DISCARD_TIME && SM_I(sbi) && SM_I(sbi)->dcc_info &&
-			atomic_read(&SM_I(sbi)->dcc_info->queued_discard))
-		return false;
-
->>>>>>> tarkzim
 	if (SM_I(sbi) && SM_I(sbi)->fcc_info &&
 			atomic_read(&SM_I(sbi)->fcc_info->queued_flush))
 		return false;
@@ -3105,11 +3079,8 @@ static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 		set_bit(FI_EXTRA_ATTR, fi->flags);
 	if (ri->i_inline & F2FS_PIN_FILE)
 		set_bit(FI_PIN_FILE, fi->flags);
-<<<<<<< ours
 	if (ri->i_inline & F2FS_COMPRESS_RELEASED)
 		set_bit(FI_COMPRESS_RELEASED, fi->flags);
-=======
->>>>>>> tarkzim
 }
 
 static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
@@ -3485,7 +3456,6 @@ static inline void f2fs_clear_page_private(struct page *page)
 	set_page_private(page, 0);
 	ClearPagePrivate(page);
 	f2fs_put_page(page, 0);
-<<<<<<< ours
 }
 
 /* @fs.sec -- 23c33f110b35408f8559496c6095c768 -- */
@@ -3536,8 +3506,6 @@ static inline void f2fs_cond_set_fua(struct f2fs_io_info *fio)
 		if (f2fs_is_atomic_file(inode) && f2fs_is_commit_atomic_write(inode))
 			fio->op_flags |= REQ_FUA;
 	}
-=======
->>>>>>> tarkzim
 }
 
 /*
@@ -4332,30 +4300,19 @@ static inline void set_compress_context(struct inode *inode)
 	f2fs_mark_inode_dirty_sync(inode, true);
 }
 
-<<<<<<< ours
 static inline u32 f2fs_disable_compressed_file(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	u32 i_compr_blocks;
-=======
-static inline u64 f2fs_disable_compressed_file(struct inode *inode)
-{
-	struct f2fs_inode_info *fi = F2FS_I(inode);
->>>>>>> tarkzim
 
 	if (!f2fs_compressed_file(inode))
 		return 0;
 	if (S_ISREG(inode->i_mode)) {
 		if (get_dirty_pages(inode))
 			return 1;
-<<<<<<< ours
 		i_compr_blocks = atomic_read(&fi->i_compr_blocks);
 		if (i_compr_blocks)
 			return i_compr_blocks;
-=======
-		if (fi->i_compr_blocks)
-			return fi->i_compr_blocks;
->>>>>>> tarkzim
 	}
 
 	fi->i_flags &= ~F2FS_COMPR_FL;
@@ -4384,10 +4341,7 @@ F2FS_FEATURE_FUNCS(verity, VERITY);
 F2FS_FEATURE_FUNCS(sb_chksum, SB_CHKSUM);
 F2FS_FEATURE_FUNCS(casefold, CASEFOLD);
 F2FS_FEATURE_FUNCS(compression, COMPRESSION);
-<<<<<<< ours
 F2FS_FEATURE_FUNCS(readonly, RO);
-=======
->>>>>>> tarkzim
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline bool f2fs_blkz_is_seq(struct f2fs_sb_info *sbi, int devi,
@@ -4461,7 +4415,6 @@ static inline bool f2fs_may_encrypt(struct inode *dir, struct inode *inode)
 		return (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode));
 #endif
 	return false;
-<<<<<<< ours
 }
 
 static inline bool f2fs_may_compress(struct inode *inode)
@@ -4517,62 +4470,6 @@ static inline int allow_outplace_dio(struct inode *inode,
 static inline bool f2fs_force_buffered_io(struct inode *inode,
 				struct kiocb *iocb, struct iov_iter *iter)
 {
-=======
-}
-
-static inline bool f2fs_may_compress(struct inode *inode)
-{
-	if (IS_SWAPFILE(inode) || f2fs_is_pinned_file(inode) ||
-				f2fs_is_atomic_file(inode) ||
-				f2fs_is_volatile_file(inode))
-		return false;
-	return S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode);
-}
-
-static inline void f2fs_i_compr_blocks_update(struct inode *inode,
-						u64 blocks, bool add)
-{
-	int diff = F2FS_I(inode)->i_cluster_size - blocks;
-
-	/* don't update i_compr_blocks if saved blocks were released */
-	if (!add && !F2FS_I(inode)->i_compr_blocks)
-		return;
-
-	if (add) {
-		F2FS_I(inode)->i_compr_blocks += diff;
-		stat_add_compr_blocks(inode, diff);
-	} else {
-		F2FS_I(inode)->i_compr_blocks -= diff;
-		stat_sub_compr_blocks(inode, diff);
-	}
-	f2fs_mark_inode_dirty_sync(inode, true);
-}
-
-static inline int block_unaligned_IO(struct inode *inode,
-				struct kiocb *iocb, struct iov_iter *iter)
-{
-	unsigned int i_blkbits = READ_ONCE(inode->i_blkbits);
-	unsigned int blocksize_mask = (1 << i_blkbits) - 1;
-	loff_t offset = iocb->ki_pos;
-	unsigned long align = offset | iov_iter_alignment(iter);
-
-	return align & blocksize_mask;
-}
-
-static inline int allow_outplace_dio(struct inode *inode,
-				struct kiocb *iocb, struct iov_iter *iter)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	int rw = iov_iter_rw(iter);
-
-	return (f2fs_lfs_mode(sbi) && (rw == WRITE) &&
-				!block_unaligned_IO(inode, iocb, iter));
-}
-
-static inline bool f2fs_force_buffered_io(struct inode *inode,
-				struct kiocb *iocb, struct iov_iter *iter)
-{
->>>>>>> tarkzim
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int rw = iov_iter_rw(iter);
 

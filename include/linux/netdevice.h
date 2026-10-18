@@ -289,17 +289,10 @@ struct header_ops {
 				const struct net_device *dev,
 				const unsigned char *haddr);
 	bool	(*validate)(const char *ll_header, unsigned int len);
-<<<<<<< ours
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	__be16	(*parse_protocol)(const struct sk_buff *skb);
-=======
-	__be16	(*parse_protocol)(const struct sk_buff *skb);
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
->>>>>>> tarkzim
 };
 
 /* These flag bits are private to the generic network queueing
@@ -1298,12 +1291,9 @@ struct netdev_net_notifier {
  * int (*ndo_tunnel_ctl)(struct net_device *dev, struct ip_tunnel_parm *p,
  *			 int cmd);
  *	Add, change, delete or get information on an IPv4 tunnel.
-<<<<<<< ours
-=======
  * struct net_device *(*ndo_get_peer_dev)(struct net_device *dev);
  *	If a device is paired with a peer device, return the peer instance.
  *	The caller must be under RCU read context.
->>>>>>> tarkzim
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1496,10 +1486,7 @@ struct net_device_ops {
 	struct devlink_port *	(*ndo_get_devlink_port)(struct net_device *dev);
 	int			(*ndo_tunnel_ctl)(struct net_device *dev,
 						  struct ip_tunnel_parm *p, int cmd);
-<<<<<<< ours
-=======
 	struct net_device *	(*ndo_get_peer_dev)(struct net_device *dev);
->>>>>>> tarkzim
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
@@ -1843,13 +1830,10 @@ enum netdev_priv_flags {
  *
  *	@macsec_ops:    MACsec offloading ops
  *
-<<<<<<< ours
-=======
  *	@udp_tunnel_nic_info:	static structure describing the UDP tunnel
  *				offload capabilities of the device
  *	@udp_tunnel_nic:	UDP tunnel offload state
  *
->>>>>>> tarkzim
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2147,14 +2131,11 @@ struct net_device {
 	/* MACsec management functions */
 	const struct macsec_ops *macsec_ops;
 #endif
-<<<<<<< ours
-=======
 	const struct udp_tunnel_nic_info	*udp_tunnel_nic_info;
 	struct udp_tunnel_nic	*udp_tunnel_nic;
 
 	/* protected by rtnl_lock */
 	struct bpf_xdp_entity	xdp_state[__MAX_XDP_MODE];
->>>>>>> tarkzim
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
@@ -2164,10 +2145,7 @@ struct net_device {
 	ANDROID_KABI_RESERVE(6);
 	ANDROID_KABI_RESERVE(7);
 	ANDROID_KABI_RESERVE(8);
-<<<<<<< ours
 
-=======
->>>>>>> tarkzim
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -2524,8 +2502,6 @@ struct pcpu_lstats {
 	struct u64_stats_sync syncp;
 };
 
-<<<<<<< ours
-=======
 static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
 {
 	struct pcpu_lstats *lstats = this_cpu_ptr(dev->lstats);
@@ -2538,7 +2514,6 @@ static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
 
 void dev_lstats_read(struct net_device *dev, u64 *packets, u64 *bytes);
 
->>>>>>> tarkzim
 #define __netdev_alloc_pcpu_stats(type, gfp)				\
 ({									\
 	typeof(type) __percpu *pcpu_stats = alloc_percpu_gfp(type, gfp);\
@@ -5065,9 +5040,6 @@ do {								\
 #define DEV_STATS_INC(DEV, FIELD) atomic_long_inc(&(DEV)->stats.__##FIELD)
 #define DEV_STATS_ADD(DEV, FIELD, VAL) 	\
 		atomic_long_add((VAL), &(DEV)->stats.__##FIELD)
-<<<<<<< ours
 #define DEV_STATS_READ(DEV, FIELD) atomic_long_read(&(DEV)->stats.__##FIELD)
-=======
->>>>>>> tarkzim
 
 #endif	/* _LINUX_NETDEVICE_H */

@@ -318,8 +318,6 @@ struct mmu_table_batch {
 
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 
-<<<<<<< ours
-=======
 /*
  * This allows an architecture that does not use the linux page-tables for
  * hardware to skip the TLBI when freeing page tables.
@@ -328,18 +326,12 @@ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 #define tlb_needs_table_invalidate() (true)
 #endif
 
->>>>>>> tarkzim
 void tlb_remove_table_sync_one(void);
 
 #else
 
-<<<<<<< ours
-static inline void tlb_remove_table_sync_one(void) { }
-
-=======
 #ifdef tlb_needs_table_invalidate
 #error tlb_needs_table_invalidate() requires HAVE_RCU_TABLE_FREE
->>>>>>> tarkzim
 #endif
 
 static inline void tlb_remove_table_sync_one(void) { }
@@ -372,13 +364,10 @@ struct mmu_gather_batch {
  */
 #define MAX_GATHER_BATCH_COUNT	(10000UL/MAX_GATHER_BATCH)
 
-<<<<<<< ours
-=======
 extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
 				   int page_size);
 #endif
 
->>>>>>> tarkzim
 /*
  * struct mmu_gather is an opaque type used by the mm code for passing around
  * any data needed by arch specific code for tlb_remove_page.
@@ -416,8 +405,6 @@ struct mmu_gather {
 	unsigned int		cleared_pmds : 1;
 	unsigned int		cleared_puds : 1;
 	unsigned int		cleared_p4ds : 1;
-<<<<<<< ours
-=======
 
 	/*
 	 * tracks VM_EXEC | VM_HUGETLB in tlb_start_vma
@@ -426,34 +413,27 @@ struct mmu_gather {
 	unsigned int		vma_huge : 1;
 
 	unsigned int		batch_count;
->>>>>>> tarkzim
 
 #ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
 	struct mmu_gather_batch *active;
 	struct mmu_gather_batch	local;
 	struct page		*__pages[MMU_GATHER_BUNDLE];
 
-<<<<<<< ours
-=======
 #ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
 	unsigned int page_size;
 #endif
 #endif
 };
 
->>>>>>> tarkzim
 void arch_tlb_gather_mmu(struct mmu_gather *tlb,
 	struct mm_struct *mm, unsigned long start, unsigned long end);
 void tlb_flush_mmu(struct mmu_gather *tlb);
 void arch_tlb_finish_mmu(struct mmu_gather *tlb,
 			 unsigned long start, unsigned long end, bool force);
-<<<<<<< ours
 void tlb_flush_pmd_range(struct mmu_gather *tlb, unsigned long address,
 			 unsigned long size);
 extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
 				   int page_size);
-=======
->>>>>>> tarkzim
 
 static inline void __tlb_adjust_range(struct mmu_gather *tlb,
 				      unsigned long address,
@@ -476,8 +456,6 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 	tlb->cleared_pmds = 0;
 	tlb->cleared_puds = 0;
 	tlb->cleared_p4ds = 0;
-<<<<<<< ours
-=======
 	/*
 	 * Do not reset mmu_gather::vma_* fields here, we do not
 	 * call into tlb_start_vma() again to set them if there is an
@@ -537,7 +515,6 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 
 		flush_tlb_range(&vma, tlb->start, tlb->end);
 	}
->>>>>>> tarkzim
 }
 
 static inline void
@@ -831,12 +808,9 @@ static inline void tlb_flush_p4d_range(struct mmu_gather *tlb,
 #endif
 
 #endif /* CONFIG_MMU */
-<<<<<<< ours
 
 #ifndef tlb_migrate_finish
 #define tlb_migrate_finish(mm) do {} while (0)
 #endif
-=======
->>>>>>> tarkzim
 
 #endif /* _ASM_GENERIC__TLB_H */

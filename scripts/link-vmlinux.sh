@@ -146,26 +146,15 @@ vmlinux_link()
 				--start-group			\
 				${KBUILD_VMLINUX_LIBS}		\
 				--end-group			\
-<<<<<<< ours
-				${1}"
-=======
 				${@:2}"
->>>>>>> tarkzim
 		else
 			objects="--start-group			\
 				vmlinux.o			\
 				--end-group			\
-<<<<<<< ours
-				${1}"
-		fi
-
-		${LD} ${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux} -o ${2}	\
-=======
 				${@:2}"
 		fi
 
 		${LD} ${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux} -o ${1}	\
->>>>>>> tarkzim
 			-T ${lds} ${objects}
 	else
 		objects="-Wl,--whole-archive			\
@@ -184,8 +173,6 @@ vmlinux_link()
 	fi
 }
 
-<<<<<<< ours
-=======
 # generate .BTF typeinfo from DWARF debuginfo
 # ${1} - vmlinux image
 # ${2} - file to dump raw BTF data into
@@ -220,7 +207,6 @@ gen_btf()
 	printf '\1' | dd of=${2} conv=notrunc bs=1 seek=16 status=none
 }
 
->>>>>>> tarkzim
 # Create ${2} .o file with all symbols from the ${1} object file
 kallsyms()
 {
@@ -367,8 +353,6 @@ if [ ! -z ${RTIC_MPGEN+x} ]; then
 	KBUILD_VMLINUX_LIBS+=$RTIC_MP_O
 fi
 
-<<<<<<< ours
-=======
 btf_vmlinux_bin_o=""
 if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
 	if gen_btf .tmp_vmlinux.btf .btf.vmlinux.bin.o ; then
@@ -376,7 +360,6 @@ if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
 	fi
 fi
 
->>>>>>> tarkzim
 kallsymso=""
 kallsyms_vmlinux=""
 if [ -n "${CONFIG_KALLSYMS}" ]; then
@@ -486,12 +469,9 @@ if [ ! -z ${RTIC_MPGEN+x} ]; then
 	# RTIC MP DTS generation command fails and it ensures rtic mp
 	# failure does not cause kernel compilation to fail.
 fi
-<<<<<<< ours
 
 if [ -n "${CONFIG_CRYPTO_FIPS}" ]; then
 	echo '  FIPS : Generating hmac of crypto and updating vmlinux... '
 	PYTHONDONTWRITEBYTECODE=0 "${srctree}/scripts/crypto/fips_crypto_integrity.py" \
 		"${objtree}/vmlinux" "${objtree}/crypto" "${objtree}/arch/arm64/crypto"
 fi
-=======
->>>>>>> tarkzim
