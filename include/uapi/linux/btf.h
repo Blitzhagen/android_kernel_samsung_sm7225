@@ -168,35 +168,4 @@ struct btf_var_secinfo {
 	__u32	size;
 };
 
-/* BTF_KIND_FUNC_PROTO is followed by multiple "struct btf_param".
- * The exact number of btf_param is stored in the vlen (of the
- * info in "struct btf_type").
- */
-struct btf_param {
-	__u32	name_off;
-	__u32	type;
-};
-
-enum {
-	BTF_VAR_STATIC = 0,
-	BTF_VAR_GLOBAL_ALLOCATED,
-};
-
-/* BTF_KIND_VAR is followed by a single "struct btf_var" to describe
- * additional information related to the variable such as its linkage.
- */
-struct btf_var {
-	__u32	linkage;
-};
-
-/* BTF_KIND_DATASEC is followed by multiple "struct btf_var_secinfo"
- * to describe all BTF_KIND_VAR types it contains along with it's
- * in-section offset as well as size.
- */
-struct btf_var_secinfo {
-	__u32	type;
-	__u32	offset;
-	__u32	size;
-};
-
 #endif /* _UAPI__LINUX_BTF_H__ */

@@ -43,7 +43,7 @@
 #include <linux/sched/task.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 #define is_task_used(tsk)	refcount_read(&(tsk)->usage)
 #else
 #define is_task_used(tsk)	atomic_read(&(tsk)->usage)

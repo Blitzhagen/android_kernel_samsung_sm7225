@@ -139,29 +139,6 @@
 	.macro	csdb
 	hint	#20
 	.endm
-	
-/*
- * Clear Branch History instruction
- */
-/*
- * Clear Branch History instruction
- */
-	.macro clearbhb
-	hint	#22
-	.endm
-
-/*
- * Speculation barrier
- */
-	.macro	sb
-alternative_if_not ARM64_HAS_SB
-	dsb	nsh
-	isb
-alternative_else
-	SB_BARRIER_INSN
-	nop
-alternative_endif
-	.endm
 
 /*
  * Clear Branch History instruction

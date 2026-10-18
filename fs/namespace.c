@@ -1096,28 +1096,55 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 		return ERR_PTR(-ENOMEM);
 
 	if (fc->fs_type->alloc_mnt_data) {
+#ifdef CONFIG_KDP_NS
+		kdp_set_ns_data(mnt->mnt, fc->fs_type->alloc_mnt_data());
+		if (!mnt->mnt->data) {
+#else
 		mnt->mnt.data = fc->fs_type->alloc_mnt_data();
 		if (!mnt->mnt.data) {
+#endif
 			mnt_free_id(mnt);
 			free_vfsmnt(mnt);
 			return ERR_PTR(-ENOMEM);
 		}
 		if (sb->s_op->update_mnt_data)
+#ifdef CONFIG_KDP_NS
+			sb->s_op->update_mnt_data(mnt->mnt->data, fc);
+#else
 			sb->s_op->update_mnt_data(mnt->mnt.data, fc);
+#endif
 	}
 	if (fc->sb_flags & SB_KERNMOUNT)
+#ifdef CONFIG_KDP_NS
+		kdp_set_mnt_flags(mnt->mnt, MNT_INTERNAL);
+#else
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
+#endif
 
 	atomic_inc(&fc->root->d_sb->s_active);
+#ifdef CONFIG_KDP_NS
+	mnt->mnt->mnt_sb	= fc->root->d_sb;
+	mnt->mnt->mnt_root	= dget(fc->root);
+	mnt->mnt_mountpoint	= mnt->mnt->mnt_root;
+#else
 	mnt->mnt.mnt_sb		= fc->root->d_sb;
 	mnt->mnt.mnt_root	= dget(fc->root);
 	mnt->mnt_mountpoint	= mnt->mnt.mnt_root;
+#endif
 	mnt->mnt_parent		= mnt;
 
 	lock_mount_hash();
+#ifdef CONFIG_KDP_NS
+	list_add_tail(&mnt->mnt_instance, &mnt->mnt->mnt_sb->s_mounts);
+#else
 	list_add_tail(&mnt->mnt_instance, &mnt->mnt.mnt_sb->s_mounts);
+#endif
 	unlock_mount_hash();
+#ifdef CONFIG_KDP_NS
+	return mnt->mnt;
+#else
 	return &mnt->mnt;
+#endif
 }
 EXPORT_SYMBOL(vfs_create_mount);
 
@@ -1194,8 +1221,13 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		return ERR_PTR(-ENOMEM);
 
 	if (sb->s_op->clone_mnt_data) {
+#ifdef CONFIG_KDP_NS
+		kdp_set_ns_data(mnt->mnt, sb->s_op->clone_mnt_data(old->mnt->data));
+		if (!mnt->mnt->data) {
+#else
 		mnt->mnt.data = sb->s_op->clone_mnt_data(old->mnt.data);
 		if (!mnt->mnt.data) {
+#endif
 			err = -ENOMEM;
 			goto out_free;
 		}
@@ -1968,7 +2000,6 @@ static inline int can_umount(const struct path *path, int flags)
 		return -EPERM;
 	return 0;
 }
-#endif
 
 int path_umount(struct path *path, int flags)
 {
@@ -2671,7 +2702,11 @@ out:
  */
 static bool can_change_locked_flags(struct mount *mnt, unsigned int mnt_flags)
 {
+#ifdef CONFIG_KDP_NS
+	unsigned int fl = mnt->mnt->mnt_flags;
+#else
 	unsigned int fl = mnt->mnt.mnt_flags;
+#endif
 
 	if ((fl & MNT_LOCK_READONLY) &&
 	    !(mnt_flags & MNT_READONLY))
@@ -2700,13 +2735,21 @@ static int change_mount_ro_state(struct mount *mnt, unsigned int mnt_flags)
 {
 	bool readonly_request = (mnt_flags & MNT_READONLY);
 
+#ifdef CONFIG_KDP_NS
+	if (readonly_request == __mnt_is_readonly(mnt->mnt))
+#else
 	if (readonly_request == __mnt_is_readonly(&mnt->mnt))
+#endif
 		return 0;
 
 	if (readonly_request)
 		return mnt_make_readonly(mnt);
 
+#ifdef CONFIG_KDP_NS
+	kdp_clear_mnt_flags(mnt->mnt, MNT_READONLY);
+#else
 	mnt->mnt.mnt_flags &= ~MNT_READONLY;
+#endif
 	return 0;
 }
 
@@ -2716,8 +2759,13 @@ static int change_mount_ro_state(struct mount *mnt, unsigned int mnt_flags)
  */
 static void set_mount_attributes(struct mount *mnt, unsigned int mnt_flags)
 {
+#ifdef CONFIG_KDP_NS
+	mnt_flags |= mnt->mnt->mnt_flags & ~MNT_USER_SETTABLE_MASK;
+	kdp_assign_mnt_flags(mnt->mnt, mnt_flags);
+#else
 	mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
 	mnt->mnt.mnt_flags = mnt_flags;
+#endif
 	touch_mnt_namespace(mnt->mnt_ns);
 }
 
@@ -2735,7 +2783,11 @@ static int do_reconfigure_mnt(struct path *path, unsigned int mnt_flags)
 	if (!check_mnt(mnt))
 		return -EINVAL;
 
+#ifdef CONFIG_KDP_NS
+	if (path->dentry != mnt->mnt->mnt_root)
+#else
 	if (path->dentry != mnt->mnt.mnt_root)
+#endif
 		return -EINVAL;
 
 	if (!can_change_locked_flags(mnt, mnt_flags))
@@ -2815,7 +2867,11 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 		if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
 			err = reconfigure_super(fc);
 			if (!err && sb->s_op->update_mnt_data) {
+#ifdef CONFIG_KDP_NS
+				sb->s_op->update_mnt_data(mnt->mnt->data, fc);
+#else
 				sb->s_op->update_mnt_data(mnt->mnt.data, fc);
+#endif
 				lock_mount_hash();
 				set_mount_attributes(mnt, mnt_flags);
 				unlock_mount_hash();
@@ -3956,7 +4012,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 		struct mount *child;
 		int mnt_flags;
 #ifdef CONFIG_KDP_NS
-		if (mnt->mnt->mnt_sb->s_type != new->mnt_sb->s_type)
+		if (mnt->mnt->mnt_sb->s_type != sb->s_type)
 			continue;
 
 		/* This mount is not fully visible if it's root directory
@@ -3972,7 +4028,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 		if (sb_rdonly(mnt->mnt->mnt_sb))
 			mnt_flags |= MNT_LOCK_READONLY;
 #else
-		if (mnt->mnt.mnt_sb->s_type != new->mnt_sb->s_type)
+		if (mnt->mnt.mnt_sb->s_type != sb->s_type)
 			continue;
 
 		/* This mount is not fully visible if it's root directory
