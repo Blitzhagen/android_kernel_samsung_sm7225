@@ -769,10 +769,17 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 		flags = key->tun_flags &
 			(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
 		tun_hlen = gre_calc_hlen(flags);
+<<<<<<< ours
 
 		if (skb_cow_head(skb, dev->needed_headroom ?: tun_hlen + tunnel->encap_hlen))
 			return -ENOMEM;
 
+=======
+
+		if (skb_cow_head(skb, dev->needed_headroom ?: tun_hlen + tunnel->encap_hlen))
+			return -ENOMEM;
+
+>>>>>>> tarkzim
 		gre_build_header(skb, tun_hlen,
 				 flags, protocol,
 				 tunnel_id_to_key32(tun_info->key.tun_id),
@@ -782,9 +789,15 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 	} else {
 		if (skb_cow_head(skb, dev->needed_headroom ?: tunnel->hlen))
 			return -ENOMEM;
+<<<<<<< ours
 
 		flags = tunnel->parms.o_flags;
 
+=======
+
+		flags = tunnel->parms.o_flags;
+
+>>>>>>> tarkzim
 		gre_build_header(skb, tunnel->tun_hlen, flags,
 				 protocol, tunnel->parms.o_key,
 				 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno))

@@ -723,10 +723,10 @@ EXPORT_SYMBOL_GPL(af_alg_wmem_wakeup);
 /**
  * af_alg_wait_for_data - wait for availability of TX data
  *
- * @sk: socket of connection to user space
- * @flags: If MSG_DONTWAIT is set, then only report if function would sleep
- * @min: Set to minimum request size if partial requests are allowed.
- * Return: 0 when writable memory is available, < 0 upon error
+ * @sk socket of connection to user space
+ * @flags If MSG_DONTWAIT is set, then only report if function would sleep
+ * @min Set to minimum request size if partial requests are allowed.
+ * @return 0 when writable memory is available, < 0 upon error
  */
 int af_alg_wait_for_data(struct sock *sk, unsigned flags, unsigned min)
 {
@@ -1072,8 +1072,6 @@ struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 	areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
 	if (unlikely(!areq))
 		return ERR_PTR(-ENOMEM);
-
-	memset(areq, 0, areqlen);
 
 	ctx->inflight = true;
 

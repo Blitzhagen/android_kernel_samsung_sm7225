@@ -998,7 +998,10 @@ int elevator_init_mq(struct request_queue *q)
 		return 0;
 
 	WARN_ON_ONCE(test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags));
+<<<<<<< ours
 
+=======
+>>>>>>> tarkzim
 	if (unlikely(q->elevator))
 		goto out;
 	if (IS_ENABLED(CONFIG_IOSCHED_BFQ)) {
@@ -1010,7 +1013,10 @@ int elevator_init_mq(struct request_queue *q)
 		if (!e)
 			goto out;
 	}
+<<<<<<< ours
 
+=======
+>>>>>>> tarkzim
 	err = blk_mq_init_sched(q, e);
 	if (err)
 		elevator_put(e);

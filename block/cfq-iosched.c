@@ -34,7 +34,11 @@ static u64 cfq_slice_async = NSEC_PER_SEC / 25;
 static const int cfq_slice_async_rq = 2;
 static u64 cfq_slice_idle = NSEC_PER_SEC / 125;
 static u64 cfq_group_idle = NSEC_PER_SEC / 125;
+<<<<<<< ours
 /* IOPP-cfq_rt_idle_only-v1.0.k4.19 */
+=======
+/* IOPP-cfq_rt_idle_only-v1.0.4.4 */
+>>>>>>> tarkzim
 static int cfq_rt_idle_only = 1;
 static const u64 cfq_target_latency = (u64)NSEC_PER_SEC * 3/10; /* 300 ms */
 static const int cfq_hist_divisor = 4;
@@ -3821,8 +3825,12 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_mark_cfqq_prio_changed(cfqq);
 
 	if (is_sync) {
+<<<<<<< ours
 		if (!cfq_class_idle(cfqq) &&
 		    (!cfqd->cfq_rt_idle_only || cfq_class_rt(cfqq)))
+=======
+		if (!cfq_class_idle(cfqq) && (!cfqd->cfq_rt_idle_only || cfq_class_rt(cfqq)))
+>>>>>>> tarkzim
 			cfq_mark_cfqq_idle_window(cfqq);
 		cfq_mark_cfqq_sync(cfqq);
 	}

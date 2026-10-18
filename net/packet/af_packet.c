@@ -499,8 +499,15 @@ static void *packet_current_frame(struct packet_sock *po,
 	return packet_lookup_frame(po, rb, rb->head, status);
 }
 
+<<<<<<< ours
 static u16 vlan_get_tci(const struct sk_buff *skb, struct net_device *dev)
 {
+=======
+static u16 vlan_get_tci(struct sk_buff *skb, struct net_device *dev)
+{
+	u8 *skb_orig_data = skb->data;
+	int skb_orig_len = skb->len;
+>>>>>>> tarkzim
 	struct vlan_hdr vhdr, *vh;
 	unsigned int header_len;
 
@@ -521,14 +528,24 @@ static u16 vlan_get_tci(const struct sk_buff *skb, struct net_device *dev)
 	else
 		return 0;
 
+<<<<<<< ours
 	vh = skb_header_pointer(skb, skb_mac_offset(skb) + header_len,
 				sizeof(vhdr), &vhdr);
+=======
+	skb_push(skb, skb->data - skb_mac_header(skb));
+	vh = skb_header_pointer(skb, header_len, sizeof(vhdr), &vhdr);
+	if (skb_orig_data != skb->data) {
+		skb->data = skb_orig_data;
+		skb->len = skb_orig_len;
+	}
+>>>>>>> tarkzim
 	if (unlikely(!vh))
 		return 0;
 
 	return ntohs(vh->h_vlan_TCI);
 }
 
+<<<<<<< ours
 static __be16 vlan_get_protocol_dgram(const struct sk_buff *skb)
 {
 	__be16 proto = skb->protocol;
@@ -536,6 +553,23 @@ static __be16 vlan_get_protocol_dgram(const struct sk_buff *skb)
 	if (unlikely(eth_type_vlan(proto)))
 		proto = __vlan_get_protocol_offset(skb, proto,
 						   skb_mac_offset(skb), NULL);
+=======
+static __be16 vlan_get_protocol_dgram(struct sk_buff *skb)
+{
+	__be16 proto = skb->protocol;
+
+	if (unlikely(eth_type_vlan(proto))) {
+		u8 *skb_orig_data = skb->data;
+		int skb_orig_len = skb->len;
+
+		skb_push(skb, skb->data - skb_mac_header(skb));
+		proto = __vlan_get_protocol(skb, proto, NULL);
+		if (skb_orig_data != skb->data) {
+			skb->data = skb_orig_data;
+			skb->len = skb_orig_len;
+		}
+	}
+>>>>>>> tarkzim
 
 	return proto;
 }
@@ -1589,7 +1623,7 @@ static void __fanout_set_data_bpf(struct packet_fanout *f, struct bpf_prog *new)
 	}
 }
 
-static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
+static int fanout_set_data_cbpf(struct packet_sock *po, sockptr_t data,
 				unsigned int len)
 {
 	struct bpf_prog *new;
@@ -1598,10 +1632,10 @@ static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
 
 	if (sock_flag(&po->sk, SOCK_FILTER_LOCKED))
 		return -EPERM;
-	if (len != sizeof(fprog))
-		return -EINVAL;
-	if (copy_from_user(&fprog, data, len))
-		return -EFAULT;
+
+	ret = copy_bpf_fprog_from_user(&fprog, data, len);
+	if (ret)
+		return ret;
 
 	ret = bpf_prog_create_from_user(&new, &fprog, NULL, false);
 	if (ret)
@@ -1637,7 +1671,7 @@ static int fanout_set_data(struct packet_sock *po, char __user *data,
 {
 	switch (po->fanout->type) {
 	case PACKET_FANOUT_CBPF:
-		return fanout_set_data_cbpf(po, data, len);
+		return fanout_set_data_cbpf(po, USER_SOCKPTR(data), len);
 	case PACKET_FANOUT_EBPF:
 		return fanout_set_data_ebpf(po, data, len);
 	default:
@@ -4123,28 +4157,6 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 	return 0;
 }
 
-
-#ifdef CONFIG_COMPAT
-static int compat_packet_setsockopt(struct socket *sock, int level, int optname,
-				    char __user *optval, unsigned int optlen)
-{
-	struct packet_sock *po = pkt_sk(sock->sk);
-
-	if (level != SOL_PACKET)
-		return -ENOPROTOOPT;
-
-	if (optname == PACKET_FANOUT_DATA &&
-	    po->fanout && po->fanout->type == PACKET_FANOUT_CBPF) {
-		optval = (char __user *)get_compat_bpf_fprog(optval);
-		if (!optval)
-			return -EFAULT;
-		optlen = sizeof(struct sock_fprog);
-	}
-
-	return packet_setsockopt(sock, level, optname, optval, optlen);
-}
-#endif
-
 static int packet_notifier(struct notifier_block *this,
 			   unsigned long msg, void *ptr)
 {
@@ -4484,8 +4496,13 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	spin_lock(&po->bind_lock);
 	was_running = po->running;
 	num = po->num;
+<<<<<<< ours
 	WRITE_ONCE(po->num, 0);
 	if (was_running)
+=======
+	if (was_running) {
+		WRITE_ONCE(po->num, 0);
+>>>>>>> tarkzim
 		__unregister_prot_hook(sk, false);
 
 	spin_unlock(&po->bind_lock);
@@ -4519,12 +4536,17 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	mutex_unlock(&po->pg_vec_lock);
 
 	spin_lock(&po->bind_lock);
+<<<<<<< ours
 	WRITE_ONCE(po->num, num);
 	/*
 	 * NETDEV_UNREGISTER may have invalidated the binding while bind_lock
 	 * was dropped above.  Do not re-add a fanout hook to a dead device.
 	 */
 	if (was_running && READ_ONCE(po->ifindex) != -1)
+=======
+	if (was_running) {
+		WRITE_ONCE(po->num, num);
+>>>>>>> tarkzim
 		register_prot_hook(sk);
 
 	spin_unlock(&po->bind_lock);
@@ -4641,9 +4663,6 @@ static const struct proto_ops packet_ops = {
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	packet_setsockopt,
 	.getsockopt =	packet_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_packet_setsockopt,
-#endif
 	.sendmsg =	packet_sendmsg,
 	.recvmsg =	packet_recvmsg,
 	.mmap =		packet_mmap,

@@ -318,10 +318,13 @@ static void nft_rhash_gc(struct work_struct *work)
 	gc = nft_trans_gc_alloc(set, gc_seq, GFP_KERNEL);
 	if (!gc)
 		goto done;
+<<<<<<< ours
 
 	/* Elements never collected use a zero gc worker sequence number. */
 	if (unlikely(++priv->wq_gc_seq == 0))
 		priv->wq_gc_seq++;
+=======
+>>>>>>> tarkzim
 
 	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
 	if (err) {
@@ -336,6 +339,7 @@ static void nft_rhash_gc(struct work_struct *work)
 			nft_trans_gc_destroy(gc);
 			gc = NULL;
 			goto try_later;
+<<<<<<< ours
 		}
 
 		/* Ruleset has been updated, try later. */
@@ -352,6 +356,16 @@ static void nft_rhash_gc(struct work_struct *work)
 		 */
 		if (he->wq_gc_seq == priv->wq_gc_seq)
 			continue;
+=======
+		}
+
+		/* Ruleset has been updated, try later. */
+		if (READ_ONCE(nft_net->gc_seq) != gc_seq) {
+			nft_trans_gc_destroy(gc);
+			gc = NULL;
+			goto try_later;
+		}
+>>>>>>> tarkzim
 
 		if (nft_set_elem_is_dead(&he->ext))
 			goto dead_elem;
@@ -372,8 +386,11 @@ dead_elem:
 		if (!gc)
 			goto try_later;
 
+<<<<<<< ours
 		/* annotate gc sequence for this attempt. */
 		he->wq_gc_seq = priv->wq_gc_seq;
+=======
+>>>>>>> tarkzim
 		nft_trans_gc_elem_add(gc, he);
 	}
 try_later:

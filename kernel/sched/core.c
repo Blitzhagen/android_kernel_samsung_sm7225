@@ -36,7 +36,11 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 unsigned long get_max_fps_util(int group_id);
 #endif /* CONFIG_FPS */
 
+<<<<<<< ours
 #if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
+=======
+#ifdef CONFIG_SCHED_DEBUG
+>>>>>>> tarkzim
 /*
  * Debugging: various feature bits
  *
@@ -1079,8 +1083,12 @@ static void uclamp_update_root_tg(void) { }
 #endif
 
 int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
+<<<<<<< ours
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
+=======
+				void *buffer, size_t *lenp, loff_t *ppos)
+>>>>>>> tarkzim
 {
 	bool update_root_tg = false;
 	int old_min, old_max;
@@ -1752,7 +1760,6 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		/* Need help from migration thread: drop lock and wait. */
 		task_rq_unlock(rq, p, &rf);
 		stop_one_cpu(cpu_of(rq), migration_cpu_stop, &arg);
-		tlb_migrate_finish(p->mm);
 		return 0;
 	} else if (task_on_rq_queued(p)) {
 		/*
@@ -2936,7 +2943,7 @@ void set_numabalancing_state(bool enabled)
 
 #ifdef CONFIG_PROC_SYSCTL
 int sysctl_numa_balancing(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
 	int err;
@@ -3010,8 +3017,8 @@ static void __init init_schedstats(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-int sysctl_schedstats(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+int sysctl_schedstats(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
 	int err;

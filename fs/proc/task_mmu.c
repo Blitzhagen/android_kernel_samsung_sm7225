@@ -20,7 +20,10 @@
 #include <linux/uaccess.h>
 #include <linux/pkeys.h>
 #include <linux/mm_inline.h>
+<<<<<<< ours
 #include <linux/freezer.h>
+=======
+>>>>>>> tarkzim
 #include <linux/ctype.h>
 
 #include <asm/elf.h>
@@ -363,6 +366,25 @@ static void show_vma_header_prefix(struct seq_file *m,
 	seq_putc(m, ' ');
 }
 
+#ifdef CONFIG_KSU
+static void show_vma_header_prefix_fake(struct seq_file *m,
+				   unsigned long start, unsigned long end,
+				   vm_flags_t flags, unsigned long long pgoff,
+				   dev_t dev, unsigned long ino)
+{
+	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
+	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		   start,
+		   end,
+		   flags & VM_READ ? 'r' : '-',
+		   flags & VM_WRITE ? 'w' : '-',
+		   flags & VM_EXEC ? '-' : '-',
+		   flags & VM_MAYSHARE ? 's' : 'p',
+		   pgoff,
+		   MAJOR(dev), MINOR(dev), ino);
+}
+#endif
+
 static void
 show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 {
@@ -374,17 +396,41 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 	unsigned long start, end;
 	dev_t dev = 0;
 	const char *name = NULL;
+#ifdef CONFIG_KSU
+	struct dentry *dentry = file->f_path.dentry;
+#endif
 
 	if (file) {
 		struct inode *inode = file_inode(vma->vm_file);
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
+#ifdef CONFIG_KSU
+		if (dentry) {
+			const char *path = (const char *)dentry->d_name.name; 
+			if (strstr(path, "lineage")) {
+				start = vma->vm_start;
+				end = vma->vm_end;
+				show_vma_header_prefix_fake(m, start, end, flags, pgoff, dev, ino);
+				name = "/system/framework/framework-res.apk";
+				goto done;
+			}
+			if (strstr(path, "jit-zygote-cache")) { 
+				start = vma->vm_start;
+				end = vma->vm_end;
+				show_vma_header_prefix_fake(m, start, end, flags, pgoff, dev, ino);
+				goto bypass;
+			}
+		}
+#endif
 	}
 
 	start = vma->vm_start;
 	end = vma->vm_end;
 	show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
+#ifdef CONFIG_KSU
+bypass:
+#endif
 
 	/*
 	 * Print the dentry name for named mappings, and a
@@ -764,6 +810,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
 		[ilog2(VM_PKEY_BIT4)]	= "",
 #endif
 #endif /* CONFIG_ARCH_HAS_PKEYS */
+#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_MINOR
+		[ilog2(VM_UFFD_MINOR)]	= "ui",
+#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_MINOR */
 	};
 	size_t i;
 
@@ -1712,6 +1761,7 @@ const struct file_operations proc_pagemap_operations = {
 };
 #endif /* CONFIG_PROC_PAGE_MONITOR */
 
+<<<<<<< ours
 #ifdef CONFIG_FREEZING
 static inline bool is_pm_freezing(void)
 {
@@ -1724,6 +1774,8 @@ static inline bool is_pm_freezing(void)
 }
 #endif /* CONFIG_FREEZING */
 
+=======
+>>>>>>> tarkzim
 #ifdef CONFIG_PROCESS_RECLAIM
 static BLOCKING_NOTIFIER_HEAD(proc_reclaim_notifier);
 
@@ -1743,7 +1795,11 @@ static void proc_reclaim_notify(unsigned long pid, void *rp)
 }
 
 int reclaim_address_space(struct address_space *mapping,
+<<<<<<< ours
 			struct reclaim_param *rp)
+=======
+			struct reclaim_param *rp, struct vm_area_struct *vma)
+>>>>>>> tarkzim
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
@@ -1784,7 +1840,11 @@ int reclaim_address_space(struct address_space *mapping,
 		}
 	}
 	rcu_read_unlock();
+<<<<<<< ours
 	reclaimed = reclaim_pages_from_list(&page_list, NULL);
+=======
+	reclaimed = reclaim_pages_from_list(&page_list, vma);
+>>>>>>> tarkzim
 	rp->nr_reclaimed += reclaimed;
 
 	if (rp->nr_scanned >= rp->nr_to_reclaim)
@@ -1805,6 +1865,7 @@ static int reclaim_pte_range(pmd_t *pmd, unsigned long addr,
 	int isolated;
 	int reclaimed;
 
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	bool is_lru_wb = false;
 
@@ -1813,13 +1874,19 @@ static int reclaim_pte_range(pmd_t *pmd, unsigned long addr,
 #endif
 
 	split_huge_pmd(vma, pmd, addr);
+=======
+	split_huge_pmd(vma, addr, pmd);
+>>>>>>> tarkzim
 	if (pmd_trans_unstable(pmd) || !rp->nr_to_reclaim)
 		return 0;
 cont:
 	if (rwsem_is_contended(&walk->mm->mmap_sem))
 		return -1;
+<<<<<<< ours
 	if (is_pm_freezing())
 		return -1;
+=======
+>>>>>>> tarkzim
 
 	isolated = 0;
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -1832,6 +1899,7 @@ cont:
 		if (!page)
 			continue;
 
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 		if (is_lru_wb && ptep_test_and_clear_young(vma, addr, pte))
 			continue;
@@ -1843,6 +1911,8 @@ cont:
 		if (!PageLRU(page))
 			continue;
 
+=======
+>>>>>>> tarkzim
 		if (isolate_lru_page(compound_head(page)))
 			continue;
 
@@ -1880,6 +1950,7 @@ cont:
 	return 0;
 }
 
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 static DEFINE_SPINLOCK(writeback_lock);
 static bool writeback_ongoing;
@@ -1949,15 +2020,20 @@ static int prefetch_pte_range(pmd_t *pmd, unsigned long start,
 }
 #endif
 
+=======
+>>>>>>> tarkzim
 enum reclaim_type {
 	RECLAIM_FILE,
 	RECLAIM_ANON,
 	RECLAIM_ALL,
 	RECLAIM_RANGE,
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	RECLAIM_WRITEBACK,
 	PREFETCH_PROCESS,
 #endif
+=======
+>>>>>>> tarkzim
 };
 
 struct reclaim_param reclaim_task_nomap(struct task_struct *task,
@@ -1974,7 +2050,11 @@ struct reclaim_param reclaim_task_nomap(struct task_struct *task,
 		goto out;
 	down_read(&mm->mmap_sem);
 
+<<<<<<< ours
 	proc_reclaim_notify((unsigned long)task_pid(task), (void *)&rp);
+=======
+	proc_reclaim_notify(task_tgid_nr(task), (void *)&rp);
+>>>>>>> tarkzim
 
 	up_read(&mm->mmap_sem);
 	mmput(mm);
@@ -2041,10 +2121,13 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 	unsigned long start = 0;
 	unsigned long end = 0;
 	struct reclaim_param rp;
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	LIST_HEAD(list);
 #endif
 	int err = 0;
+=======
+>>>>>>> tarkzim
 
 	memset(buffer, 0, sizeof(buffer));
 	if (count > sizeof(buffer) - 1)
@@ -2062,12 +2145,15 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 		type = RECLAIM_ALL;
 	else if (isdigit(*type_buf))
 		type = RECLAIM_RANGE;
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	else if (!strcmp(type_buf, "writeback"))
 		type = RECLAIM_WRITEBACK;
 	else if (!strcmp(type_buf, "prefetch"))
 		type = PREFETCH_PROCESS;
 #endif
+=======
+>>>>>>> tarkzim
 	else
 		goto out_err;
 
@@ -2102,6 +2188,7 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 			goto out_err;
 	}
 
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	/* we only allow single MADV_WRITEBACK at a time */
 	if (type == RECLAIM_WRITEBACK) {
@@ -2115,6 +2202,8 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 	}
 #endif
 
+=======
+>>>>>>> tarkzim
 	task = get_proc_task(file->f_path.dentry->d_inode);
 	if (!task)
 		return -ESRCH;
@@ -2158,6 +2247,7 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 				continue;
 
 			rp.vma = vma;
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 			if ((type == RECLAIM_WRITEBACK ||
 			     type == PREFETCH_PROCESS) && vma->vm_file)
@@ -2175,6 +2265,11 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 				count = err;
 				break;
 			}
+=======
+			if (walk_page_range(vma->vm_start, vma->vm_end,
+				&reclaim_walk))
+				break;
+>>>>>>> tarkzim
 		}
 	}
 
@@ -2183,6 +2278,7 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 	mmput(mm);
 out:
 	put_task_struct(task);
+<<<<<<< ours
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	if (type == RECLAIM_WRITEBACK) {
 		zram_writeback_list(&list);
@@ -2193,6 +2289,8 @@ out:
 		spin_unlock(&writeback_lock);
 	}
 #endif
+=======
+>>>>>>> tarkzim
 	return count;
 
 out_err:

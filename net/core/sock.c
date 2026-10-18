@@ -137,16 +137,25 @@
 
 #include <linux/filter.h>
 #include <net/sock_reuseport.h>
+#include <net/bpf_sk_storage.h>
 
 #include <trace/events/sock.h>
 
 #include <net/tcp.h>
 #include <net/busy_poll.h>
+<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 #include <linux/sched.h>
 #include <linux/pid.h>
 #include <net/ncm.h>
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+#ifdef CONFIG_KNOX_NCM
+#include <linux/sched.h>
+#include <linux/pid.h>
+#include <net/ncm.h>
+#endif
+>>>>>>> tarkzim
 
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
@@ -444,6 +453,7 @@ int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 
 	if (atomic_read(&sk->sk_rmem_alloc) >= READ_ONCE(sk->sk_rcvbuf)) {
+<<<<<<< ours
 		if (sk->sk_rcvbuf < sysctl_rmem_max) {
 			/* increase sk_rcvbuf twice */
 			sk->sk_rcvbuf = min(sk->sk_rcvbuf * 2, (int)sysctl_rmem_max);
@@ -453,6 +463,11 @@ int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			trace_sock_rcvqueue_full(sk, skb);
 			return -ENOMEM;
 		}
+=======
+		atomic_inc(&sk->sk_drops);
+		trace_sock_rcvqueue_full(sk, skb);
+		return -ENOMEM;
+>>>>>>> tarkzim
 	}
 
 	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
@@ -565,6 +580,48 @@ struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
 }
 EXPORT_SYMBOL(sk_dst_check);
 
+static int sock_bindtoindex_locked(struct sock *sk, int ifindex)
+{
+	int ret = -ENOPROTOOPT;
+#ifdef CONFIG_NETDEVICES
+	struct net *net = sock_net(sk);
+
+	/* Sorry... */
+	ret = -EPERM;
+	if (!ns_capable(net->user_ns, CAP_NET_RAW))
+		goto out;
+
+	ret = -EINVAL;
+	if (ifindex < 0)
+		goto out;
+
+	sk->sk_bound_dev_if = ifindex;
+	if (sk->sk_prot->rehash)
+		sk->sk_prot->rehash(sk);
+	sk_dst_reset(sk);
+
+	ret = 0;
+
+out:
+#endif
+
+	return ret;
+}
+
+int sock_bindtoindex(struct sock *sk, int ifindex, bool lock_sk)
+{
+	int ret;
+
+	if (lock_sk)
+		lock_sock(sk);
+	ret = sock_bindtoindex_locked(sk, ifindex);
+	if (lock_sk)
+		release_sock(sk);
+
+	return ret;
+}
+EXPORT_SYMBOL(sock_bindtoindex);
+
 static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 				int optlen)
 {
@@ -610,13 +667,7 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 			goto out;
 	}
 
-	lock_sock(sk);
-	sk->sk_bound_dev_if = index;
-	sk_dst_reset(sk);
-	release_sock(sk);
-
-	ret = 0;
-
+	return sock_bindtoindex(sk, index, true);
 out:
 #endif
 
@@ -662,13 +713,18 @@ out:
 
 	return ret;
 }
+<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 /** The function sets the domain name associated with the socket. **/
 static int sock_set_domain_name(struct sock *sk, char __user *optval,
 				int optlen)
 {
 	int ret = -EADDRNOTAVAIL;
 	char domain[DOMAIN_NAME_LEN_NAP];
+<<<<<<< ours
 
 	ret = -EINVAL;
 	if (optlen < 0)
@@ -689,6 +745,28 @@ out:
 	return ret;
 }
 
+=======
+
+	ret = -EINVAL;
+	if (optlen < 0)
+		goto out;
+
+	if (optlen > DOMAIN_NAME_LEN_NAP - 1)
+		optlen = DOMAIN_NAME_LEN_NAP - 1;
+
+	memset(domain, 0, sizeof(domain));
+
+	ret = -EFAULT;
+	if (copy_from_user(domain, optval, optlen))
+		goto out;
+	memcpy(sk->domain_name,domain, sizeof(sk->domain_name)-1);
+	ret = 0;
+
+out:
+	return ret;
+}
+
+>>>>>>> tarkzim
 /** The function sets the uid associated with the dns socket. **/
 static int sock_set_dns_uid(struct sock *sk, char __user *optval, int optlen)
 {
@@ -749,7 +827,11 @@ out:
 	return ret;
 }
 
+<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+#endif
+>>>>>>> tarkzim
 
 bool sk_mc_loop(struct sock *sk)
 {
@@ -791,14 +873,22 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 
 	if (optname == SO_BINDTODEVICE)
 		return sock_setbindtodevice(sk, optval, optlen);
+<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+	#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 	if (optname == SO_SET_DOMAIN_NAME)
 		return sock_set_domain_name(sk, optval, optlen);
 	if (optname == SO_SET_DNS_UID)
 		return sock_set_dns_uid(sk, optval, optlen);
 	if (optname == SO_SET_DNS_PID)
 		return sock_set_dns_pid(sk, optval, optlen);
+<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+	#endif
+>>>>>>> tarkzim
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1016,19 +1106,15 @@ set_rcvbuf:
 		ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen);
 		break;
 
-	case SO_ATTACH_FILTER:
-		ret = -EINVAL;
-		if (optlen == sizeof(struct sock_fprog)) {
-			struct sock_fprog fprog;
+	case SO_ATTACH_FILTER: {
+		struct sock_fprog fprog;
 
-			ret = -EFAULT;
-			if (copy_from_user(&fprog, optval, sizeof(fprog)))
-				break;
-
+		ret = copy_bpf_fprog_from_user(&fprog, USER_SOCKPTR(optval),
+					       optlen);
+		if (!ret)
 			ret = sk_attach_filter(&fprog, sk);
-		}
 		break;
-
+	}
 	case SO_ATTACH_BPF:
 		ret = -EINVAL;
 		if (optlen == sizeof(u32)) {
@@ -1042,19 +1128,15 @@ set_rcvbuf:
 		}
 		break;
 
-	case SO_ATTACH_REUSEPORT_CBPF:
-		ret = -EINVAL;
-		if (optlen == sizeof(struct sock_fprog)) {
-			struct sock_fprog fprog;
+	case SO_ATTACH_REUSEPORT_CBPF: {
+		struct sock_fprog fprog;
 
-			ret = -EFAULT;
-			if (copy_from_user(&fprog, optval, sizeof(fprog)))
-				break;
-
+		ret = copy_bpf_fprog_from_user(&fprog, USER_SOCKPTR(optval),
+					       optlen);
+		if (!ret)
 			ret = sk_reuseport_attach_filter(&fprog, sk);
-		}
 		break;
-
+	}
 	case SO_ATTACH_REUSEPORT_EBPF:
 		ret = -EINVAL;
 		if (optlen == sizeof(u32)) {
@@ -1189,6 +1271,10 @@ set_rcvbuf:
 			sk->sk_txtime_report_errors =
 				!!(sk_txtime.flags & SOF_TXTIME_REPORT_ERRORS);
 		}
+		break;
+
+	case SO_BINDTOIFINDEX:
+		ret = sock_bindtoindex_locked(sk, val);
 		break;
 
 	default:
@@ -1540,6 +1626,10 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 				  SOF_TXTIME_REPORT_ERRORS : 0;
 		break;
 
+	case SO_BINDTOIFINDEX:
+		v.val = sk->sk_bound_dev_if;
+		break;
+
 	default:
 		/* We implement the SO_SNDLOWAT etc to not be settable
 		 * (1003.1g 7).
@@ -1681,7 +1771,11 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		      struct proto *prot, int kern)
 {
 	struct sock *sk;
+<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+	#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 	struct pid *pid_struct = NULL;
 	struct task_struct *task = NULL;
 	int process_returnValue = -1;
@@ -1690,12 +1784,20 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 	struct task_struct *parent_task = NULL;
 	int parent_returnValue = -1;
 	char full_parent_process_name[PROCESS_NAME_LEN_NAP] = {0};
+<<<<<<< ours
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+	#endif
+>>>>>>> tarkzim
 
 	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
 		sk->sk_family = family;
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+		#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 		/* assign values to members of sock structure when npa flag is present */
 		sk->knox_uid = current->cred->uid.val;
 		sk->knox_pid = current->tgid;
@@ -1737,7 +1839,11 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 				}
 			}
 		}
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+		#endif
+>>>>>>> tarkzim
 		/*
 		 * See comment in struct sock definition to understand
 		 * why we need sk_prot_creator -acme
@@ -1784,6 +1890,10 @@ static void __sk_destruct(struct rcu_head *head)
 	}
 
 	sock_disable_timestamp(sk, SK_FLAGS_TIMESTAMP);
+
+#ifdef CONFIG_BPF_SYSCALL
+	bpf_sk_storage_free(sk);
+#endif
 
 	if (atomic_read(&sk->sk_omem_alloc))
 		pr_debug("%s: optmem leakage (%d bytes) detected\n",
@@ -1942,6 +2052,15 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		RCU_INIT_POINTER(newsk->sk_bpf_storage, NULL);
 #endif
 
+<<<<<<< ours
+=======
+		if (bpf_sk_storage_clone(sk, newsk)) {
+			sk_free_unlock_clone(newsk);
+			newsk = NULL;
+			goto out;
+		}
+
+>>>>>>> tarkzim
 		/* Clear sk_user_data if parent had the pointer tagged
 		 * as not suitable for copying when cloning.
 		 */
@@ -2137,6 +2256,18 @@ void sock_efree(struct sk_buff *skb)
 	sock_put(skb->sk);
 }
 EXPORT_SYMBOL(sock_efree);
+
+/* Buffer destructor for prefetch/receive path where reference count may
+ * not be held, e.g. for listen sockets.
+ */
+#ifdef CONFIG_INET
+void sock_pfree(struct sk_buff *skb)
+{
+	if (sk_is_refcounted(skb->sk))
+		sock_gen_put(skb->sk);
+}
+EXPORT_SYMBOL(sock_pfree);
+#endif /* CONFIG_INET */
 
 kuid_t sock_i_uid(struct sock *sk)
 {

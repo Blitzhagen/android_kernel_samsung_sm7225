@@ -405,8 +405,13 @@ insert_tree(struct net *net,
 	struct rb_node **rbnode, *parent;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conncount_tuple *conn;
+<<<<<<< ours
 	struct nf_conncount_rb *rbconn;
 	struct nf_conn *ct = NULL;
+=======
+	unsigned int count = 0, gc_count = 0;
+	bool do_gc = true;
+>>>>>>> tarkzim
 
 	spin_lock_bh(&nf_conncount_locks[hash]);
 restart:
@@ -461,11 +466,17 @@ restart:
 			goto out_unlock;
 		}
 
+<<<<<<< ours
 		conn->tuple = tuple;
 		conn->zone = *zone;
 		conn->cpu = raw_smp_processor_id();
 		conn->jiffies32 = (u32)jiffies;
 		memcpy(rbconn->key, key, sizeof(u32) * data->keylen);
+=======
+	conn->tuple = *tuple;
+	conn->zone = *zone;
+	memcpy(rbconn->key, key, sizeof(u32) * data->keylen);
+>>>>>>> tarkzim
 
 		nf_conncount_list_init(&rbconn->list);
 		list_add(&conn->node, &rbconn->list.head);

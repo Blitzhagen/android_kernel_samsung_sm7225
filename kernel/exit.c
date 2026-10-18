@@ -886,6 +886,7 @@ void __noreturn do_exit(long code)
 
 	exit_signals(tsk);  /* sets PF_EXITING */
 	sched_exit(tsk);
+<<<<<<< ours
 	/*
 	 * Ensure that all new tsk->pi_lock acquisitions must observe
 	 * PF_EXITING. Serializes against futex.c:attach_to_pi_owner().
@@ -897,6 +898,8 @@ void __noreturn do_exit(long code)
 	 */
 	raw_spin_lock_irq(&tsk->pi_lock);
 	raw_spin_unlock_irq(&tsk->pi_lock);
+=======
+>>>>>>> tarkzim
 
 	/* sync mm's RSS info before statistics gathering */
 	if (tsk->mm)
@@ -956,6 +959,17 @@ void __noreturn do_exit(long code)
 	exit_thread(tsk);
 	if (group_dead)
 		exit_umh(tsk);
+<<<<<<< ours
+=======
+
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 *
+	 * because of cgroup mode, must be called before cgroup_exit()
+	 */
+	perf_event_exit_task(tsk);
+>>>>>>> tarkzim
 
 	sched_autogroup_exit_task(tsk);
 	cgroup_exit(tsk);

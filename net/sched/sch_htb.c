@@ -1430,7 +1430,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			qdisc_reset(parent->un.leaf.q);
 			qdisc_tree_reduce_backlog(parent->un.leaf.q, qlen, backlog);
 			qdisc_put(parent->un.leaf.q);
-			htb_deactivate(q, parent);
+			if (parent->prio_activity)
+				htb_deactivate(q, parent);
 
 			/* remove from evt list because of level change */
 			if (parent->cmode != HTB_CAN_SEND) {

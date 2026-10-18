@@ -1119,6 +1119,7 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 {
 	struct hrtimer_clock_base *new_base;
 	bool force_local, first;
+<<<<<<< ours
 
 	/*
 	 * If the timer is on the local cpu base and is the first expiring
@@ -1132,6 +1133,21 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	force_local &= base->cpu_base->next_timer == timer;
 
 	/*
+=======
+
+	/*
+	 * If the timer is on the local cpu base and is the first expiring
+	 * timer then this might end up reprogramming the hardware twice
+	 * (on removal and on enqueue). To avoid that by prevent the
+	 * reprogram on removal, keep the timer local to the current CPU
+	 * and enforce reprogramming after it is queued no matter whether
+	 * it is the new first expiring timer again or not.
+	 */
+	force_local = base->cpu_base == this_cpu_ptr(&hrtimer_bases);
+	force_local &= base->cpu_base->next_timer == timer;
+
+	/*
+>>>>>>> tarkzim
 	 * Remove an active timer from the queue. In case it is not queued
 	 * on the current CPU, make sure that remove_hrtimer() updates the
 	 * remote data correctly.
@@ -1912,10 +1928,17 @@ int hrtimers_prepare_cpu(unsigned int cpu)
 	cpu_base->softirq_next_timer = NULL;
 	cpu_base->expires_next = KTIME_MAX;
 	cpu_base->softirq_expires_next = KTIME_MAX;
+<<<<<<< ours
 
 	restore_pcpu_tick(cpu);
 
 	cpu_base->online = 1;
+=======
+	cpu_base->online = 1;
+
+	restore_pcpu_tick(cpu);
+
+>>>>>>> tarkzim
 	return 0;
 }
 
@@ -1987,6 +2010,7 @@ static void __migrate_hrtimers(unsigned int scpu, bool remove_pinned)
 	 */
 	raw_spin_lock(&old_base->lock);
 	raw_spin_lock_nested(&new_base->lock, SINGLE_DEPTH_NESTING);
+<<<<<<< ours
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		migrate_hrtimer_list(&old_base->clock_base[i],
@@ -2022,6 +2046,12 @@ int hrtimers_cpu_dying(unsigned int dying_cpu)
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		migrate_hrtimer_list(&old_base->clock_base[i],
 				     &new_base->clock_base[i], true);
+=======
+
+	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
+		migrate_hrtimer_list(&old_base->clock_base[i],
+				     &new_base->clock_base[i], remove_pinned);
+>>>>>>> tarkzim
 	}
 
 	/*
@@ -2030,12 +2060,37 @@ int hrtimers_cpu_dying(unsigned int dying_cpu)
 	 */
 	__hrtimer_get_next_event(new_base, HRTIMER_ACTIVE_SOFT);
 	/* Tell the other CPU to retrigger the next event */
+<<<<<<< ours
 	smp_call_function_single(ncpu, retrigger_next_event, NULL, 0);
 
 	raw_spin_unlock(&new_base->lock);
 	old_base->online = 0;
 	raw_spin_unlock(&old_base->lock);
 
+=======
+	smp_call_function_single(scpu, retrigger_next_event, NULL, 0);
+
+	raw_spin_unlock(&new_base->lock);
+	raw_spin_unlock(&old_base->lock);
+
+	/* Check, if we got expired work to do */
+	__hrtimer_peek_ahead_timers();
+	local_irq_restore(flags);
+}
+
+int hrtimers_cpu_dying(unsigned int dying_cpu)
+{
+	tick_cancel_sched_timer(dying_cpu);
+
+	/*
+	 * this BH disable ensures that raise_softirq_irqoff() does
+	 * not wakeup ksoftirqd (and acquire the pi-lock) while
+	 * holding the cpu_base lock
+	 */
+	local_bh_disable();
+	__migrate_hrtimers(dying_cpu, true);
+	local_bh_enable();
+>>>>>>> tarkzim
 	return 0;
 }
 

@@ -62,12 +62,15 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	struct dnode_of_data dn;
 	bool need_alloc = true;
 	int err = 0;
+<<<<<<< ours
 
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return VM_FAULT_SIGBUS;
 
 	if (is_inode_flag_set(inode, FI_COMPRESS_RELEASED))
 		return VM_FAULT_SIGBUS;
+=======
+>>>>>>> tarkzim
 
 	if (unlikely(f2fs_cp_error(sbi))) {
 		err = -EIO;
@@ -82,10 +85,13 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 		goto err;
 	}
 
+<<<<<<< ours
 	err = f2fs_convert_inline_inode(inode);
 	if (err)
 		goto err;
 
+=======
+>>>>>>> tarkzim
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (f2fs_compressed_file(inode)) {
 		int ret = f2fs_is_compressed_cluster(inode, page->index);
@@ -94,6 +100,13 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 			err = ret;
 			goto err;
 		} else if (ret) {
+<<<<<<< ours
+=======
+			if (ret < F2FS_I(inode)->i_cluster_size) {
+				err = -EAGAIN;
+				goto err;
+			}
+>>>>>>> tarkzim
 			need_alloc = false;
 		}
 	}
@@ -570,6 +583,14 @@ static int f2fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (!f2fs_is_compress_backend_ready(inode))
 		return -EOPNOTSUPP;
+<<<<<<< ours
+=======
+
+	/* we don't need to use inline_data strictly */
+	err = f2fs_convert_inline_inode(inode);
+	if (err)
+		return err;
+>>>>>>> tarkzim
 
 	file_accessed(file);
 	vma->vm_ops = &f2fs_file_vm_ops;
@@ -606,7 +627,11 @@ void f2fs_truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	bool compressed_cluster = false;
 	int cluster_index = 0, valid_blocks = 0;
 	int cluster_size = F2FS_I(dn->inode)->i_cluster_size;
+<<<<<<< ours
 	bool released = !atomic_read(&F2FS_I(dn->inode)->i_compr_blocks);
+=======
+	bool released = !F2FS_I(dn->inode)->i_compr_blocks;
+>>>>>>> tarkzim
 
 	if (IS_INODE(dn->node_page) && f2fs_has_extra_attr(dn->inode))
 		base = get_extra_isize(dn->inode);
@@ -926,6 +951,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
 
+<<<<<<< ours
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return -EPERM;
 
@@ -934,6 +960,8 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 				  ATTR_GID | ATTR_TIMES_SET))))
 		return -EPERM;
 
+=======
+>>>>>>> tarkzim
 	if ((attr->ia_valid & ATTR_SIZE) &&
 		!f2fs_is_compress_backend_ready(inode))
 		return -EOPNOTSUPP;
@@ -1897,8 +1925,11 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 		if (iflags & F2FS_COMPR_FL) {
 			if (!f2fs_may_compress(inode))
 				return -EINVAL;
+<<<<<<< ours
 			if (S_ISREG(inode->i_mode) && inode->i_size)
 				return -EINVAL;
+=======
+>>>>>>> tarkzim
 
 			set_compress_context(inode);
 		}
@@ -2485,6 +2516,64 @@ static int f2fs_ioc_get_encryption_policy_ex(struct file *filp,
 {
 	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
 		return -EOPNOTSUPP;
+<<<<<<< ours
+
+	return fscrypt_ioctl_get_policy_ex(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_add_encryption_key(struct file *filp, unsigned long arg)
+{
+	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
+		return -EOPNOTSUPP;
+
+	return fscrypt_ioctl_add_key(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_remove_encryption_key(struct file *filp, unsigned long arg)
+{
+	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
+		return -EOPNOTSUPP;
+
+	return fscrypt_ioctl_remove_key(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_remove_encryption_key_all_users(struct file *filp,
+						    unsigned long arg)
+{
+	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
+		return -EOPNOTSUPP;
+
+	return fscrypt_ioctl_remove_key_all_users(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_get_encryption_key_status(struct file *filp,
+					      unsigned long arg)
+{
+	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
+		return -EOPNOTSUPP;
+
+	return fscrypt_ioctl_get_key_status(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_get_encryption_nonce(struct file *filp, unsigned long arg)
+{
+	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
+		return -EOPNOTSUPP;
+
+	return fscrypt_ioctl_get_nonce(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	__u32 sync;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+=======
+>>>>>>> tarkzim
 
 	return fscrypt_ioctl_get_policy_ex(filp, (void __user *)arg);
 }
@@ -3210,9 +3299,15 @@ static inline u32 f2fs_xflags_to_iflags(u32 xflags)
 static void f2fs_fill_fsxattr(struct inode *inode, struct fsxattr *fa)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+<<<<<<< ours
 
 	simple_fill_fsxattr(fa, f2fs_iflags_to_xflags(fi->i_flags));
 
+=======
+
+	simple_fill_fsxattr(fa, f2fs_iflags_to_xflags(fi->i_flags));
+
+>>>>>>> tarkzim
 	if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)))
 		fa->fsx_projid = from_kprojid(&init_user_ns, fi->i_projid);
 }
@@ -3513,7 +3608,11 @@ static int f2fs_get_compress_blocks(struct file *filp, unsigned long arg)
 	if (!f2fs_compressed_file(inode))
 		return -EINVAL;
 
+<<<<<<< ours
 	blocks = atomic_read(&F2FS_I(inode)->i_compr_blocks);
+=======
+	blocks = F2FS_I(inode)->i_compr_blocks;
+>>>>>>> tarkzim
 	return put_user(blocks, (u64 __user *)arg);
 }
 
@@ -3603,8 +3702,12 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
 		goto out;
 	}
 
+<<<<<<< ours
 	if (is_inode_flag_set(inode, FI_COMPRESS_RELEASED) ||
 			IS_IMMUTABLE(inode)) {
+=======
+	if (IS_IMMUTABLE(inode)) {
+>>>>>>> tarkzim
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3613,6 +3716,7 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
 	if (ret)
 		goto out;
 
+<<<<<<< ours
 	set_inode_flag(inode, FI_COMPRESS_RELEASED);
 	inode->i_ctime = current_time(inode);
 	f2fs_mark_inode_dirty_sync(inode, true);
@@ -3620,6 +3724,16 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
 	if (!atomic_read(&F2FS_I(inode)->i_compr_blocks))
 		goto out;
 
+=======
+	if (!F2FS_I(inode)->i_compr_blocks)
+		goto out;
+
+	F2FS_I(inode)->i_flags |= F2FS_IMMUTABLE_FL;
+	f2fs_set_inode_flags(inode);
+	inode->i_ctime = current_time(inode);
+	f2fs_mark_inode_dirty_sync(inode, true);
+
+>>>>>>> tarkzim
 	down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 	down_write(&F2FS_I(inode)->i_mmap_sem);
 
@@ -3665,6 +3779,7 @@ out:
 
 	if (ret >= 0) {
 		ret = put_user(released_blocks, (u64 __user *)arg);
+<<<<<<< ours
 	} else if (released_blocks &&
 			atomic_read(&F2FS_I(inode)->i_compr_blocks)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
@@ -3674,6 +3789,16 @@ out:
 			__func__, inode->i_ino, (u64)inode->i_blocks,
 			released_blocks,
 			atomic_read(&F2FS_I(inode)->i_compr_blocks));
+=======
+	} else if (released_blocks && F2FS_I(inode)->i_compr_blocks) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_warn(sbi, "%s: partial blocks were released i_ino=%lx "
+			"iblocks=%llu, released=%u, compr_blocks=%llu, "
+			"run fsck to fix.",
+			__func__, inode->i_ino, (u64)inode->i_blocks,
+			released_blocks,
+			F2FS_I(inode)->i_compr_blocks);
+>>>>>>> tarkzim
 	}
 
 	return ret;
@@ -3761,14 +3886,22 @@ static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
 	if (ret)
 		return ret;
 
+<<<<<<< ours
 	if (atomic_read(&F2FS_I(inode)->i_compr_blocks))
+=======
+	if (F2FS_I(inode)->i_compr_blocks)
+>>>>>>> tarkzim
 		goto out;
 
 	f2fs_balance_fs(F2FS_I_SB(inode), true);
 
 	inode_lock(inode);
 
+<<<<<<< ours
 	if (!is_inode_flag_set(inode, FI_COMPRESS_RELEASED)) {
+=======
+	if (!IS_IMMUTABLE(inode)) {
+>>>>>>> tarkzim
 		ret = -EINVAL;
 		goto unlock_inode;
 	}
@@ -3813,7 +3946,12 @@ static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 
 	if (ret >= 0) {
+<<<<<<< ours
 		clear_inode_flag(inode, FI_COMPRESS_RELEASED);
+=======
+		F2FS_I(inode)->i_flags &= ~F2FS_IMMUTABLE_FL;
+		f2fs_set_inode_flags(inode);
+>>>>>>> tarkzim
 		inode->i_ctime = current_time(inode);
 		f2fs_mark_inode_dirty_sync(inode, true);
 	}
@@ -3824,6 +3962,7 @@ out:
 
 	if (ret >= 0) {
 		ret = put_user(reserved_blocks, (u64 __user *)arg);
+<<<<<<< ours
 	} else if (reserved_blocks &&
 			atomic_read(&F2FS_I(inode)->i_compr_blocks)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
@@ -3833,6 +3972,16 @@ out:
 			__func__, inode->i_ino, (u64)inode->i_blocks,
 			reserved_blocks,
 			atomic_read(&F2FS_I(inode)->i_compr_blocks));
+=======
+	} else if (reserved_blocks && F2FS_I(inode)->i_compr_blocks) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_warn(sbi, "%s: partial blocks were released i_ino=%lx "
+			"iblocks=%llu, reserved=%u, compr_blocks=%llu, "
+			"run fsck to fix.",
+			__func__, inode->i_ino, (u64)inode->i_blocks,
+			reserved_blocks,
+			F2FS_I(inode)->i_compr_blocks);
+>>>>>>> tarkzim
 	}
 
 	return ret;
@@ -3861,9 +4010,14 @@ static int f2fs_ioc_stat_compress_file(struct file *filp, unsigned long arg)
 		return -EFAULT;
 
 	compStat.st_blocks = inode->i_blocks;
+<<<<<<< ours
 	if (unlikely(f2fs_compressed_file(inode)) &&
 			(atomic_read(&F2FS_I(inode)->i_compr_blocks) > 0)) {
 		compStat.st_compressed_blocks = atomic_read(&F2FS_I(inode)->i_compr_blocks);
+=======
+	if (unlikely(f2fs_compressed_file(inode))) {
+		compStat.st_compressed_blocks = F2FS_I(inode)->i_compr_blocks;
+>>>>>>> tarkzim
 		compStat.out_compressed = 1;
 	} else {
 		compStat.out_compressed = 0;
@@ -3876,7 +4030,11 @@ static int f2fs_ioc_stat_compress_file(struct file *filp, unsigned long arg)
 		heimdallfs_stat.nr_pkgs++;
 		heimdallfs_stat.nr_pkg_blks += compStat.st_blocks;
 
+<<<<<<< ours
 		if (unlikely(f2fs_compressed_file(inode)) && (compStat.st_compressed_blocks > 0)) {
+=======
+		if (unlikely(f2fs_compressed_file(inode))) {
+>>>>>>> tarkzim
 			heimdallfs_stat.nr_comp_pkgs++;
 			heimdallfs_stat.nr_comp_pkg_blks += compStat.st_blocks;
 			heimdallfs_stat.nr_comp_saved_blks += compStat.st_compressed_blocks;

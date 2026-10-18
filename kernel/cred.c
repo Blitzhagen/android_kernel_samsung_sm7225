@@ -241,7 +241,11 @@ const struct cred *get_task_cred(struct task_struct *task)
 		if (is_kdp_protect_addr((unsigned long)cred))
 			inc_test = ROCRED_UC_INC_NOT_ZERO(cred);
 		else
+<<<<<<< ours
 			inc_test = atomic_long_inc_not_zero(&((struct cred *)cred)->usage);
+=======
+			inc_test = atomic_inc_not_zero(&((struct cred *)cred)->usage);
+>>>>>>> tarkzim
 	} while (!inc_test);
 #else
 	do {
@@ -249,7 +253,10 @@ const struct cred *get_task_cred(struct task_struct *task)
 		BUG_ON(!cred);
 	} while (!atomic_long_inc_not_zero(&((struct cred *)cred)->usage));
 #endif
+<<<<<<< ours
 
+=======
+>>>>>>> tarkzim
 	rcu_read_unlock();
 	return cred;
 }
@@ -637,17 +644,41 @@ EXPORT_SYMBOL(abort_creds);
  * Install a set of temporary override subjective credentials on the current
  * process, returning the old set for later reversion.
  */
+#ifdef CONFIG_KDP_CRED
+const struct cred *kdp_override_creds(struct cred **cnew)
+#else
 const struct cred *override_creds(const struct cred *new)
+#endif
 {
 	const struct cred *old = current->cred;
+<<<<<<< ours
 
+=======
+#ifdef CONFIG_KDP_CRED
+	struct cred *new = *cnew;
+#endif
+>>>>>>> tarkzim
 	kdebug("override_creds(%p{%ld,%d})", new,
 	       atomic_long_read(&new->usage),
 	       read_cred_subscribers(new));
 
 	validate_creds(old);
 	validate_creds(new);
+#ifdef CONFIG_KDP_CRED
+	if (kdp_enable) {
+		volatile unsigned int rkp_use_count = kdp_get_usecount(new);
+		struct cred *new_ro;
 
+		new_ro = prepare_ro_creds(new, CMD_OVRD_CREDS, rkp_use_count);
+		*cnew = new_ro;
+		rcu_assign_pointer(current->cred, new_ro);
+		put_cred(new);
+	} else {
+		get_new_cred((struct cred *)new);
+		alter_cred_subscribers(new, 1);
+		rcu_assign_pointer(current->cred, new);
+	}
+#else
 	/*
 	 * NOTE! This uses 'get_new_cred()' rather than 'get_cred()'.
 	 *
@@ -672,7 +703,11 @@ const struct cred *override_creds(const struct cred *new)
 	} else
 #endif
 	rcu_assign_pointer(current->cred, new);
+<<<<<<< ours
 
+=======
+#endif /* CONFIG_KDP_CRED */
+>>>>>>> tarkzim
 	alter_cred_subscribers(old, -1);
 
 	kdebug("override_creds() = %p{%ld,%d}", old,
@@ -680,7 +715,11 @@ const struct cred *override_creds(const struct cred *new)
 	       read_cred_subscribers(old));
 	return old;
 }
+#ifdef CONFIG_KDP_CRED
+EXPORT_SYMBOL(kdp_override_creds);
+#else
 EXPORT_SYMBOL(override_creds);
+#endif
 
 /**
  * revert_creds - Revert a temporary subjective credentials override

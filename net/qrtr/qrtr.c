@@ -557,7 +557,7 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	hdr->type = cpu_to_le32(type);
 	hdr->src_node_id = cpu_to_le32(from->sq_node);
 	hdr->src_port_id = cpu_to_le32(from->sq_port);
-	if (to->sq_port == QRTR_PORT_CTRL) {
+	if (to->sq_node == QRTR_NODE_BCAST) {
 		hdr->dst_node_id = cpu_to_le32(node->nid);
 		hdr->dst_port_id = cpu_to_le32(QRTR_PORT_CTRL);
 	} else {
@@ -629,6 +629,17 @@ static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
 	char name[32] = {0,};
 
 	if (nid == QRTR_EP_NID_AUTO)
+<<<<<<< ours
+		return;
+	if (nid == node->nid)
+		return;
+
+	down_read(&qrtr_node_lock);
+	tnode = radix_tree_lookup(&qrtr_nodes, nid);
+	up_read(&qrtr_node_lock);
+	if (tnode)
+=======
+>>>>>>> tarkzim
 		return;
 	if (nid == node->nid)
 		return;
@@ -653,6 +664,23 @@ static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
 	}
 	up_write(&qrtr_node_lock);
 
+<<<<<<< ours
+	/* If the node is not in qrtr_all_epts, it is being released and should
+	 * not be inserted into the lookup table.
+	 */
+	down_write(&qrtr_node_lock);
+	list_for_each_entry(tnode, &qrtr_all_epts, item) {
+		if (tnode == node) {
+			radix_tree_insert(&qrtr_nodes, nid, node);
+			if (node->nid == QRTR_EP_NID_AUTO)
+				node->nid = nid;
+			break;
+		}
+	}
+	up_write(&qrtr_node_lock);
+
+=======
+>>>>>>> tarkzim
 	snprintf(name, sizeof(name), "qrtr_%d", nid);
 	if (!node->ilc) {
 		node->ilc = ipc_log_context_create(QRTR_LOG_PAGE_CNT, name, 0);
@@ -1311,12 +1339,21 @@ static void qrtr_send_del_client(struct qrtr_sock *ipc)
 exit:
 	qrtr_local_enqueue(NULL, skb, type, &ipc->us, &to, 0);
 }
+<<<<<<< ours
 
 /* Remove port assignment. */
 static void qrtr_port_remove(struct qrtr_sock *ipc)
 {
 	int port = ipc->us.sq_port;
 
+=======
+
+/* Remove port assignment. */
+static void qrtr_port_remove(struct qrtr_sock *ipc)
+{
+	int port = ipc->us.sq_port;
+
+>>>>>>> tarkzim
 	qrtr_send_del_client(ipc);
 	if (port == QRTR_PORT_CTRL)
 		port = 0;
@@ -1530,7 +1567,11 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	list_for_each_entry(node, &qrtr_all_epts, item) {
 		if (node->nid == QRTR_EP_NID_AUTO && type != QRTR_TYPE_HELLO)
 			continue;
+<<<<<<< ours
 		skbn = skb_clone(skb, GFP_KERNEL);
+=======
+		skbn = pskb_copy(skb, GFP_KERNEL);
+>>>>>>> tarkzim
 		if (!skbn)
 			break;
 		skb_set_owner_w(skbn, skb->sk);
@@ -1740,7 +1781,10 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 		 */
 		memset(addr, 0, sizeof(*addr));
 
+<<<<<<< ours
 		cb = (struct qrtr_cb *)skb->cb;
+=======
+>>>>>>> tarkzim
 		addr->sq_family = AF_QIPCRTR;
 		addr->sq_node = cb->src_node;
 		addr->sq_port = cb->src_port;

@@ -12,6 +12,7 @@
 
 struct notifier_block;
 
+<<<<<<< ours
 void add_device_randomness(const void *buf, size_t len);
 void __init add_bootloader_randomness(const void *buf, size_t len);
 void add_input_randomness(unsigned int type, unsigned int code,
@@ -25,6 +26,35 @@ static inline void add_latent_entropy(void)
 	add_device_randomness((const void *)&latent_entropy, sizeof(latent_entropy));
 #else
 	add_device_randomness(NULL, 0);
+=======
+extern void add_device_randomness(const void *, unsigned int);
+extern void add_bootloader_randomness(const void *, unsigned int);
+
+static inline void add_latent_entropy(void)
+{
+#if defined(CONFIG_GCC_PLUGIN_LATENT_ENTROPY) && !defined(__CHECKER__)
+	add_device_randomness((const void *)&latent_entropy,
+			      sizeof(latent_entropy));
+#else
+	add_device_randomness(NULL, 0);
+#endif
+}
+
+extern void add_input_randomness(unsigned int type, unsigned int code,
+				 unsigned int value) __latent_entropy;
+extern void add_interrupt_randomness(int irq, int irq_flags) __latent_entropy;
+
+extern void get_random_bytes(void *buf, int nbytes);
+extern int wait_for_random_bytes(void);
+extern int __init rand_initialize(void);
+extern bool rng_is_initialized(void);
+extern int add_random_ready_callback(struct random_ready_callback *rdy);
+extern void del_random_ready_callback(struct random_ready_callback *rdy);
+extern int __must_check get_random_bytes_arch(void *buf, int nbytes);
+
+#ifndef MODULE
+extern const struct file_operations random_fops, urandom_fops;
+>>>>>>> tarkzim
 #endif
 }
 
@@ -103,6 +133,7 @@ declare_get_random_var_wait(long, unsigned long)
 #ifdef CONFIG_ARCH_RANDOM
 # include <asm/archrandom.h>
 #else
+<<<<<<< ours
 static inline bool __must_check arch_get_random_long(unsigned long *v) { return false; }
 static inline bool __must_check arch_get_random_int(unsigned int *v) { return false; }
 static inline bool __must_check arch_get_random_seed_long(unsigned long *v) { return false; }
@@ -126,6 +157,23 @@ static inline bool __init arch_get_random_long_early(unsigned long *v)
 {
 	WARN_ON(system_state != SYSTEM_BOOTING);
 	return arch_get_random_long(v);
+=======
+static inline bool __must_check arch_get_random_long(unsigned long *v)
+{
+	return false;
+}
+static inline bool __must_check arch_get_random_int(unsigned int *v)
+{
+	return false;
+}
+static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
+{
+	return false;
+}
+static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
+{
+	return false;
+>>>>>>> tarkzim
 }
 #endif
 

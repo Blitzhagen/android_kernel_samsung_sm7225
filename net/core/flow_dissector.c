@@ -26,8 +26,16 @@
 #include <scsi/fc/fc_fcoe.h>
 #include <uapi/linux/batadv_packet.h>
 #include <linux/bpf.h>
+<<<<<<< ours
 
 static DEFINE_MUTEX(flow_dissector_mutex);
+=======
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_labels.h>
+#endif
+#include <linux/bpf-netns.h>
+>>>>>>> tarkzim
 
 static void dissector_set_key(struct flow_dissector *flow_dissector,
 			      enum flow_dissector_key_id key_id)
@@ -65,6 +73,7 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 }
 EXPORT_SYMBOL(skb_flow_dissector_init);
 
+<<<<<<< ours
 int skb_flow_dissector_prog_query(const union bpf_attr *attr,
 				  union bpf_attr __user *uattr)
 {
@@ -94,6 +103,35 @@ int skb_flow_dissector_prog_query(const union bpf_attr *attr,
 		return -EFAULT;
 	if (copy_to_user(&uattr->query.prog_cnt, &prog_cnt, sizeof(prog_cnt)))
 		return -EFAULT;
+=======
+#ifdef CONFIG_BPF_SYSCALL
+int flow_dissector_bpf_prog_attach_check(struct net *net,
+					 struct bpf_prog *prog)
+{
+	enum netns_bpf_attach_type type = NETNS_BPF_FLOW_DISSECTOR;
+
+	if (net == &init_net) {
+		/* BPF flow dissector in the root namespace overrides
+		 * any per-net-namespace one. When attaching to root,
+		 * make sure we don't have any BPF program attached
+		 * to the non-root namespaces.
+		 */
+		struct net *ns;
+
+		for_each_net(ns) {
+			if (ns == &init_net)
+				continue;
+			if (rcu_access_pointer(ns->bpf.run_array[type]))
+				return -EEXIST;
+		}
+	} else {
+		/* Make sure root flow dissector is not attached
+		 * when attaching to the non-root namespace.
+		 */
+		if (rcu_access_pointer(init_net.bpf.run_array[type]))
+			return -EEXIST;
+	}
+>>>>>>> tarkzim
 
 	if (!attr->query.prog_cnt || !prog_ids || !prog_cnt)
 		return 0;
@@ -171,6 +209,7 @@ static int flow_dissector_bpf_prog_detach(struct net *net)
 	mutex_unlock(&flow_dissector_mutex);
 	return 0;
 }
+#endif /* CONFIG_BPF_SYSCALL */
 
 int skb_flow_dissector_bpf_prog_detach(const union bpf_attr *attr)
 {
@@ -956,6 +995,7 @@ bool __skb_flow_dissect(const struct net *net,
 
 	WARN_ON_ONCE(!net);
 	if (net) {
+<<<<<<< ours
 		rcu_read_lock();
 		attached = rcu_dereference(init_net.flow_dissector_prog);
 
@@ -963,6 +1003,17 @@ bool __skb_flow_dissect(const struct net *net,
 			attached = rcu_dereference(net->flow_dissector_prog);
 
 		if (attached) {
+=======
+		enum netns_bpf_attach_type type = NETNS_BPF_FLOW_DISSECTOR;
+		struct bpf_prog_array *run_array;
+
+		rcu_read_lock();
+		run_array = rcu_dereference(init_net.bpf.run_array[type]);
+		if (!run_array)
+			run_array = rcu_dereference(net->bpf.run_array[type]);
+
+		if (run_array) {
+>>>>>>> tarkzim
 			struct bpf_flow_keys flow_keys;
 			struct bpf_flow_dissector ctx = {
 				.flow_keys = &flow_keys,
@@ -970,6 +1021,10 @@ bool __skb_flow_dissect(const struct net *net,
 				.data_end = data + hlen,
 			};
 			__be16 n_proto = proto;
+<<<<<<< ours
+=======
+			struct bpf_prog *prog;
+>>>>>>> tarkzim
 
 			if (skb) {
 				ctx.skb = skb;
@@ -980,7 +1035,12 @@ bool __skb_flow_dissect(const struct net *net,
 				n_proto = skb->protocol;
 			}
 
+<<<<<<< ours
 			ret = bpf_flow_dissect(attached, &ctx, n_proto, nhoff,
+=======
+			prog = READ_ONCE(run_array->items[0].prog);
+			ret = bpf_flow_dissect(prog, &ctx, n_proto, nhoff,
+>>>>>>> tarkzim
 					       hlen, flags);
 			__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 						 target_container);
@@ -1421,8 +1481,12 @@ static inline size_t flow_keys_hash_length(const struct flow_keys *flow)
 	/* flow.addrs MUST be the last member in struct flow_keys because
 	 * different L3 protocols have different address length
 	 */
+<<<<<<< ours
 	BUILD_BUG_ON(offsetof(typeof(*flow), addrs) !=
 		     sizeof(*flow) - sizeof(flow->addrs));
+=======
+	BUILD_BUG_ON((sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) % sizeof(u32));
+>>>>>>> tarkzim
 
 	switch (flow->control.addr_type) {
 	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
@@ -1791,7 +1855,11 @@ static int __init init_default_flow_dissectors(void)
 	skb_flow_dissector_init(&flow_keys_basic_dissector,
 				flow_keys_basic_dissector_keys,
 				ARRAY_SIZE(flow_keys_basic_dissector_keys));
+<<<<<<< ours
 
 	return register_pernet_subsys(&flow_dissector_pernet_ops);
+=======
+	return 0;
+>>>>>>> tarkzim
 }
 core_initcall(init_default_flow_dissectors);

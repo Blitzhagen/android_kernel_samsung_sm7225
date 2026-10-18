@@ -2155,6 +2155,7 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	while ((ret = compact_finished(cc)) == COMPACT_CONTINUE) {
 		int err;
 		unsigned long start_pfn = cc->migrate_pfn;
+<<<<<<< ours
 
 		/*
 		 * Avoid multiple rescans which can happen if a page cannot be
@@ -2170,6 +2171,23 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 			cc->rescan = true;
 		}
 
+=======
+
+		/*
+		 * Avoid multiple rescans which can happen if a page cannot be
+		 * isolated (dirty/writeback in async mode) or if the migrated
+		 * pages are being allocated before the pageblock is cleared.
+		 * The first rescan will capture the entire pageblock for
+		 * migration. If it fails, it'll be marked skip and scanning
+		 * will proceed as normal.
+		 */
+		cc->rescan = false;
+		if (pageblock_start_pfn(last_migrated_pfn) ==
+		    pageblock_start_pfn(start_pfn)) {
+			cc->rescan = true;
+		}
+
+>>>>>>> tarkzim
 		switch (isolate_migratepages(cc->zone, cc)) {
 		case ISOLATE_ABORT:
 			ret = COMPACT_CONTENDED;
@@ -2310,10 +2328,17 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 		.cc = &cc,
 		.page = NULL,
 	};
+<<<<<<< ours
 
 	if (capture)
 		current->capture_control = &capc;
 
+=======
+
+	if (capture)
+		current->capture_control = &capc;
+
+>>>>>>> tarkzim
 	ret = compact_zone(&cc, &capc);
 
 	VM_BUG_ON(!list_empty(&cc.freepages));
@@ -2451,7 +2476,7 @@ int sysctl_compact_memory;
  * /proc/sys/vm/compact_memory
  */
 int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *length, loff_t *ppos)
+			void *buffer, size_t *length, loff_t *ppos)
 {
 	if (write)
 		compact_nodes();

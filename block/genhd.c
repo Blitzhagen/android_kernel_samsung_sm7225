@@ -1303,7 +1303,11 @@ static DEVICE_ATTR(capability, 0444, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, 0444, part_stat_show, NULL);
 static DEVICE_ATTR(inflight, 0444, part_inflight_show, NULL);
 static DEVICE_ATTR(badblocks, 0644, disk_badblocks_show, disk_badblocks_store);
+<<<<<<< ours
 static DEVICE_ATTR(diskios, 0400, disk_ios_show, NULL);
+=======
+static DEVICE_ATTR(diskios, 0600, disk_ios_show, NULL);
+>>>>>>> tarkzim
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, 0644, part_fail_show, part_fail_store);
@@ -1562,7 +1566,11 @@ static const struct seq_operations diskstats_op = {
 	.show	= diskstats_show
 };
 
+<<<<<<< ours
 /* IOPP-iod-v1.1.k4.19 */
+=======
+/* IOPP-iod-v1.1.4.19 */
+>>>>>>> tarkzim
 #define PG2KB(x) ((unsigned long)((x) << (PAGE_SHIFT - 10)))
 static int iostats_show(struct seq_file *seqf, void *v)
 {
@@ -1615,6 +1623,10 @@ static int iostats_show(struct seq_file *seqf, void *v)
 				gp->queue->flush_ios,
 
 				inflight[0], /* read request count */
+<<<<<<< ours
+=======
+				/* hd->io_time_us / USEC_PER_MSEC, */
+>>>>>>> tarkzim
 				gp->queue->in_flight_time / USEC_PER_MSEC,
 				PG2KB(thresh),
 				PG2KB(bdi->last_thresh),

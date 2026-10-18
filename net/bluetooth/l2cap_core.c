@@ -533,6 +533,16 @@ struct l2cap_chan *l2cap_chan_hold_unless_zero(struct l2cap_chan *c)
 	return c;
 }
 
+struct l2cap_chan *l2cap_chan_hold_unless_zero(struct l2cap_chan *c)
+{
+	BT_DBG("chan %p orig refcnt %u", c, kref_read(&c->kref));
+
+	if (!kref_get_unless_zero(&c->kref))
+		return NULL;
+
+	return c;
+}
+
 void l2cap_chan_put(struct l2cap_chan *c)
 {
 	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));

@@ -83,6 +83,7 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
  */
 static inline void iint_lockdep_annotate(struct integrity_iint_cache *iint,
 					 struct inode *inode)
+<<<<<<< ours
 {
 #ifdef CONFIG_LOCKDEP
 	static struct lock_class_key iint_mutex_key[IMA_MAX_NESTING];
@@ -99,6 +100,24 @@ static inline void iint_lockdep_annotate(struct integrity_iint_cache *iint,
 static void iint_init_always(struct integrity_iint_cache *iint,
 			     struct inode *inode)
 {
+=======
+{
+#ifdef CONFIG_LOCKDEP
+	static struct lock_class_key iint_mutex_key[IMA_MAX_NESTING];
+
+	int depth = inode->i_sb->s_stack_depth;
+
+	if (WARN_ON_ONCE(depth < 0 || depth >= IMA_MAX_NESTING))
+		depth = 0;
+
+	lockdep_set_class(&iint->mutex, &iint_mutex_key[depth]);
+#endif
+}
+
+static void iint_init_always(struct integrity_iint_cache *iint,
+			     struct inode *inode)
+{
+>>>>>>> tarkzim
 #ifdef CONFIG_FIVE
 	kfree(iint->five_label);
 	iint->five_label = NULL;
@@ -211,6 +230,7 @@ static void iint_init_once(void *foo)
 	iint->five_status = FIVE_FILE_UNKNOWN;
 	iint->five_signing = false;
 #endif
+<<<<<<< ours
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
@@ -218,6 +238,8 @@ static void iint_init_once(void *foo)
 	iint->ima_creds_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
 	mutex_init(&iint->mutex);
+=======
+>>>>>>> tarkzim
 }
 
 static int __init integrity_iintcache_init(void)

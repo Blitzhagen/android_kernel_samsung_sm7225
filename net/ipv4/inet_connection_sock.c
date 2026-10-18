@@ -612,7 +612,7 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && rt->rt_uses_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gw_family)
 		goto route_err;
 	rcu_read_unlock();
 	return &rt->dst;
@@ -650,7 +650,7 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && rt->rt_uses_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gw_family)
 		goto route_err;
 	return &rt->dst;
 
@@ -718,6 +718,7 @@ static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 	return found;
 }
 
+<<<<<<< ours
 static bool __inet_csk_reqsk_queue_drop(struct sock *sk,
 					struct request_sock *req,
 					bool from_timer)
@@ -727,10 +728,17 @@ static bool __inet_csk_reqsk_queue_drop(struct sock *sk,
 	if (!from_timer && timer_delete_sync(&req->rsk_timer))
 		reqsk_put(req);
 
+=======
+bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
+{
+	bool unlinked = reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req);
+
+>>>>>>> tarkzim
 	if (unlinked) {
 		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
 		reqsk_put(req);
 	}
+<<<<<<< ours
 
 	return unlinked;
 }
@@ -738,6 +746,9 @@ static bool __inet_csk_reqsk_queue_drop(struct sock *sk,
 bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
 {
 	return __inet_csk_reqsk_queue_drop(sk, req, false);
+=======
+	return unlinked;
+>>>>>>> tarkzim
 }
 EXPORT_SYMBOL(inet_csk_reqsk_queue_drop);
 

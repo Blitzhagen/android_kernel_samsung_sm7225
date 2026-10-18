@@ -25,7 +25,10 @@
 #include <linux/quota.h>
 #include <linux/unicode.h>
 #include <linux/iversion.h>
+<<<<<<< ours
 #include <linux/cleancache.h>
+=======
+>>>>>>> tarkzim
 
 #include "f2fs.h"
 #include "node.h"
@@ -1001,6 +1004,7 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 		case Opt_compress_log_size:
 			if (!f2fs_sb_has_compression(sbi)) {
 				f2fs_err(sbi, "Compression feature is off");
+<<<<<<< ours
 				return -EINVAL;
 			}
 			if (args->from && match_int(args, &arg))
@@ -1018,6 +1022,25 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 				f2fs_err(sbi, "Compression feature is off");
 				return -EINVAL;
 			}
+=======
+				return -EINVAL;
+			}
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (arg < MIN_COMPRESS_LOG_SIZE ||
+				arg > MAX_COMPRESS_LOG_SIZE) {
+				f2fs_err(sbi,
+					"Compress cluster log size is out of range");
+				return -EINVAL;
+			}
+			F2FS_OPTION(sbi).compress_log_size = arg;
+			break;
+		case Opt_compress_extension:
+			if (!f2fs_sb_has_compression(sbi)) {
+				f2fs_err(sbi, "Compression feature is off");
+				return -EINVAL;
+			}
+>>>>>>> tarkzim
 			name = match_strdup(&args[0]);
 			if (!name)
 				return -ENOMEM;
@@ -1940,8 +1963,12 @@ static void f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
 	f2fs_sync_fs(sbi->sb, 1);
 }
 
+<<<<<<< ours
 static int f2fs_remount(struct vfsmount *mnt, struct super_block *sb,
 		int *flags, char *data)
+=======
+static int f2fs_remount(struct super_block *sb, int *flags, char *data)
+>>>>>>> tarkzim
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct f2fs_mount_info org_mount_opt;
@@ -2014,11 +2041,17 @@ static int f2fs_remount(struct vfsmount *mnt, struct super_block *sb,
 
 #ifdef CONFIG_QUOTA
 	if (!f2fs_readonly(sb) && (*flags & SB_RDONLY)) {
+<<<<<<< ours
 		if (!IS_ERR(mnt)) {
 			err = dquot_suspend(sb, -1);
 			if (err < 0)
 				goto restore_opts;
 		}
+=======
+		err = dquot_suspend(sb, -1);
+		if (err < 0)
+			goto restore_opts;
+>>>>>>> tarkzim
 	} else if (f2fs_readonly(sb) && !(*flags & SB_RDONLY)) {
 		/* dquot_resume needs RW */
 		sb->s_flags &= ~SB_RDONLY;
@@ -2711,6 +2744,7 @@ static bool f2fs_has_stable_inodes(struct super_block *sb)
 
 static void f2fs_get_ino_and_lblk_bits(struct super_block *sb,
 				       int *ino_bits_ret, int *lblk_bits_ret)
+<<<<<<< ours
 {
 	*ino_bits_ret = 8 * sizeof(nid_t);
 	*lblk_bits_ret = 8 * sizeof(block_t);
@@ -2723,6 +2757,20 @@ static bool f2fs_inline_crypt_enabled(struct super_block *sb)
 
 static int f2fs_get_num_devices(struct super_block *sb)
 {
+=======
+{
+	*ino_bits_ret = 8 * sizeof(nid_t);
+	*lblk_bits_ret = 8 * sizeof(block_t);
+}
+
+static bool f2fs_inline_crypt_enabled(struct super_block *sb)
+{
+	return F2FS_OPTION(F2FS_SB(sb)).inlinecrypt;
+}
+
+static int f2fs_get_num_devices(struct super_block *sb)
+{
+>>>>>>> tarkzim
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 
 	if (f2fs_is_multi_device(sbi))
@@ -2948,6 +2996,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	unsigned int blocksize;
 	size_t crc_offset = 0;
 	__u32 crc = 0;
+<<<<<<< ours
 
 	if (le32_to_cpu(raw_super->magic) != F2FS_SUPER_MAGIC) {
 		f2fs_info(sbi, "Magic Mismatch, valid(0x%x) - read(0x%x)",
@@ -2970,10 +3019,37 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 			return -EFSCORRUPTED;
 		}
 	}
+=======
+>>>>>>> tarkzim
 
 	if (le32_to_cpu(raw_super->magic) != F2FS_SUPER_MAGIC) {
 		f2fs_info(sbi, "Magic Mismatch, valid(0x%x) - read(0x%x)",
 			  F2FS_SUPER_MAGIC, le32_to_cpu(raw_super->magic));
+<<<<<<< ours
+=======
+		return -EINVAL;
+	}
+
+	/* Check checksum_offset and crc in superblock */
+	if (__F2FS_HAS_FEATURE(raw_super, F2FS_FEATURE_SB_CHKSUM)) {
+		crc_offset = le32_to_cpu(raw_super->checksum_offset);
+		if (crc_offset !=
+			offsetof(struct f2fs_super_block, crc)) {
+			f2fs_info(sbi, "Invalid SB checksum offset: %zu",
+				  crc_offset);
+			return -EFSCORRUPTED;
+		}
+		crc = le32_to_cpu(raw_super->crc);
+		if (!f2fs_crc_valid(sbi, crc, raw_super, crc_offset)) {
+			f2fs_info(sbi, "Invalid SB checksum value: %u", crc);
+			return -EFSCORRUPTED;
+		}
+	}
+
+	if (le32_to_cpu(raw_super->magic) != F2FS_SUPER_MAGIC) {
+		f2fs_info(sbi, "Magic Mismatch, valid(0x%x) - read(0x%x)",
+			  F2FS_SUPER_MAGIC, le32_to_cpu(raw_super->magic));
+>>>>>>> tarkzim
 		return -EINVAL;
 	}
 
@@ -4016,6 +4092,7 @@ try_onemore:
 		}
 	} else {
 		err = f2fs_recover_fsync_data(sbi, true);
+<<<<<<< ours
 		if (err > 0) {
 			if (!f2fs_readonly(sb)) {
 				f2fs_err(sbi,
@@ -4027,6 +4104,13 @@ try_onemore:
 					"drop all fsynced data");
 				err = 0;
 			}
+=======
+
+		if (!f2fs_readonly(sb) && err > 0) {
+			err = -EINVAL;
+			f2fs_err(sbi, "Need to recover fsync data");
+			goto free_meta;
+>>>>>>> tarkzim
 		}
 	}
 reset_checkpoint:
@@ -4070,7 +4154,10 @@ reset_checkpoint:
 	f2fs_update_time(sbi, CP_TIME);
 	f2fs_update_time(sbi, REQ_TIME);
 	clear_sbi_flag(sbi, SBI_CP_DISABLED_QUICK);
+<<<<<<< ours
 	cleancache_init_fs(sbi->sb);
+=======
+>>>>>>> tarkzim
 	return 0;
 
 sync_free_meta:
@@ -4130,7 +4217,10 @@ free_bio_info:
 
 #ifdef CONFIG_UNICODE
 	utf8_unload(sb->s_encoding);
+<<<<<<< ours
 	sb->s_encoding = NULL;
+=======
+>>>>>>> tarkzim
 #endif
 free_options:
 #ifdef CONFIG_QUOTA

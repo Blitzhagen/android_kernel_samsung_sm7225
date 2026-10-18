@@ -47,6 +47,7 @@ static bool nft_rbtree_interval_start(const struct nft_rbtree_elem *rbe)
 static int nft_rbtree_cmp(const struct nft_set *set,
 			  const struct nft_rbtree_elem *e1,
 			  const struct nft_rbtree_elem *e2)
+<<<<<<< ours
 {
 	return memcmp(nft_set_ext_key(&e1->ext), nft_set_ext_key(&e2->ext),
 		      set->klen);
@@ -54,6 +55,15 @@ static int nft_rbtree_cmp(const struct nft_set *set,
 
 static bool nft_rbtree_elem_expired(const struct nft_rbtree_elem *rbe)
 {
+=======
+{
+	return memcmp(nft_set_ext_key(&e1->ext), nft_set_ext_key(&e2->ext),
+		      set->klen);
+}
+
+static bool nft_rbtree_elem_expired(const struct nft_rbtree_elem *rbe)
+{
+>>>>>>> tarkzim
 	return nft_set_elem_expired(&rbe->ext) ||
 	       nft_set_elem_is_dead(&rbe->ext);
 }
@@ -309,6 +319,7 @@ static bool nft_rbtree_update_first(const struct nft_set *set,
 	return false;
 }
 
+<<<<<<< ours
 /* Only for anonymous sets which do not allow updates, all element are active. */
 static struct nft_rbtree_elem *nft_rbtree_prev_active(struct nft_rbtree_elem *rbe)
 {
@@ -321,11 +332,17 @@ static struct nft_rbtree_elem *nft_rbtree_prev_active(struct nft_rbtree_elem *rb
 	return rb_entry(node, struct nft_rbtree_elem, node);
 }
 
+=======
+>>>>>>> tarkzim
 static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			       struct nft_rbtree_elem *new,
 			       struct nft_set_ext **ext)
 {
+<<<<<<< ours
 	struct nft_rbtree_elem *rbe, *rbe_le = NULL, *rbe_ge = NULL, *rbe_prev;
+=======
+	struct nft_rbtree_elem *rbe, *rbe_le = NULL, *rbe_ge = NULL;
+>>>>>>> tarkzim
 	struct rb_node *node, *next, *parent, **p, *first = NULL;
 	struct nft_rbtree *priv = nft_set_priv(set);
 	u8 cur_genmask = nft_genmask_cur(net);
@@ -401,6 +418,7 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			if (!rbe_ge) {
 				rbe_ge = rbe;
 				continue;
+<<<<<<< ours
 			}
 
 			/* this is a closer more or equal element, update it. */
@@ -420,6 +438,27 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 				rbe_ge = rbe;
 				continue;
 			}
+=======
+			}
+
+			/* this is a closer more or equal element, update it. */
+			if (nft_rbtree_cmp(set, rbe_ge, new) != 0) {
+				rbe_ge = rbe;
+				continue;
+			}
+
+			/* element is equal to key value, make sure flags are
+			 * the same, an existing more or equal start element
+			 * must not be replaced by more or equal end element.
+			 */
+			if ((nft_rbtree_interval_start(new) &&
+			     nft_rbtree_interval_start(rbe_ge)) ||
+			    (nft_rbtree_interval_end(new) &&
+			     nft_rbtree_interval_end(rbe_ge))) {
+				rbe_ge = rbe;
+				continue;
+			}
+>>>>>>> tarkzim
 		} else if (d > 0) {
 			/* annotate element greater than the new element. */
 			rbe_ge = rbe;
@@ -452,6 +491,7 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 	/* - new start element with existing closest, less or equal key value
 	 *   being a start element: partial overlap, reported as -ENOTEMPTY.
 	 *   Anonymous sets allow for two consecutive start element since they
+<<<<<<< ours
 	 *   are constant, but validate that this new start element does not
 	 *   sit in between an existing start and end elements: partial overlap,
 	 *   reported as -ENOTEMPTY.
@@ -465,6 +505,13 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 		if (rbe_prev && nft_rbtree_interval_end(rbe_prev))
 			return -ENOTEMPTY;
 	}
+=======
+	 *   are constant, skip them to avoid bogus overlap reports.
+	 */
+	if (!nft_set_is_anonymous(set) && rbe_le &&
+	    nft_rbtree_interval_start(rbe_le) && nft_rbtree_interval_start(new))
+		return -ENOTEMPTY;
+>>>>>>> tarkzim
 
 	/* - new end element with existing closest, less or equal key value
 	 *   being a end element: partial overlap, reported as -ENOTEMPTY.

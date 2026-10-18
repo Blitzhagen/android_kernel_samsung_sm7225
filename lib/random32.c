@@ -547,11 +547,17 @@ static void prandom_reseed(struct timer_list *unused)
  * To avoid worrying about whether it's safe to delay that interrupt
  * long enough to seed all CPUs, just schedule an immediate timer event.
  */
+<<<<<<< ours
 static int prandom_timer_start(struct notifier_block *nb,
 			       unsigned long action, void *data)
 {
 	mod_timer(&seed_timer, jiffies);
 	return 0;
+=======
+static void prandom_timer_start(struct random_ready_callback *unused)
+{
+	mod_timer(&seed_timer, jiffies);
+>>>>>>> tarkzim
 }
 
 /*
@@ -560,6 +566,7 @@ static int prandom_timer_start(struct notifier_block *nb,
  */
 static int __init prandom_init_late(void)
 {
+<<<<<<< ours
 	static struct notifier_block random_ready = {
 		.notifier_call = prandom_timer_start
 	};
@@ -567,6 +574,15 @@ static int __init prandom_init_late(void)
 
 	if (ret == -EALREADY) {
 		prandom_timer_start(&random_ready, 0, NULL);
+=======
+	static struct random_ready_callback random_ready = {
+		.func = prandom_timer_start
+	};
+	int ret = add_random_ready_callback(&random_ready);
+
+	if (ret == -EALREADY) {
+		prandom_timer_start(&random_ready);
+>>>>>>> tarkzim
 		ret = 0;
 	}
 	return ret;

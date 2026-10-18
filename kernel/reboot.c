@@ -554,6 +554,7 @@ static int __init reboot_setup(char *str)
 			break;
 
 		case 's':
+<<<<<<< ours
 		{
 			int rc;
 
@@ -569,6 +570,15 @@ static int __init reboot_setup(char *str)
 			} else
 				*mode = REBOOT_SOFT;
 
+=======
+			if (isdigit(*(str+1)))
+				reboot_cpu = simple_strtoul(str+1, NULL, 0);
+			else if (str[1] == 'm' && str[2] == 'p' &&
+							isdigit(*(str+3)))
+				reboot_cpu = simple_strtoul(str+3, NULL, 0);
+			else
+				*mode = REBOOT_SOFT;
+>>>>>>> tarkzim
 			if (reboot_cpu >= num_possible_cpus()) {
 				pr_err("Ignoring the CPU number in reboot= option. "
 				       "CPU %d exceeds possible cpu number %d\n",
@@ -577,7 +587,10 @@ static int __init reboot_setup(char *str)
 				break;
 			}
 			break;
+<<<<<<< ours
 		}
+=======
+>>>>>>> tarkzim
 
 		case 'g':
 			*mode = REBOOT_GPIO;

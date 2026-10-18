@@ -104,12 +104,27 @@ static inline void bss_ref_get(struct cfg80211_registered_device *rdev,
 	lockdep_assert_held(&rdev->bss_lock);
 
 	bss->refcount++;
+<<<<<<< ours
 
 	if (bss->pub.hidden_beacon_bss)
 		bss_from_pub(bss->pub.hidden_beacon_bss)->refcount++;
 
 	if (bss->pub.transmitted_bss)
 		bss_from_pub(bss->pub.transmitted_bss)->refcount++;
+=======
+	if (bss->pub.hidden_beacon_bss) {
+		bss = container_of(bss->pub.hidden_beacon_bss,
+				   struct cfg80211_internal_bss,
+				   pub);
+		bss->refcount++;
+	}
+	if (bss->pub.transmitted_bss) {
+		bss = container_of(bss->pub.transmitted_bss,
+				   struct cfg80211_internal_bss,
+				   pub);
+		bss->refcount++;
+	}
+>>>>>>> tarkzim
 }
 
 static inline void bss_ref_put(struct cfg80211_registered_device *rdev,
@@ -318,6 +333,7 @@ cfg80211_add_nontrans_list(struct cfg80211_bss *trans_bss,
 			return 0;
 	}
 
+<<<<<<< ours
 	/*
 	 * This is a bit weird - it's not on the list, but already on another
 	 * one! The only way that could happen is if there's some BSSID/SSID
@@ -327,6 +343,8 @@ cfg80211_add_nontrans_list(struct cfg80211_bss *trans_bss,
 	if (!list_empty(&nontrans_bss->nontrans_list))
 		return -EINVAL;
 
+=======
+>>>>>>> tarkzim
 	/* add to the list */
 	list_add_tail(&nontrans_bss->nontrans_list, &trans_bss->nontrans_list);
 	return 0;
@@ -1161,9 +1179,12 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 		new->refcount = 1;
 		INIT_LIST_HEAD(&new->hidden_list);
 		INIT_LIST_HEAD(&new->pub.nontrans_list);
+<<<<<<< ours
 		/* we'll set this later if it was non-NULL */
 		new->pub.transmitted_bss = NULL;
 		
+=======
+>>>>>>> tarkzim
 
 		if (rcu_access_pointer(tmp->pub.proberesp_ies)) {
 			hidden = rb_find_bss(rdev, tmp, BSS_CMP_HIDE_ZLEN);
@@ -1392,6 +1413,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 		 */
 		if (cfg80211_add_nontrans_list(non_tx_data->tx_bss,
 					       &res->pub)) {
+<<<<<<< ours
 			if (__cfg80211_unlink_bss(rdev, res)) {
 				rdev->bss_generation++;
 				res = NULL;
@@ -1401,6 +1423,11 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 
 		if (!res)
 			return NULL;		
+=======
+			if (__cfg80211_unlink_bss(rdev, res))
+				rdev->bss_generation++;
+		}
+>>>>>>> tarkzim
 	}
 
 	trace_cfg80211_return_bss(&res->pub);
@@ -1521,6 +1548,7 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 	return res;
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_data);
+<<<<<<< ours
 
 static void
 cfg80211_parse_mbssid_frame_data(struct wiphy *wiphy,
@@ -1625,6 +1653,112 @@ cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 	}
 }
 
+=======
+
+static void
+cfg80211_parse_mbssid_frame_data(struct wiphy *wiphy,
+				 struct cfg80211_inform_bss *data,
+				 struct ieee80211_mgmt *mgmt, size_t len,
+				 struct cfg80211_non_tx_bss *non_tx_data,
+				 gfp_t gfp)
+{
+	enum cfg80211_bss_frame_type ftype;
+	const u8 *ie = mgmt->u.probe_resp.variable;
+	size_t ielen = len - offsetof(struct ieee80211_mgmt,
+				      u.probe_resp.variable);
+
+	ftype = ieee80211_is_beacon(mgmt->frame_control) ?
+		CFG80211_BSS_FTYPE_BEACON : CFG80211_BSS_FTYPE_PRESP;
+
+	cfg80211_parse_mbssid_data(wiphy, data, ftype, mgmt->bssid,
+				   le64_to_cpu(mgmt->u.probe_resp.timestamp),
+				   le16_to_cpu(mgmt->u.probe_resp.beacon_int),
+				   ie, ielen, non_tx_data, gfp);
+}
+
+static void
+cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
+				   struct cfg80211_bss *nontrans_bss,
+				   struct ieee80211_mgmt *mgmt, size_t len,
+				   gfp_t gfp)
+{
+	u8 *ie, *new_ie, *pos;
+	const u8 *nontrans_ssid, *trans_ssid, *mbssid;
+	size_t ielen = len - offsetof(struct ieee80211_mgmt,
+				      u.probe_resp.variable);
+	size_t new_ie_len;
+	struct cfg80211_bss_ies *new_ies;
+	const struct cfg80211_bss_ies *old;
+	u8 cpy_len;
+
+	ie = mgmt->u.probe_resp.variable;
+
+	new_ie_len = ielen;
+	trans_ssid = cfg80211_find_ie(WLAN_EID_SSID, ie, ielen);
+	if (!trans_ssid)
+		return;
+	new_ie_len -= trans_ssid[1];
+	mbssid = cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, ie, ielen);
+	if (!mbssid)
+		return;
+	new_ie_len -= mbssid[1];
+	rcu_read_lock();
+	nontrans_ssid = ieee80211_bss_get_ie(nontrans_bss, WLAN_EID_SSID);
+	if (!nontrans_ssid) {
+		rcu_read_unlock();
+		return;
+	}
+	new_ie_len += nontrans_ssid[1];
+	rcu_read_unlock();
+
+	/* generate new ie for nontrans BSS
+	 * 1. replace SSID with nontrans BSS' SSID
+	 * 2. skip MBSSID IE
+	 */
+	new_ie = kzalloc(new_ie_len, gfp);
+	if (!new_ie)
+		return;
+	new_ies = kzalloc(sizeof(*new_ies) + new_ie_len, gfp);
+	if (!new_ies) {
+		kfree(new_ie);
+		return;
+	}
+
+	pos = new_ie;
+
+	/* copy the nontransmitted SSID */
+	cpy_len = nontrans_ssid[1] + 2;
+	memcpy(pos, nontrans_ssid, cpy_len);
+	pos += cpy_len;
+	/* copy the IEs between SSID and MBSSID */
+	cpy_len = trans_ssid[1] + 2;
+	memcpy(pos, (trans_ssid + cpy_len), (mbssid - (trans_ssid + cpy_len)));
+	pos += (mbssid - (trans_ssid + cpy_len));
+	/* copy the IEs after MBSSID */
+	cpy_len = mbssid[1] + 2;
+	memcpy(pos, mbssid + cpy_len, ((ie + ielen) - (mbssid + cpy_len)));
+
+	/* update ie */
+	new_ies->len = new_ie_len;
+	new_ies->tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
+	new_ies->from_beacon = ieee80211_is_beacon(mgmt->frame_control);
+	memcpy(new_ies->data, new_ie, new_ie_len);
+	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		old = rcu_access_pointer(nontrans_bss->proberesp_ies);
+		rcu_assign_pointer(nontrans_bss->proberesp_ies, new_ies);
+		rcu_assign_pointer(nontrans_bss->ies, new_ies);
+		if (old)
+			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
+	} else {
+		old = rcu_access_pointer(nontrans_bss->beacon_ies);
+		rcu_assign_pointer(nontrans_bss->beacon_ies, new_ies);
+		rcu_assign_pointer(nontrans_bss->ies, new_ies);
+		if (old)
+			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
+	}
+}
+
+>>>>>>> tarkzim
 /* cfg80211_inform_bss_width_frame helper */
 static struct cfg80211_bss *
 cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,

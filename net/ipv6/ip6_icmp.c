@@ -44,7 +44,11 @@ void __icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		send(skb, type, code, info, NULL, parm);
 	rcu_read_unlock();
 }
+<<<<<<< ours
 EXPORT_SYMBOL(__icmpv6_send);
+=======
+EXPORT_SYMBOL(icmpv6_send);
+>>>>>>> tarkzim
 #endif
 
 #if IS_ENABLED(CONFIG_NF_NAT)
@@ -54,12 +58,19 @@ void icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 code, __u32 info)
 	struct inet6_skb_parm parm = { 0 };
 	struct sk_buff *cloned_skb = NULL;
 	enum ip_conntrack_info ctinfo;
+<<<<<<< ours
 	enum ip_conntrack_dir dir;
+=======
+>>>>>>> tarkzim
 	struct in6_addr orig_ip;
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb_in, &ctinfo);
+<<<<<<< ours
 	if (!ct || !(READ_ONCE(ct->status) & IPS_NAT_MASK)) {
+=======
+	if (!ct || !(ct->status & IPS_SRC_NAT)) {
+>>>>>>> tarkzim
 		__icmpv6_send(skb_in, type, code, info, &parm);
 		return;
 	}
@@ -74,8 +85,12 @@ void icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 code, __u32 info)
 		goto out;
 
 	orig_ip = ipv6_hdr(skb_in)->saddr;
+<<<<<<< ours
 	dir = CTINFO2DIR(ctinfo);
 	ipv6_hdr(skb_in)->saddr = ct->tuplehash[dir].tuple.src.u3.in6;
+=======
+	ipv6_hdr(skb_in)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
+>>>>>>> tarkzim
 	__icmpv6_send(skb_in, type, code, info, &parm);
 	ipv6_hdr(skb_in)->saddr = orig_ip;
 out:

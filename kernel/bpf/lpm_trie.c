@@ -25,7 +25,7 @@ struct lpm_trie_node {
 	struct lpm_trie_node __rcu	*child[2];
 	u32				prefixlen;
 	u32				flags;
-	u8				data[0];
+	u8				data[];
 };
 
 struct lpm_trie {
@@ -167,6 +167,22 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 {
 	u32 limit = min(node->prefixlen, key->prefixlen);
 	u32 prefixlen = 0, i = 0;
+<<<<<<< ours
+
+	BUILD_BUG_ON(offsetof(struct lpm_trie_node, data) % sizeof(u32));
+	BUILD_BUG_ON(offsetof(struct bpf_lpm_trie_key, data) % sizeof(u32));
+
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && defined(CONFIG_64BIT)
+
+	/* data_size >= 16 has very small probability.
+	 * We do not use a loop for optimal code generation.
+	 */
+	if (trie->data_size >= 8) {
+		u64 diff = be64_to_cpu(*(__be64 *)node->data ^
+				       *(__be64 *)key->data);
+
+		prefixlen = 64 - fls64(diff);
+=======
 
 	BUILD_BUG_ON(offsetof(struct lpm_trie_node, data) % sizeof(u32));
 	BUILD_BUG_ON(offsetof(struct bpf_lpm_trie_key, data) % sizeof(u32));
@@ -206,6 +222,33 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 				       *(__be16 *)&key->data[i]);
 
 		prefixlen += 16 - fls(diff);
+>>>>>>> tarkzim
+		if (prefixlen >= limit)
+			return limit;
+		if (diff)
+			return prefixlen;
+<<<<<<< ours
+		i = 8;
+	}
+#endif
+
+	while (trie->data_size >= i + 4) {
+		u32 diff = be32_to_cpu(*(__be32 *)&node->data[i] ^
+				       *(__be32 *)&key->data[i]);
+
+		prefixlen += 32 - fls(diff);
+		if (prefixlen >= limit)
+			return limit;
+		if (diff)
+			return prefixlen;
+		i += 4;
+	}
+
+	if (trie->data_size >= i + 2) {
+		u16 diff = be16_to_cpu(*(__be16 *)&node->data[i] ^
+				       *(__be16 *)&key->data[i]);
+
+		prefixlen += 16 - fls(diff);
 		if (prefixlen >= limit)
 			return limit;
 		if (diff)
@@ -213,6 +256,11 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 		i += 2;
 	}
 
+=======
+		i += 2;
+	}
+
+>>>>>>> tarkzim
 	if (trie->data_size >= i + 1) {
 		prefixlen += 8 - fls(node->data[i] ^ key->data[i]);
 
@@ -555,7 +603,7 @@ out:
 #define LPM_KEY_SIZE_MIN	LPM_KEY_SIZE(LPM_DATA_SIZE_MIN)
 
 #define LPM_CREATE_FLAG_MASK	(BPF_F_NO_PREALLOC | BPF_F_NUMA_NODE |	\
-				 BPF_F_RDONLY | BPF_F_WRONLY)
+				 BPF_F_ACCESS_MASK)
 
 static struct bpf_map *trie_alloc(union bpf_attr *attr)
 {
@@ -563,13 +611,14 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	u64 cost = sizeof(*trie), cost_per_node;
 	int ret;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 ||
 	    !(attr->map_flags & BPF_F_NO_PREALLOC) ||
 	    attr->map_flags & ~LPM_CREATE_FLAG_MASK ||
+	    !bpf_map_flags_access_ok(attr->map_flags) ||
 	    attr->key_size < LPM_KEY_SIZE_MIN ||
 	    attr->key_size > LPM_KEY_SIZE_MAX ||
 	    attr->value_size < LPM_VAL_SIZE_MIN ||
@@ -589,14 +638,8 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	cost_per_node = sizeof(struct lpm_trie_node) +
 			attr->value_size + trie->data_size;
 	cost += (u64) attr->max_entries * cost_per_node;
-	if (cost >= U32_MAX - PAGE_SIZE) {
-		ret = -E2BIG;
-		goto out_err;
-	}
 
-	trie->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-
-	ret = bpf_map_precharge_memlock(trie->map.pages);
+	ret = bpf_map_charge_init(&trie->map.memory, cost);
 	if (ret)
 		goto out_err;
 
@@ -613,11 +656,6 @@ static void trie_free(struct bpf_map *map)
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct lpm_trie_node __rcu **slot;
 	struct lpm_trie_node *node;
-
-	/* Wait for outstanding programs to complete
-	 * update/lookup/delete/get_next_key and free the trie.
-	 */
-	synchronize_rcu();
 
 	/* Always start at the root and walk down to a node that has no
 	 * children. Then free that node, nullify its reference in the parent
@@ -760,7 +798,9 @@ static int trie_check_btf(const struct bpf_map *map,
 	       -EINVAL : 0;
 }
 
+static int trie_map_btf_id;
 const struct bpf_map_ops trie_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = trie_alloc,
 	.map_free = trie_free,
 	.map_get_next_key = trie_get_next_key,
@@ -768,4 +808,6 @@ const struct bpf_map_ops trie_map_ops = {
 	.map_update_elem = trie_update_elem,
 	.map_delete_elem = trie_delete_elem,
 	.map_check_btf = trie_check_btf,
+	.map_btf_name = "lpm_trie",
+	.map_btf_id = &trie_map_btf_id,
 };

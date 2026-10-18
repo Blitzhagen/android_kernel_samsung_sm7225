@@ -136,6 +136,8 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	 * to the separate rate limits.
 	 */
 
+<<<<<<< ours
+=======
 	delta_ns = time - sg_policy->last_freq_update_time;
 	return delta_ns >= sg_policy->min_rate_limit_ns;
 }
@@ -163,8 +165,39 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 {
 	s64 delta_ns;
 
+>>>>>>> tarkzim
+	delta_ns = time - sg_policy->last_freq_update_time;
+	return delta_ns >= sg_policy->min_rate_limit_ns;
+}
+
+<<<<<<< ours
+static inline bool use_pelt(void)
+{
+#ifdef CONFIG_SCHED_WALT
+	return false;
+#else
+	return true;
+#endif
+}
+
+static inline bool conservative_pl(void)
+{
+#ifdef CONFIG_SCHED_WALT
+	return sysctl_sched_conservative_pl;
+#else
+	return false;
+#endif
+}
+
+static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
+				     unsigned int next_freq)
+{
+	s64 delta_ns;
+
 	delta_ns = time - sg_policy->last_freq_update_time;
 
+=======
+>>>>>>> tarkzim
 	if (next_freq > sg_policy->next_freq &&
 	    delta_ns < sg_policy->up_rate_delay_ns)
 			return true;
@@ -439,7 +472,37 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 		util += cpu_bw_dl(rq);
 
 	return min(max, util);
+<<<<<<< ours
+=======
 }
+
+#ifdef CONFIG_SCHED_WALT
+static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
+{
+	struct rq *rq = cpu_rq(sg_cpu->cpu);
+	unsigned long max = arch_scale_cpu_capacity(NULL, sg_cpu->cpu);
+
+	sg_cpu->max = max;
+	sg_cpu->bw_dl = cpu_bw_dl(rq);
+
+	return stune_util(sg_cpu->cpu, 0, &sg_cpu->walt_load);
+}
+#else
+static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
+{
+	struct rq *rq = cpu_rq(sg_cpu->cpu);
+
+	unsigned long util_cfs = cpu_util_cfs(rq);
+	unsigned long max = arch_scale_cpu_capacity(NULL, sg_cpu->cpu);
+
+	sg_cpu->max = max;
+	sg_cpu->bw_dl = cpu_bw_dl(rq);
+
+	return schedutil_cpu_util(sg_cpu->cpu, util_cfs, max,
+				  FREQUENCY_UTIL, NULL);
+>>>>>>> tarkzim
+}
+#endif
 
 #ifdef CONFIG_SCHED_WALT
 static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
@@ -650,6 +713,16 @@ static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu, struct sugov_p
 {
 	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_dl)
 		WRITE_ONCE(sg_policy->limits_changed, true);
+}
+
+static inline unsigned long target_util(struct sugov_policy *sg_policy,
+				  unsigned int freq)
+{
+	unsigned long util;
+
+	util = freq_to_util(sg_policy, freq);
+	util = mult_frac(util, TARGET_LOAD, 100);
+	return util;
 }
 
 static inline unsigned long target_util(struct sugov_policy *sg_policy,
@@ -907,6 +980,12 @@ static ssize_t down_rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->down_rate_limit_us);
+<<<<<<< ours
+}
+
+static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
+				      const char *buf, size_t count)
+=======
 }
 
 static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
@@ -931,6 +1010,7 @@ static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
 
 static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 					const char *buf, size_t count)
+>>>>>>> tarkzim
 {
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 	struct sugov_policy *sg_policy;
@@ -939,6 +1019,29 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
+<<<<<<< ours
+	tunables->up_rate_limit_us = rate_limit_us;
+
+	list_for_each_entry(sg_policy, &attr_set->policy_list, tunables_hook) {
+		sg_policy->up_rate_delay_ns = rate_limit_us * NSEC_PER_USEC;
+		update_min_rate_limit_ns(sg_policy);
+	}
+
+	return count;
+}
+
+static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
+					const char *buf, size_t count)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+	struct sugov_policy *sg_policy;
+	unsigned int rate_limit_us;
+
+	if (kstrtouint(buf, 10, &rate_limit_us))
+		return -EINVAL;
+
+=======
+>>>>>>> tarkzim
 	tunables->down_rate_limit_us = rate_limit_us;
 
 	list_for_each_entry(sg_policy, &attr_set->policy_list, tunables_hook) {
@@ -1033,6 +1136,7 @@ static ssize_t rtg_boost_freq_store(struct gov_attr_set *attr_set,
 
 	return count;
 }
+<<<<<<< ours
 
 static ssize_t pl_show(struct gov_attr_set *attr_set, char *buf)
 {
@@ -1041,6 +1145,16 @@ static ssize_t pl_show(struct gov_attr_set *attr_set, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->pl);
 }
 
+=======
+
+static ssize_t pl_show(struct gov_attr_set *attr_set, char *buf)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->pl);
+}
+
+>>>>>>> tarkzim
 static ssize_t pl_store(struct gov_attr_set *attr_set, const char *buf,
 				   size_t count)
 {
@@ -1195,6 +1309,7 @@ static void sugov_clear_global_tunables(void)
 	if (!have_governor_per_policy())
 		global_tunables = NULL;
 }
+<<<<<<< ours
 
 static void sugov_tunables_restore(struct cpufreq_policy *policy)
 {
@@ -1205,6 +1320,18 @@ static void sugov_tunables_restore(struct cpufreq_policy *policy)
 	if (!cached)
 		return;
 
+=======
+
+static void sugov_tunables_restore(struct cpufreq_policy *policy)
+{
+	struct sugov_policy *sg_policy = policy->governor_data;
+	struct sugov_tunables *tunables = sg_policy->tunables;
+	struct sugov_tunables *cached = per_cpu(cached_tunables, policy->cpu);
+
+	if (!cached)
+		return;
+
+>>>>>>> tarkzim
 	tunables->pl = cached->pl;
 	tunables->hispeed_load = cached->hispeed_load;
 	tunables->rtg_boost_freq = cached->rtg_boost_freq;

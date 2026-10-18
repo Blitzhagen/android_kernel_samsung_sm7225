@@ -44,7 +44,10 @@
 #include <linux/memory_hotplug.h>
 #include <linux/show_mem_notifier.h>
 #include <linux/psi.h>
+<<<<<<< ours
 #include <linux/cred.h>
+=======
+>>>>>>> tarkzim
 
 #include <asm/tlb.h>
 #include "internal.h"
@@ -57,7 +60,11 @@ int sysctl_panic_on_oom =
 IS_ENABLED(CONFIG_DEBUG_PANIC_ON_OOM) ? 2 : 0;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks = 1;
+<<<<<<< ours
 int sysctl_reap_mem_on_sigkill;
+=======
+int sysctl_reap_mem_on_sigkill = 1;
+>>>>>>> tarkzim
 
 static int panic_on_adj_zero;
 module_param(panic_on_adj_zero, int, 0644);
@@ -99,6 +106,10 @@ static unsigned long psi_emergency_jiffies = INITIAL_JIFFIES;
 static unsigned long psi_emerg_trigger_jiffies = INITIAL_JIFFIES;
 /* Prevents contention on the mutex_trylock in psi_emergency_jiffies */
 static DEFINE_MUTEX(ulmk_retry_lock);
+<<<<<<< ours
+=======
+
+>>>>>>> tarkzim
 static bool __maybe_unused ulmk_kill_possible(void)
 {
 	struct task_struct *tsk;
@@ -242,7 +253,10 @@ void ulmk_update_last_kill(void)
 	atomic64_set(&ulmk_kill_jiffies, jiffies);
 }
 #endif
+<<<<<<< ours
 
+=======
+>>>>>>> tarkzim
 
 #ifdef CONFIG_NUMA
 /**
@@ -898,8 +912,11 @@ static void __mark_oom_victim(struct task_struct *tsk)
  */
 static void mark_oom_victim(struct task_struct *tsk)
 {
+<<<<<<< ours
 	const struct cred *cred;
 
+=======
+>>>>>>> tarkzim
 	WARN_ON(oom_killer_disabled);
 	/* OOM killer might race with memcg OOM */
 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))

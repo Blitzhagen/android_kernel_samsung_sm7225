@@ -75,6 +75,7 @@ struct sco_pinfo {
 #define SCO_CONN_TIMEOUT	(HZ * 40)
 #define SCO_DISCONN_TIMEOUT	(HZ * 2)
 
+<<<<<<< ours
 static struct sock *sco_sock_hold(struct sco_conn *conn)
 {
 	if (!conn || !bt_sock_linked(&sco_sk_list, conn->sk))
@@ -87,6 +88,10 @@ static struct sock *sco_sock_hold(struct sco_conn *conn)
 
 static void sco_sock_timeout(struct work_struct *work)
 {
+=======
+static void sco_sock_timeout(struct work_struct *work)
+{
+>>>>>>> tarkzim
 	struct sco_conn *conn = container_of(work, struct sco_conn,
 					     timeout_work.work);
 	struct sock *sk;
@@ -96,7 +101,13 @@ static void sco_sock_timeout(struct work_struct *work)
 		sco_conn_unlock(conn);
 		return;
 	}
+<<<<<<< ours
 	sk = sco_sock_hold(conn);
+=======
+	sk = conn->sk;
+	if (sk)
+		sock_hold(sk);
+>>>>>>> tarkzim
 	sco_conn_unlock(conn);
 
 	if (!sk)

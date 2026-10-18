@@ -1613,7 +1613,44 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
 			    -stat.nr_lazyfree_fail);
 	return nr_reclaimed;
+<<<<<<< ours
 }
+
+#ifdef CONFIG_PROCESS_RECLAIM
+unsigned long reclaim_pages_from_list(struct list_head *page_list,
+					struct vm_area_struct *vma)
+{
+	struct scan_control sc = {
+		.gfp_mask = GFP_KERNEL,
+		.priority = DEF_PRIORITY,
+		.may_writepage = 1,
+		.may_unmap = 1,
+		.may_swap = 1,
+		.target_vma = vma,
+	};
+
+	unsigned long nr_reclaimed;
+	struct page *page;
+
+	list_for_each_entry(page, page_list, lru)
+		ClearPageActive(page);
+
+	nr_reclaimed = shrink_page_list(page_list, NULL, &sc,
+			TTU_IGNORE_ACCESS, NULL, true);
+
+	while (!list_empty(page_list)) {
+		page = lru_to_page(page_list);
+		list_del(&page->lru);
+		dec_node_page_state(page, NR_ISOLATED_ANON +
+				page_is_file_cache(page));
+		putback_lru_page(page);
+	}
+
+	return nr_reclaimed;
+=======
+>>>>>>> tarkzim
+}
+#endif
 
 #ifdef CONFIG_PROCESS_RECLAIM
 unsigned long reclaim_pages_from_list(struct list_head *page_list,
@@ -2437,6 +2474,7 @@ static bool am_app_launch = false;
 #define MEM_BOOST_MAX_TIME (5 * HZ) /* 5 sec */
 
 #ifdef CONFIG_SYSFS
+<<<<<<< ours
 #define MB_TO_PAGES(x) ((x) << (20 - PAGE_SHIFT))
 #define GB_TO_PAGES(x) ((x) << (30 - PAGE_SHIFT))
 static unsigned long low_threshold;
@@ -2470,6 +2508,26 @@ inline bool need_memory_boosting(void)
 		return true;
 	else
 		return false;
+=======
+inline bool need_memory_boosting(void)
+{
+	bool ret;
+
+	if (time_after(jiffies, last_mode_change + MEM_BOOST_MAX_TIME))
+		mem_boost_mode = NO_BOOST;
+
+	switch (mem_boost_mode) {
+	case BOOST_HIGH:
+		ret = true;
+		break;
+	case BOOST_MID:
+	case NO_BOOST:
+	default:
+		ret = false;
+		break;
+	}
+	return ret;
+>>>>>>> tarkzim
 }
 
 static ssize_t mem_boost_mode_show(struct kobject *kobj,
@@ -2674,8 +2732,12 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		}
 	}
 
+<<<<<<< ours
 	if (current_is_kswapd() && need_memory_boosting() &&
 	    !is_too_low_file()) {
+=======
+	if (current_is_kswapd() && need_memory_boosting()) {
+>>>>>>> tarkzim
 		scan_balance = SCAN_FILE;
 		goto out;
 	}

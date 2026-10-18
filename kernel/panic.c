@@ -201,6 +201,10 @@ void panic(const char *fmt, ...)
 	int old_cpu, this_cpu;
 	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
 
+<<<<<<< ours
+=======
+	sec_debug_store_extc_idx(false);
+>>>>>>> tarkzim
 	if (panic_on_warn) {
 		/*
 		 * This thread may hit another WARN() in the panic path.
@@ -211,7 +215,10 @@ void panic(const char *fmt, ...)
 		panic_on_warn = 0;
 	}
 
+<<<<<<< ours
 	sec_debug_store_extc_idx(false);
+=======
+>>>>>>> tarkzim
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
 	 * from deadlocking the first cpu that invokes the panic, since

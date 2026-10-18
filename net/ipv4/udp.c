@@ -110,15 +110,23 @@
 #include <net/xfrm.h>
 #include <trace/events/udp.h>
 #include <linux/static_key.h>
+#include <linux/btf_ids.h>
 #include <trace/events/skb.h>
 #include <net/busy_poll.h>
 #include "udp_impl.h"
 #include <net/sock_reuseport.h>
 #include <net/addrconf.h>
 #include <net/udp_tunnel.h>
+<<<<<<< ours
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 #include <net/ncm.h>
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+
+#ifdef CONFIG_KNOX_NCM
+#include <net/ncm.h>
+#endif
+>>>>>>> tarkzim
 
 struct udp_table udp_table __read_mostly;
 EXPORT_SYMBOL(udp_table);
@@ -436,7 +444,11 @@ static u32 udp_ehashfn(const struct net *net, const __be32 laddr,
 			      udp_ehash_secret + net_hash_mix(net));
 }
 
+<<<<<<< ours
 static inline struct sock *lookup_reuseport(struct net *net, struct sock *sk,
+=======
+struct sock *lookup_reuseport(struct net *net, struct sock *sk,
+>>>>>>> tarkzim
 					    struct sk_buff *skb,
 					    __be32 saddr, __be16 sport,
 					    __be32 daddr, unsigned short hnum)
@@ -2267,6 +2279,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	struct rtable *rt = skb_rtable(skb);
 	__be32 saddr, daddr;
 	struct net *net = dev_net(skb->dev);
+	bool refcounted;
 
 	/*
 	 *  Validate the packet.
@@ -2292,21 +2305,33 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (udp4_csum_init(skb, uh, proto))
 		goto csum_error;
 
-	sk = skb_steal_sock(skb);
+	sk = skb_steal_sock(skb, &refcounted);
 	if (sk) {
 		struct dst_entry *dst = skb_dst(skb);
 		int ret;
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+		#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 		struct nf_conn *ct = NULL;
 		enum ip_conntrack_info ctinfo;
 		struct nf_conntrack_tuple *tuple = NULL;
 		char srcaddr[INET6_ADDRSTRLEN_NAP];
 		char dstaddr[INET6_ADDRSTRLEN_NAP];
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 
 		if (unlikely(rcu_dereference(sk->sk_rx_dst) != dst))
 			udp_sk_rx_dst_set(sk, dst);
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+		#endif
+
+		if (unlikely(rcu_dereference(sk->sk_rx_dst) != dst))
+			udp_sk_rx_dst_set(sk, dst);
+		#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 		/* function to handle open flows with incoming udp packets */
 		if (check_ncm_flag()) {
 			if ( (sk) && (sk->sk_protocol == IPPROTO_UDP) ) {
@@ -2353,10 +2378,15 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 				}
 			}
 		}
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+		#endif
+>>>>>>> tarkzim
 
 		ret = udp_unicast_rcv_skb(sk, skb, uh);
-		sock_put(sk);
+		if (refcounted)
+			sock_put(sk);
 		return ret;
 	}
 
@@ -2366,7 +2396,11 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 
 	sk = __udp4_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk) {
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+		#ifdef CONFIG_KNOX_NCM
+>>>>>>> tarkzim
 		struct nf_conn *ct = NULL;
 		enum ip_conntrack_info ctinfo;
 		struct nf_conntrack_tuple *tuple = NULL;
@@ -2418,7 +2452,11 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 				}
 			}
 		}
+<<<<<<< ours
 		// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+		#endif
+>>>>>>> tarkzim
 		return udp_unicast_rcv_skb(sk, skb, uh);
 	}
 
@@ -3245,7 +3283,11 @@ static struct pernet_operations __net_initdata udp_sysctl_ops = {
 DEFINE_BPF_ITER_FUNC(udp, struct bpf_iter_meta *meta,
 		     struct udp_sock *udp_sk, uid_t uid, int bucket)
 
+<<<<<<< ours
 static int bpf_iter_init_udp(void *priv_data)
+=======
+static int bpf_iter_init_udp(void *priv_data, struct bpf_iter_aux_info *aux)
+>>>>>>> tarkzim
 {
 	struct udp_iter_state *st = priv_data;
 	struct udp_seq_afinfo *afinfo;
@@ -3258,7 +3300,11 @@ static int bpf_iter_init_udp(void *priv_data)
 	afinfo->family = AF_UNSPEC;
 	afinfo->udp_table = &udp_table;
 	st->bpf_seq_afinfo = afinfo;
+<<<<<<< ours
 	ret = bpf_iter_init_seq_net(priv_data);
+=======
+	ret = bpf_iter_init_seq_net(priv_data, aux);
+>>>>>>> tarkzim
 	if (ret)
 		kfree(afinfo);
 	return ret;
@@ -3272,21 +3318,40 @@ static void bpf_iter_fini_udp(void *priv_data)
 	bpf_iter_fini_seq_net(priv_data);
 }
 
+<<<<<<< ours
 static const struct bpf_iter_reg udp_reg_info = {
 	.target			= "udp",
+=======
+static const struct bpf_iter_seq_info udp_seq_info = {
+>>>>>>> tarkzim
 	.seq_ops		= &bpf_iter_udp_seq_ops,
 	.init_seq_private	= bpf_iter_init_udp,
 	.fini_seq_private	= bpf_iter_fini_udp,
 	.seq_priv_size		= sizeof(struct udp_iter_state),
+<<<<<<< ours
+=======
+};
+
+static struct bpf_iter_reg udp_reg_info = {
+	.target			= "udp",
+>>>>>>> tarkzim
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__udp, udp_sk),
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
+<<<<<<< ours
+=======
+	.seq_info		= &udp_seq_info,
+>>>>>>> tarkzim
 };
 
 static void __init bpf_iter_register(void)
 {
+<<<<<<< ours
+=======
+	udp_reg_info.ctx_arg_info[0].btf_id = btf_sock_ids[BTF_SOCK_TYPE_UDP];
+>>>>>>> tarkzim
 	if (bpf_iter_reg_target(&udp_reg_info))
 		pr_warn("Warning: could not register bpf iterator udp\n");
 }

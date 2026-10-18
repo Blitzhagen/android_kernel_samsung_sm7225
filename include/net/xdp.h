@@ -65,6 +65,10 @@ struct xdp_rxq_info {
 	struct xdp_mem_info mem;
 } ____cacheline_aligned; /* perf critical, avoid false-sharing */
 
+struct xdp_txq_info {
+	struct net_device *dev;
+};
+
 struct xdp_buff {
 	void *data;
 	void *data_end;
@@ -72,6 +76,10 @@ struct xdp_buff {
 	void *data_hard_start;
 	unsigned long handle;
 	struct xdp_rxq_info *rxq;
+<<<<<<< ours
+=======
+	struct xdp_txq_info *txq;
+>>>>>>> tarkzim
 	u32 frame_sz; /* frame size to deduce data_hard_end/reserved tailroom*/
 };
 
@@ -98,6 +106,12 @@ struct xdp_frame {
 	struct net_device *dev_rx; /* used by cpumap */
 };
 
+struct xdp_cpumap_stats {
+	unsigned int redirect;
+	unsigned int pass;
+	unsigned int drop;
+};
+
 /* Clear kernel pointers in xdp_frame */
 static inline void xdp_scrub_frame(struct xdp_frame *frame)
 {
@@ -109,9 +123,50 @@ static inline void xdp_scrub_frame(struct xdp_frame *frame)
 void xdp_warn(const char *msg, const char *func, const int line);
 #define XDP_WARN(msg) xdp_warn(msg, __func__, __LINE__)
 
+<<<<<<< ours
+=======
+static inline
+void xdp_convert_frame_to_buff(struct xdp_frame *frame, struct xdp_buff *xdp)
+{
+	xdp->data_hard_start = frame->data - frame->headroom - sizeof(*frame);
+	xdp->data = frame->data;
+	xdp->data_end = frame->data + frame->len;
+	xdp->data_meta = frame->data - frame->metasize;
+	xdp->frame_sz = frame->frame_sz;
+}
+
+static inline
+int xdp_update_frame_from_buff(struct xdp_buff *xdp,
+			       struct xdp_frame *xdp_frame)
+{
+	int metasize, headroom;
+
+	/* Assure headroom is available for storing info */
+	headroom = xdp->data - xdp->data_hard_start;
+	metasize = xdp->data - xdp->data_meta;
+	metasize = metasize > 0 ? metasize : 0;
+	if (unlikely((headroom - metasize) < sizeof(*xdp_frame)))
+		return -ENOSPC;
+
+	/* Catch if driver didn't reserve tailroom for skb_shared_info */
+	if (unlikely(xdp->data_end > xdp_data_hard_end(xdp))) {
+		XDP_WARN("Driver BUG: missing reserved tailroom");
+		return -ENOSPC;
+	}
+
+	xdp_frame->data = xdp->data;
+	xdp_frame->len  = xdp->data_end - xdp->data;
+	xdp_frame->headroom = headroom - sizeof(*xdp_frame);
+	xdp_frame->metasize = metasize;
+	xdp_frame->frame_sz = xdp->frame_sz;
+
+	return 0;
+}
+
+>>>>>>> tarkzim
 /* Convert xdp_buff to xdp_frame */
 static inline
-struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
+struct xdp_frame *xdp_convert_buff_to_frame(struct xdp_buff *xdp)
 {
 	struct xdp_frame *xdp_frame;
 	int metasize;
@@ -203,5 +258,7 @@ bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
 			     struct netdev_bpf *bpf);
 void xdp_attachment_setup(struct xdp_attachment_info *info,
 			  struct netdev_bpf *bpf);
+
+#define DEV_MAP_BULK_SIZE 16
 
 #endif /* __LINUX_NET_XDP_H__ */

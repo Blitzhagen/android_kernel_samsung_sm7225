@@ -36,7 +36,9 @@ static ssize_t fuse_conn_abort_write(struct file *file, const char __user *buf,
 {
 	struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 	if (fc) {
-		fuse_abort_conn(fc, true);
+		if (fc->abort_err)
+			fc->aborted = true;
+		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
 	}
 	return count;
@@ -126,12 +128,20 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 	if (ret > 0) {
 		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 		if (fc) {
+<<<<<<< ours
 			spin_lock(&fc->lock);
+=======
+			spin_lock(&fc->bg_lock);
+>>>>>>> tarkzim
 			fc->max_background = val;
 			fc->blocked = fc->num_background >= fc->max_background;
 			if (!fc->blocked)
 				wake_up(&fc->blocked_waitq);
+<<<<<<< ours
 			spin_unlock(&fc->lock);
+=======
+			spin_unlock(&fc->bg_lock);
+>>>>>>> tarkzim
 			fuse_conn_put(fc);
 		}
 	}
@@ -162,6 +172,10 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 {
 	unsigned uninitialized_var(val);
 	struct fuse_conn *fc;
+<<<<<<< ours
+=======
+	struct fuse_mount *fm;
+>>>>>>> tarkzim
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
@@ -172,6 +186,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	if (!fc)
 		goto out;
 
+<<<<<<< ours
 	spin_lock(&fc->lock);
 	fc->congestion_threshold = val;
 	if (fc->sb) {
@@ -184,6 +199,29 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 		}
 	}
 	spin_unlock(&fc->lock);
+=======
+	down_read(&fc->killsb);
+	spin_lock(&fc->bg_lock);
+	fc->congestion_threshold = val;
+
+	/*
+	 * Get any fuse_mount belonging to this fuse_conn; s_bdi is
+	 * shared between all of them
+	 */
+
+	if (!list_empty(&fc->mounts)) {
+		fm = list_first_entry(&fc->mounts, struct fuse_mount, fc_entry);
+		if (fc->num_background < fc->congestion_threshold) {
+			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
+			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
+		} else {
+			set_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
+			set_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
+		}
+	}
+	spin_unlock(&fc->bg_lock);
+	up_read(&fc->killsb);
+>>>>>>> tarkzim
 	fuse_conn_put(fc);
 out:
 	return ret;
@@ -316,7 +354,11 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
+<<<<<<< ours
 static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
+=======
+static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fsc)
+>>>>>>> tarkzim
 {
 	static const struct tree_descr empty_descr = {""};
 	struct fuse_conn *fc;
@@ -342,18 +384,30 @@ static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
 	return 0;
 }
 
+<<<<<<< ours
 static int fuse_ctl_get_tree(struct fs_context *fc)
 {
 	return vfs_get_super(fc, vfs_get_single_super, fuse_ctl_fill_super);
+=======
+static int fuse_ctl_get_tree(struct fs_context *fsc)
+{
+	return get_tree_single(fsc, fuse_ctl_fill_super);
+>>>>>>> tarkzim
 }
 
 static const struct fs_context_operations fuse_ctl_context_ops = {
 	.get_tree	= fuse_ctl_get_tree,
 };
 
+<<<<<<< ours
 static int fuse_ctl_init_fs_context(struct fs_context *fc)
 {
 	fc->ops = &fuse_ctl_context_ops;
+=======
+static int fuse_ctl_init_fs_context(struct fs_context *fsc)
+{
+	fsc->ops = &fuse_ctl_context_ops;
+>>>>>>> tarkzim
 	return 0;
 }
 
@@ -383,7 +437,7 @@ int __init fuse_ctl_init(void)
 	return register_filesystem(&fuse_ctl_fs_type);
 }
 
-void __exit fuse_ctl_cleanup(void)
+void fuse_ctl_cleanup(void)
 {
 	unregister_filesystem(&fuse_ctl_fs_type);
 }

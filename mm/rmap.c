@@ -404,7 +404,10 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 	}
 	if (vma->anon_vma)
 		vma->anon_vma->num_active_vmas--;
+<<<<<<< ours
 
+=======
+>>>>>>> tarkzim
 	unlock_anon_vma_root(root);
 
 	/*
@@ -1949,8 +1952,11 @@ static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 		}
 
 		i_mmap_lock_read(mapping);
+<<<<<<< ours
 	}
 lookup:
+=======
+>>>>>>> tarkzim
 
 	if (rwc->target_vma) {
 		address = vma_address(page, rwc->target_vma);

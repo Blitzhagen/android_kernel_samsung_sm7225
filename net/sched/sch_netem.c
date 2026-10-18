@@ -704,11 +704,15 @@ deliver:
 				if (err != NET_XMIT_SUCCESS) {
 					if (net_xmit_drop_count(err))
 						qdisc_qstats_drop(sch);
+<<<<<<< ours
 					sch->qstats.backlog -= pkt_len;
 					sch->q.qlen--;
 					qdisc_tree_reduce_backlog(sch, 1, pkt_len);
 					sch->qstats.backlog -= pkt_len;
 					sch->q.qlen--;
+=======
+					qdisc_tree_reduce_backlog(sch, 1, pkt_len);
+>>>>>>> tarkzim
 				}
 				goto tfifo_dequeue;
 			}
@@ -779,6 +783,7 @@ static int get_dist_table(struct disttable **tbl, const struct nlattr *attr)
 		d->table[i] = data[i];
 
 	*tbl = d;
+<<<<<<< ours
 	return 0;
 }
 
@@ -802,6 +807,8 @@ static int validate_slot(const struct nlattr *attr, struct netlink_ext_ack *exta
 		NL_SET_ERR_MSG_ATTR(extack, attr, "negative slot limit");
 		return -EINVAL;
 	}
+=======
+>>>>>>> tarkzim
 	return 0;
 }
 
@@ -1019,12 +1026,15 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 			goto table_free;
 	}
 
+<<<<<<< ours
 	if (tb[TCA_NETEM_SLOT]) {
 		ret = validate_slot(tb[TCA_NETEM_SLOT], extack);
 		if (ret)
 			goto table_free;
 	}
 
+=======
+>>>>>>> tarkzim
 	sch_tree_lock(sch);
 	/* backup q->clg and q->loss_model */
 	old_clg = q->clg;

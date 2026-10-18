@@ -1870,7 +1870,10 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 		    !(ac->ac_flags & EXT4_MB_HINT_GOAL_ONLY))
 			return 0;
 		return err;
+<<<<<<< ours
 	}
+=======
+>>>>>>> tarkzim
 
 	ext4_lock_group(ac->ac_sb, group);
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(e4b->bd_info)))
@@ -5259,6 +5262,7 @@ __acquires(bitlock)
 static ext4_grpblk_t ext4_last_grp_cluster(struct super_block *sb,
 					   ext4_group_t grp)
 {
+<<<<<<< ours
 	unsigned long nr_clusters_in_group;
 
 	if (grp < (ext4_get_groups_count(sb) - 1))
@@ -5269,6 +5273,13 @@ static ext4_grpblk_t ext4_last_grp_cluster(struct super_block *sb,
 				       >> EXT4_CLUSTER_BITS(sb);
 
 	return nr_clusters_in_group - 1;
+=======
+	if (grp < ext4_get_groups_count(sb))
+		return EXT4_CLUSTERS_PER_GROUP(sb) - 1;
+	return (ext4_blocks_count(EXT4_SB(sb)->s_es) -
+		ext4_group_first_block_no(sb, grp) - 1) >>
+					EXT4_CLUSTER_BITS(sb);
+>>>>>>> tarkzim
 }
 
 static bool ext4_trim_interrupted(void)

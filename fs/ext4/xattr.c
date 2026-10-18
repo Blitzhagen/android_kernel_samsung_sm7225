@@ -1058,7 +1058,11 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 				       int ref_change)
 {
 	struct ext4_iloc iloc;
+<<<<<<< ours
 	u64 ref_count;
+=======
+	s64 ref_count;
+>>>>>>> tarkzim
 	int ret;
 
 	inode_lock_nested(ea_inode, I_MUTEX_XATTR);
@@ -2292,7 +2296,13 @@ int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 	struct ext4_xattr_search *s = &is->s;
 	int error;
 
+<<<<<<< ours
 	if (!EXT4_INODE_HAS_XATTR_SPACE(inode))
+=======
+	/* @fs.sec -- ec294112f1af9d4be72e6292e7e994e522fccbeb -- */
+	if (!EXT4_INODE_HAS_XATTR_SPACE(inode) ||
+			(void *) EXT4_XATTR_NEXT(s->first) >= s->end)
+>>>>>>> tarkzim
 		return -ENOSPC;
 
 	error = ext4_xattr_set_entry(i, s, handle, inode, false /* is_block */);

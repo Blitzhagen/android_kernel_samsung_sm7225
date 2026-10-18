@@ -218,7 +218,7 @@ void *ext4_kvmalloc(size_t size, gfp_t flags)
 
 	ret = kmalloc(size, flags | __GFP_NOWARN);
 	if (!ret)
-		ret = __vmalloc(size, flags, PAGE_KERNEL);
+		ret = __vmalloc(size, flags);
 	return ret;
 }
 
@@ -228,7 +228,7 @@ void *ext4_kvzalloc(size_t size, gfp_t flags)
 
 	ret = kzalloc(size, flags | __GFP_NOWARN);
 	if (!ret)
-		ret = __vmalloc(size, flags | __GFP_ZERO, PAGE_KERNEL);
+		ret = __vmalloc(size, flags | __GFP_ZERO);
 	return ret;
 }
 
@@ -472,7 +472,11 @@ static void ext4_handle_error(struct super_block *sb, char *buf)
 	if (test_opt(sb, WARN_ON_ERROR))
 		WARN_ON_ONCE(1);
 
+<<<<<<< ours
 	if (sb_rdonly(sb) || ignore_fs_panic)
+=======
+	if (sb_rdonly(sb) || test_opt(sb, ERRORS_CONT))
+>>>>>>> tarkzim
 		return;
 
 	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
@@ -1445,6 +1449,7 @@ static inline int ext4_set_knox_context(struct inode *inode,
 
 static const union fscrypt_context *
 ext4_get_dummy_context(struct super_block *sb)
+<<<<<<< ours
 {
 	return EXT4_SB(sb)->s_dummy_enc_ctx.ctx;
 }
@@ -1457,6 +1462,20 @@ static bool ext4_has_stable_inodes(struct super_block *sb)
 static void ext4_get_ino_and_lblk_bits(struct super_block *sb,
 				       int *ino_bits_ret, int *lblk_bits_ret)
 {
+=======
+{
+	return EXT4_SB(sb)->s_dummy_enc_ctx.ctx;
+}
+
+static bool ext4_has_stable_inodes(struct super_block *sb)
+{
+	return ext4_has_feature_stable_inodes(sb);
+}
+
+static void ext4_get_ino_and_lblk_bits(struct super_block *sb,
+				       int *ino_bits_ret, int *lblk_bits_ret)
+{
+>>>>>>> tarkzim
 	*ino_bits_ret = 8 * sizeof(EXT4_SB(sb)->s_es->s_inodes_count);
 	*lblk_bits_ret = 8 * sizeof(ext4_lblk_t);
 }

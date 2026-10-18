@@ -7363,11 +7363,19 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 	struct nftables_pernet *nft_net = net_generic(net, nf_tables_net_id);
 	unsigned int gc_seq;
 	int ret;
+<<<<<<< ours
 
 	gc_seq = nft_gc_seq_begin(nft_net);
 	ret = __nf_tables_abort(net);
 	nft_gc_seq_end(nft_net, gc_seq);
 
+=======
+
+	gc_seq = nft_gc_seq_begin(nft_net);
+	ret = __nf_tables_abort(net);
+	nft_gc_seq_end(nft_net, gc_seq);
+
+>>>>>>> tarkzim
 	mutex_unlock(&nft_net->commit_mutex);
 
 	return ret;
@@ -7826,6 +7834,10 @@ static void __nft_release_basechain_now(struct nft_ctx *ctx)
 
 	list_for_each_entry_safe(rule, nr, &ctx->chain->rules, list) {
 		list_del(&rule->list);
+<<<<<<< ours
+=======
+		nft_use_dec(&ctx->chain->use);
+>>>>>>> tarkzim
 		nf_tables_rule_release(ctx, rule);
 	}
 	nf_tables_chain_destroy(ctx->chain);
@@ -7844,11 +7856,15 @@ int __nft_release_basechain(struct nft_ctx *ctx)
 
 	nft_chain_del(ctx->chain);
 	nft_use_dec(&ctx->table->use);
+<<<<<<< ours
 
 	if (!maybe_get_net(ctx->net)) {
 		__nft_release_basechain_now(ctx);
 		return 0;
 	}
+=======
+	nf_tables_chain_destroy(ctx);
+>>>>>>> tarkzim
 
 	/* wait for ruleset dumps to complete.  Owning chain is no longer in
 	 * lists, so new dumps can't find any of these rules anymore.
@@ -7908,9 +7924,16 @@ static void __nft_release_table(struct net *net, struct nft_table *table)
 		nft_obj_destroy(&ctx, obj);
 	}
 	list_for_each_entry_safe(chain, nc, &table->chains, list) {
+<<<<<<< ours
 		nft_chain_del(chain);
 		nft_use_dec(&table->use);
 		nf_tables_chain_destroy(chain);
+=======
+		ctx.chain = chain;
+		nft_chain_del(chain);
+		nft_use_dec(&table->use);
+		nf_tables_chain_destroy(&ctx);
+>>>>>>> tarkzim
 	}
 	list_del(&table->list);
 	nf_tables_table_destroy(&ctx);
