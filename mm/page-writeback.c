@@ -443,11 +443,7 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	else
 		thresh = (ratio * available_memory) / PAGE_SIZE;
 
-<<<<<<< ours
 #if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && (CONFIG_MAX_DIRTY_THRESH_PAGES > 0)
-=======
-#if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && CONFIG_MAX_DIRTY_THRESH_PAGES > 0
->>>>>>> tarkzim
 	if (!bytes && thresh > CONFIG_MAX_DIRTY_THRESH_PAGES) {
 		thresh = CONFIG_MAX_DIRTY_THRESH_PAGES;
 		/* reduce available memory not to make bg_thresh too high */
@@ -520,11 +516,7 @@ static unsigned long node_dirty_limit(struct pglist_data *pgdat)
 	else
 		dirty = vm_dirty_ratio * node_memory / 100;
 
-<<<<<<< ours
 #if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && (CONFIG_MAX_DIRTY_THRESH_PAGES > 0)
-=======
-#if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && CONFIG_MAX_DIRTY_THRESH_PAGES > 0
->>>>>>> tarkzim
 	if (!vm_dirty_bytes && dirty > CONFIG_MAX_DIRTY_THRESH_PAGES)
 		dirty = CONFIG_MAX_DIRTY_THRESH_PAGES;
 #endif

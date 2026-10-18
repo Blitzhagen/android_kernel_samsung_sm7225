@@ -718,7 +718,6 @@ static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 	return found;
 }
 
-<<<<<<< ours
 static bool __inet_csk_reqsk_queue_drop(struct sock *sk,
 					struct request_sock *req,
 					bool from_timer)
@@ -728,17 +727,10 @@ static bool __inet_csk_reqsk_queue_drop(struct sock *sk,
 	if (!from_timer && timer_delete_sync(&req->rsk_timer))
 		reqsk_put(req);
 
-=======
-bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
-{
-	bool unlinked = reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req);
-
->>>>>>> tarkzim
 	if (unlinked) {
 		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
 		reqsk_put(req);
 	}
-<<<<<<< ours
 
 	return unlinked;
 }
@@ -746,9 +738,6 @@ bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
 bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
 {
 	return __inet_csk_reqsk_queue_drop(sk, req, false);
-=======
-	return unlinked;
->>>>>>> tarkzim
 }
 EXPORT_SYMBOL(inet_csk_reqsk_queue_drop);
 

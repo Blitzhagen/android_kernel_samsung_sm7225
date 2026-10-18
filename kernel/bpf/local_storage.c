@@ -7,12 +7,7 @@
 #include <linux/mm.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
-<<<<<<< ours
-
-DEFINE_PER_CPU(struct bpf_cgroup_storage*, bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
-=======
 #include <uapi/linux/btf.h>
->>>>>>> tarkzim
 
 #ifdef CONFIG_CGROUP_BPF
 
@@ -186,18 +181,10 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
 	return 0;
 }
 
-<<<<<<< ours
-int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *_key,
-				   void *value)
-{
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
-=======
 int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *key,
 				   void *value)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
->>>>>>> tarkzim
 	struct bpf_cgroup_storage *storage;
 	int cpu, off = 0;
 	u32 size;
@@ -223,18 +210,10 @@ int bpf_percpu_cgroup_storage_copy(struct bpf_map *_map, void *key,
 	return 0;
 }
 
-<<<<<<< ours
-int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *_key,
-				     void *value, u64 map_flags)
-{
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	struct bpf_cgroup_storage_key *key = _key;
-=======
 int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *key,
 				     void *value, u64 map_flags)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
->>>>>>> tarkzim
 	struct bpf_cgroup_storage *storage;
 	int cpu, off = 0;
 	u32 size;
@@ -265,11 +244,7 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *key,
 	return 0;
 }
 
-<<<<<<< ours
-static int cgroup_storage_get_next_key(struct bpf_map *_map, void *_key,
-=======
 static int cgroup_storage_get_next_key(struct bpf_map *_map, void *key,
->>>>>>> tarkzim
 				       void *_next_key)
 {
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
@@ -285,13 +260,8 @@ static int cgroup_storage_get_next_key(struct bpf_map *_map, void *key,
 		if (!storage)
 			goto enoent;
 
-<<<<<<< ours
-		storage = list_next_entry(storage, list);
-		if (list_entry_is_head(storage, &map->list, list))
-=======
 		storage = list_next_entry(storage, list_map);
 		if (!storage)
->>>>>>> tarkzim
 			goto enoent;
 	} else {
 		storage = list_first_entry(&map->list,
@@ -318,11 +288,7 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_cgroup_storage_map *map;
-<<<<<<< ours
-	u32 pages;
-=======
 	struct bpf_map_memory mem;
->>>>>>> tarkzim
 	int ret;
 
 	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key) &&
@@ -343,13 +309,7 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 		/* max_entries is not used and enforced to be 0 */
 		return ERR_PTR(-EINVAL);
 
-<<<<<<< ours
-	pages = round_up(sizeof(struct bpf_cgroup_storage_map), PAGE_SIZE) >>
-		PAGE_SHIFT;
-	ret = bpf_map_precharge_memlock(pages);
-=======
 	ret = bpf_map_charge_init(&mem, sizeof(struct bpf_cgroup_storage_map));
->>>>>>> tarkzim
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -360,11 +320,7 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 	}
 
-<<<<<<< ours
-	map->map.pages = pages;
-=======
 	bpf_map_charge_move(&map->map.memory, &mem);
->>>>>>> tarkzim
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&map->map, attr);
@@ -512,29 +468,10 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux, struct bpf_map *_map)
 {
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
-<<<<<<< ours
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-	int ret = -EBUSY;
-
-	spin_lock_bh(&map->lock);
-
-	if (map->prog && map->prog != prog)
-		goto unlock;
-	if (prog->aux->cgroup_storage[stype] &&
-	    prog->aux->cgroup_storage[stype] != _map)
-		goto unlock;
-
-	map->prog = prog;
-	prog->aux->cgroup_storage[stype] = _map;
-	ret = 0;
-unlock:
-	spin_unlock_bh(&map->lock);
-=======
 
 	if (aux->cgroup_storage[stype] &&
 	    aux->cgroup_storage[stype] != _map)
 		return -EBUSY;
->>>>>>> tarkzim
 
 	aux->cgroup_storage[stype] = _map;
 	return 0;
@@ -542,35 +479,6 @@ unlock:
 
 static size_t bpf_cgroup_storage_calculate_size(struct bpf_map *map, u32 *pages)
 {
-<<<<<<< ours
-	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
-	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
-
-	spin_lock_bh(&map->lock);
-	if (map->prog == prog) {
-		WARN_ON(prog->aux->cgroup_storage[stype] != _map);
-		map->prog = NULL;
-		prog->aux->cgroup_storage[stype] = NULL;
-=======
-	size_t size;
-
-	if (cgroup_storage_type(map) == BPF_CGROUP_STORAGE_SHARED) {
-		size = sizeof(struct bpf_storage_buffer) + map->value_size;
-		*pages = round_up(sizeof(struct bpf_cgroup_storage) + size,
-				  PAGE_SIZE) >> PAGE_SHIFT;
-	} else {
-		size = map->value_size;
-		*pages = round_up(round_up(size, 8) * num_possible_cpus(),
-				  PAGE_SIZE) >> PAGE_SHIFT;
->>>>>>> tarkzim
-	}
-
-	return size;
-}
-
-<<<<<<< ours
-static size_t bpf_cgroup_storage_calculate_size(struct bpf_map *map, u32 *pages)
-{
 	size_t size;
 
 	if (cgroup_storage_type(map) == BPF_CGROUP_STORAGE_SHARED) {
@@ -586,8 +494,6 @@ static size_t bpf_cgroup_storage_calculate_size(struct bpf_map *map, u32 *pages)
 	return size;
 }
 
-=======
->>>>>>> tarkzim
 struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 					enum bpf_cgroup_storage_type stype)
 {
@@ -617,10 +523,7 @@ struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 		storage->buf = kmalloc_node(size, flags, map->numa_node);
 		if (!storage->buf)
 			goto enomem;
-<<<<<<< ours
-=======
 		check_and_init_map_lock(map, storage->buf->data);
->>>>>>> tarkzim
 	} else {
 		storage->percpu_buf = __alloc_percpu_gfp(size, 8, flags);
 		if (!storage->percpu_buf)
@@ -686,11 +589,7 @@ void bpf_cgroup_storage_link(struct bpf_cgroup_storage *storage,
 		return;
 
 	storage->key.attach_type = type;
-<<<<<<< ours
-	storage->key.cgroup_inode_id = cgroup->kn->id;
-=======
 	storage->key.cgroup_inode_id = cgroup_id(cgroup);
->>>>>>> tarkzim
 
 	map = storage->map;
 

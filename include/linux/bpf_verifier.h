@@ -36,17 +36,11 @@
  */
 enum bpf_reg_liveness {
 	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
-<<<<<<< ours
-	REG_LIVE_READ, /* reg was read, so we're sensitive to initial value */
-	REG_LIVE_WRITTEN, /* reg was written first, screening off later reads */
-	REG_LIVE_DONE = 4, /* liveness won't be updating this register anymore */
-=======
 	REG_LIVE_READ32 = 0x1, /* reg was read, so we're sensitive to initial value */
 	REG_LIVE_READ64 = 0x2, /* likewise, but full 64-bit content matters */
 	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
 	REG_LIVE_WRITTEN = 0x4, /* reg was written first, screening off later reads */
 	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
->>>>>>> tarkzim
 };
 
 struct bpf_reg_state {
@@ -74,17 +68,12 @@ struct bpf_reg_state {
 	 * offset, so they can share range knowledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
 	 * came from, when one is tested for != NULL.
-<<<<<<< ours
-=======
 	 * For PTR_TO_MEM_OR_NULL this is used to identify memory allocation
 	 * for the purpose of tracking that it's freed.
->>>>>>> tarkzim
 	 * For PTR_TO_SOCKET this is used to share which pointers retain the
 	 * same reference to the socket, to determine proper reference freeing.
 	 */
 	u32 id;
-<<<<<<< ours
-=======
 	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
 	 * from a pointer-cast helper, bpf_sk_fullsock() and
 	 * bpf_tcp_sock().
@@ -125,7 +114,6 @@ struct bpf_reg_state {
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
->>>>>>> tarkzim
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
@@ -142,13 +130,10 @@ struct bpf_reg_state {
 	s64 smax_value; /* maximum possible (s64)value */
 	u64 umin_value; /* minimum possible (u64)value */
 	u64 umax_value; /* maximum possible (u64)value */
-<<<<<<< ours
-=======
 	s32 s32_min_value; /* minimum possible (s32)value */
 	s32 s32_max_value; /* maximum possible (s32)value */
 	u32 u32_min_value; /* minimum possible (u32)value */
 	u32 u32_max_value; /* maximum possible (u32)value */
->>>>>>> tarkzim
 	/* parentage chain for liveness checking */
 	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
@@ -158,14 +143,11 @@ struct bpf_reg_state {
 	 * pointing to bpf_func_state.
 	 */
 	u32 frameno;
-<<<<<<< ours
-=======
 	/* Tracks subreg definition. The stored value is the insn_idx of the
 	 * writing insn. This is safe because subreg_def is used before any insn
 	 * patching which only happens after main verification finished.
 	 */
 	s32 subreg_def;
->>>>>>> tarkzim
 	enum bpf_reg_liveness live;
 	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
 	bool precise;
@@ -227,20 +209,15 @@ struct bpf_id_pair {
 
 /* Maximum number of register states that can exist at once */
 #define BPF_ID_MAP_SIZE (MAX_BPF_REG + MAX_BPF_STACK / BPF_REG_SIZE)
-<<<<<<< ours
-=======
 struct bpf_idx_pair {
 	u32 prev_idx;
 	u32 idx;
 };
 
->>>>>>> tarkzim
 #define MAX_CALL_FRAMES 8
 struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
-<<<<<<< ours
-=======
 	struct bpf_verifier_state *parent;
 	/*
 	 * 'branches' field is the number of branches left to explore:
@@ -288,7 +265,6 @@ struct bpf_verifier_state {
 	 * In such cases BPF_COMPLEXITY_LIMIT_INSNS limit kicks in.
 	 */
 	u32 branches;
->>>>>>> tarkzim
 	u32 insn_idx;
 	u32 curframe;
 	u32 active_spin_lock;
@@ -317,8 +293,6 @@ struct bpf_verifier_state {
 	     iter < frame->allocated_stack / BPF_REG_SIZE;		\
 	     iter++, reg = bpf_get_spilled_reg(iter, frame))
 
-<<<<<<< ours
-=======
 /* Invoke __expr over regsiters in __vst, setting __state and __reg */
 #define bpf_for_each_reg_in_vstate(__vst, __state, __reg, __expr)   \
 	({                                                               \
@@ -340,7 +314,6 @@ struct bpf_verifier_state {
 		}                                                        \
 	})
 
->>>>>>> tarkzim
 /* linked list of verifier states used to prune search */
 struct bpf_verifier_state_list {
 	struct bpf_verifier_state state;
@@ -367,8 +340,6 @@ struct bpf_insn_aux_data {
 			u32 map_index;		/* index into used_maps[] */
 			u32 map_off;		/* offset from value base address */
 		};
-<<<<<<< ours
-=======
 		struct {
 			enum bpf_reg_type reg_type;	/* type of pseudo_btf_id */
 			union {
@@ -376,17 +347,9 @@ struct bpf_insn_aux_data {
 				u32 mem_size;	/* mem_size for non-struct typed var */
 			};
 		} btf_var;
->>>>>>> tarkzim
 	};
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
-<<<<<<< ours
-	bool seen; /* this insn was processed by the verifier */
-	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
-	u8 alu_state; /* used in combination with alu_limit */
-	bool prune_point;
-	unsigned int orig_idx; /* original instruction index */
-=======
 	u32 seen; /* this insn was processed by the verifier */
 	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
 	bool zext_dst; /* this insn zero extends dst reg */
@@ -395,7 +358,6 @@ struct bpf_insn_aux_data {
 	/* below fields are initialized once */
 	unsigned int orig_idx; /* original instruction index */
 	bool prune_point;
->>>>>>> tarkzim
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -420,23 +382,13 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 #define BPF_LOG_STATS	4
 #define BPF_LOG_LEVEL	(BPF_LOG_LEVEL1 | BPF_LOG_LEVEL2)
 #define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS)
-<<<<<<< ours
-=======
 #define BPF_LOG_KERNEL	(BPF_LOG_MASK + 1) /* kernel internal flag */
->>>>>>> tarkzim
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
 	return log &&
 		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
 		 log->level == BPF_LOG_KERNEL);
-}
-
-static inline bool
-bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
-{
-	return log->len_total >= 128 && log->len_total <= UINT_MAX >> 2 &&
-	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
 }
 
 static inline bool
@@ -454,11 +406,8 @@ struct bpf_subprog_info {
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
 	bool has_tail_call;
-<<<<<<< ours
-=======
 	bool tail_call_reachable;
 	bool has_ld_abs;
->>>>>>> tarkzim
 };
 
 /* single container for all structs
@@ -497,18 +446,12 @@ struct bpf_verifier_env {
 		int *insn_stack;
 		int cur_stack;
 	} cfg;
-<<<<<<< ours
-	u32 subprog_cnt;
-	/* number of instructions analyzed by the verifier */
-	u32 insn_processed;
-=======
 	u32 pass_cnt; /* number of times do_check() was called */
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
 	u32 prev_insn_processed, insn_processed;
 	/* number of jmps, calls, exits analyzed so far */
 	u32 prev_jmps_processed, jmps_processed;
->>>>>>> tarkzim
 	/* total verification time */
 	u64 verification_time;
 	/* maximum number of verifier states kept in 'branching' instructions */
@@ -536,14 +479,6 @@ static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 	struct bpf_verifier_state *cur = env->cur_state;
 
 	return cur->frame[cur->curframe];
-<<<<<<< ours
-}
-
-static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
-{
-	return cur_func(env)->regs;
-=======
->>>>>>> tarkzim
 }
 
 static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)

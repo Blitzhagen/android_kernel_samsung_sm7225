@@ -79,8 +79,6 @@ TRACE_EVENT(xdp_bulk_tx,
 		  __entry->sent, __entry->drops, __entry->err)
 );
 
-<<<<<<< ours
-=======
 #ifndef __DEVMAP_OBJ_TYPE
 #define __DEVMAP_OBJ_TYPE
 struct _bpf_dtab_netdev {
@@ -93,7 +91,6 @@ struct _bpf_dtab_netdev {
 		  map->map_type == BPF_MAP_TYPE_DEVMAP_HASH)) ? \
 	  ((struct _bpf_dtab_netdev *)tgt)->dev->ifindex : 0)
 
->>>>>>> tarkzim
 DECLARE_EVENT_CLASS(xdp_redirect_template,
 
 	TP_PROTO(const struct net_device *dev,
@@ -177,28 +174,6 @@ DEFINE_EVENT(xdp_redirect_template, xdp_redirect_map_err,
 	TP_ARGS(dev, xdp, tgt, err, map, index)
 );
 
-<<<<<<< ours
-#ifndef __DEVMAP_OBJ_TYPE
-#define __DEVMAP_OBJ_TYPE
-struct _bpf_dtab_netdev {
-	struct net_device *dev;
-};
-#endif /* __DEVMAP_OBJ_TYPE */
-
-#define devmap_ifindex(fwd, map)				\
-	((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
-	  ((struct _bpf_dtab_netdev *)fwd)->dev->ifindex : 0)
-
-#define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
-	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
-				0, map, idx)
-
-#define _trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
-	 trace_xdp_redirect_map_err(dev, xdp, devmap_ifindex(fwd, map),	\
-				    err, map, idx)
-
-=======
->>>>>>> tarkzim
 TRACE_EVENT(xdp_cpumap_kthread,
 
 	TP_PROTO(int map_id, unsigned int processed,  unsigned int drops,

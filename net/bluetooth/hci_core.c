@@ -3311,12 +3311,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);
 
-<<<<<<< ours
 	synchronize_srcu(&hdev->srcu);
 	cleanup_srcu_struct(&hdev->srcu);
 
-=======
->>>>>>> tarkzim
 	cancel_work_sync(&hdev->rx_work);
 	cancel_work_sync(&hdev->cmd_work);
 	cancel_work_sync(&hdev->tx_work);
@@ -4158,15 +4155,9 @@ static void hci_sched_le(struct hci_dev *hdev)
 		return;
 
 	cnt = hdev->le_pkts ? &hdev->le_cnt : &hdev->acl_cnt;
-<<<<<<< ours
 
 	__check_timeout(hdev, *cnt, LE_LINK);
 
-=======
-
-	__check_timeout(hdev, *cnt, LE_LINK);
-
->>>>>>> tarkzim
 	tmp = *cnt;
 	while (*cnt && (chan = hci_chan_sent(hdev, LE_LINK, &quote))) {
 		u32 priority = (skb_peek(&chan->data_q))->priority;

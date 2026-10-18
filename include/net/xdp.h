@@ -76,10 +76,7 @@ struct xdp_buff {
 	void *data_hard_start;
 	unsigned long handle;
 	struct xdp_rxq_info *rxq;
-<<<<<<< ours
-=======
 	struct xdp_txq_info *txq;
->>>>>>> tarkzim
 	u32 frame_sz; /* frame size to deduce data_hard_end/reserved tailroom*/
 };
 
@@ -123,8 +120,6 @@ static inline void xdp_scrub_frame(struct xdp_frame *frame)
 void xdp_warn(const char *msg, const char *func, const int line);
 #define XDP_WARN(msg) xdp_warn(msg, __func__, __LINE__)
 
-<<<<<<< ours
-=======
 static inline
 void xdp_convert_frame_to_buff(struct xdp_frame *frame, struct xdp_buff *xdp)
 {
@@ -163,7 +158,6 @@ int xdp_update_frame_from_buff(struct xdp_buff *xdp,
 	return 0;
 }
 
->>>>>>> tarkzim
 /* Convert xdp_buff to xdp_frame */
 static inline
 struct xdp_frame *xdp_convert_buff_to_frame(struct xdp_buff *xdp)

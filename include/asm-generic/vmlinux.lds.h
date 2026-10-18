@@ -529,15 +529,9 @@
 		ALIGN_FUNCTION();					\
 		*(.text.hot .text.hot.*)				\
 		*(TEXT_MAIN .text.fixup)				\
-<<<<<<< ours
 		*(TEXT_CFI_MAIN) 					\
 		*(.text.unlikely .text.unlikely.*)			\
 		*(.text.unknown .text.unknown.*)			\
-=======
-		*(.text.unlikely .text.unlikely.*)			\
-		*(.text.unknown .text.unknown.*)			\
-		*(TEXT_CFI_MAIN) 					\
->>>>>>> tarkzim
 		NOINSTR_TEXT						\
 		*(.text..refcount)					\
 		*(.text..ftrace)					\
@@ -869,7 +863,6 @@
 		KEEP(*(.con_initcall.init))				\
 		__con_initcall_end = .;
 
-<<<<<<< ours
 #define SECURITY_INITCALL						\
 		__start_lsm_info = .;					\
 		KEEP(*(.lsm_info.init))					\
@@ -881,8 +874,6 @@
 		LSM_INFO						\
 	}
 
-=======
->>>>>>> tarkzim
 #ifdef CONFIG_BLK_DEV_INITRD
 #define INIT_RAM_FS							\
 	. = ALIGN(4);							\

@@ -36,11 +36,7 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 unsigned long get_max_fps_util(int group_id);
 #endif /* CONFIG_FPS */
 
-<<<<<<< ours
 #if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
-=======
-#ifdef CONFIG_SCHED_DEBUG
->>>>>>> tarkzim
 /*
  * Debugging: various feature bits
  *
@@ -1083,12 +1079,8 @@ static void uclamp_update_root_tg(void) { }
 #endif
 
 int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
-<<<<<<< ours
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
-=======
-				void *buffer, size_t *lenp, loff_t *ppos)
->>>>>>> tarkzim
 {
 	bool update_root_tg = false;
 	int old_min, old_max;

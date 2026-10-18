@@ -225,7 +225,6 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 
 void ipv6_mc_dad_complete(struct inet6_dev *idev);
 
-<<<<<<< ours
 /* A stub used by vxlan module. This is ugly, ideally these
  * symbols should be built into the core kernel.
  */
@@ -274,8 +273,6 @@ struct ipv6_bpf_stub {
 };
 extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
 
-=======
->>>>>>> tarkzim
 /*
  * identify MLD packets for MLD filter exceptions
  */
@@ -369,16 +366,11 @@ static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 static inline struct inet6_dev *__in6_dev_stats_get(const struct net_device *dev,
 						    const struct sk_buff *skb)
 {
-<<<<<<< ours
 	if (netif_is_l3_master(dev)) {
 		dev = dev_get_by_index_rcu(dev_net(dev), inet6_iif(skb));
 		if (!dev)
 			return NULL;
 	}
-=======
-	if (netif_is_l3_master(dev))
-		dev = dev_get_by_index_rcu(dev_net(dev), inet6_iif(skb));
->>>>>>> tarkzim
 	return __in6_dev_get(dev);
 }
 

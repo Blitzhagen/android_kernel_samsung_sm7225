@@ -1774,14 +1774,6 @@ repeat:
 	charge_mm = vma ? vma->vm_mm : current->mm;
 
 	page = find_lock_entry(mapping, index);
-<<<<<<< ours
-	if (radix_tree_exceptional_entry(page)) {
-		error = shmem_swapin_page(inode, index, &page,
-					  sgp, gfp, vma, fault_type);
-		if (error == -EEXIST)
-			goto repeat;
-
-=======
 
 	if (page && vma && userfaultfd_minor(vma)) {
 		if (!radix_tree_exceptional_entry(page)) {
@@ -1798,7 +1790,6 @@ repeat:
 		if (error == -EEXIST)
 			goto repeat;
 
->>>>>>> tarkzim
 		*pagep = page;
 		return error;
 	}
@@ -1892,7 +1883,6 @@ alloc_nohuge:
 
 	if (sgp == SGP_WRITE)
 		__SetPageReferenced(page);
-<<<<<<< ours
 
 	error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
 					    PageTransHuge(page));
@@ -1921,36 +1911,6 @@ alloc_nohuge:
 	spin_unlock_irq(&info->lock);
 	alloced = true;
 
-=======
-
-	error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
-					    PageTransHuge(page));
-	if (error)
-		goto unacct;
-	error = radix_tree_maybe_preload_order(gfp & GFP_RECLAIM_MASK,
-			compound_order(page));
-	if (!error) {
-		error = shmem_add_to_page_cache(page, mapping, hindex,
-						NULL);
-		radix_tree_preload_end();
-	}
-	if (error) {
-		mem_cgroup_cancel_charge(page, memcg,
-					 PageTransHuge(page));
-		goto unacct;
-	}
-	mem_cgroup_commit_charge(page, memcg, false,
-				 PageTransHuge(page));
-	lru_cache_add_anon(page);
-
-	spin_lock_irq(&info->lock);
-	info->alloced += 1 << compound_order(page);
-	inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
-	shmem_recalc_inode(inode);
-	spin_unlock_irq(&info->lock);
-	alloced = true;
-
->>>>>>> tarkzim
 	if (PageTransHuge(page) &&
 	    DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
 			hindex + HPAGE_PMD_NR - 1) {

@@ -3608,7 +3608,6 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 	 * This behavior matches also the fact that groups are created
 	 * exactly if controlling I/O is a primary concern (to
 	 * preserve bandwidth and latency guarantees).
-<<<<<<< ours
 	 *
 	 * On the opposite end, if there are no groups with requests
 	 * waiting for completion, then only condition (i) is actually
@@ -3622,21 +3621,6 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 	 * to check just whether all the queues with requests waiting
 	 * for completion also have the same weight.
 	 *
-=======
-	 *
-	 * On the opposite end, if there are no groups with requests
-	 * waiting for completion, then only condition (i) is actually
-	 * controlled, i.e., provided that condition (i) holds, idling
-	 * is not performed, regardless of whether condition (ii)
-	 * holds. In other words, only if condition (i) does not hold,
-	 * then idling is allowed, and the device tends to be
-	 * prevented from queueing many requests, possibly of several
-	 * processes. Since there are no groups with requests waiting
-	 * for completion, then, to control condition (i) it is enough
-	 * to check just whether all the queues with requests waiting
-	 * for completion also have the same weight.
-	 *
->>>>>>> tarkzim
 	 * Not checking condition (ii) evidently exposes bfqq to the
 	 * risk of getting less throughput than its fair share.
 	 * However, for queues with the same weight, a further
@@ -4164,14 +4148,9 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
 	}
 
 	spin_unlock_irq(&bfqd->lock);
-<<<<<<< ours
 
 	bfq_update_dispatch_stats(hctx->queue, rq,
 				  idle_timer_disabled);
-=======
-	bfq_update_dispatch_stats(hctx->queue, rq, in_serv_queue,
-				idle_timer_disabled);
->>>>>>> tarkzim
 
 	return rq;
 }

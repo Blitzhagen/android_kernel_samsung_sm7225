@@ -26,8 +26,6 @@ config CLANG_VERSION
 	int
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
 
-<<<<<<< ours
-=======
 config AS_IS_GNU
 	def_bool $(success,test "$(as-name)" = GNU)
 
@@ -40,7 +38,6 @@ config AS_VERSION
 	default CLANG_VERSION if AS_IS_LLVM
 	default $(as-version)
 
->>>>>>> tarkzim
 choice
     prompt "Fake uname kernel version"
     default FAKE_UNAME_NONE
@@ -1755,15 +1752,12 @@ config BPF_UNPRIV_DEFAULT_OFF
 	  disable it by setting it to 1 (from which no other transition to
 	  0 is possible anymore).
 
-<<<<<<< ours
-=======
 config BPF_JIT_DEFAULT_ON
 	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
 	depends on HAVE_EBPF_JIT && BPF_JIT
 
 source "kernel/bpf/preload/Kconfig"
 
->>>>>>> tarkzim
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
 	depends on MMU

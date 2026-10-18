@@ -30,10 +30,7 @@
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
 #include <linux/perf_event.h>
-<<<<<<< ours
-=======
 #include <linux/extable.h>
->>>>>>> tarkzim
 #include <linux/nospec.h>
 
 #ifdef CONFIG_RKP
@@ -500,11 +497,8 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	 * overflow cannot happen at this point.
 	 */
 	BUG_ON(bpf_adj_branches(prog_adj, off, off + 1, off + len, false));
-<<<<<<< ours
-=======
 
 	bpf_adj_linfo(prog_adj, off, insn_delta);
->>>>>>> tarkzim
 
 	return prog_adj;
 }
@@ -525,11 +519,7 @@ int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt)
 	return err;
 }
 
-<<<<<<< ours
-void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp)
-=======
 static void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp)
->>>>>>> tarkzim
 {
 	int i;
 
@@ -563,12 +553,8 @@ bpf_prog_ksym_set_addr(struct bpf_prog *prog)
 	prog->aux->ksym.end   = addr + hdr->pages * PAGE_SIZE;
 }
 
-<<<<<<< ours
-void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
-=======
 static void
 bpf_prog_ksym_set_name(struct bpf_prog *prog)
->>>>>>> tarkzim
 {
 	char *sym = prog->aux->ksym.name;
 	const char *end = sym + KSYM_NAME_LEN;
@@ -774,11 +760,7 @@ out:
 int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		    char *sym)
 {
-<<<<<<< ours
-	struct bpf_prog_aux *aux;
-=======
 	struct bpf_ksym *ksym;
->>>>>>> tarkzim
 	unsigned int it = 0;
 	int ret = -ERANGE;
 
@@ -790,15 +772,9 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		if (it++ != symnum)
 			continue;
 
-<<<<<<< ours
-		bpf_get_prog_name(aux->prog, sym);
-
-		*value = (unsigned long)aux->prog->bpf_func;
-=======
 		strncpy(sym, ksym->name, KSYM_NAME_LEN);
 
 		*value = ksym->start;
->>>>>>> tarkzim
 		*type  = BPF_SYM_ELF_TYPE;
 
 		ret = 0;
@@ -1435,13 +1411,10 @@ static u64 ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn, u64 *stack)
 		[BPF_JMP | BPF_CALL_ARGS] = &&JMP_CALL_ARGS,
 		[BPF_JMP | BPF_TAIL_CALL] = &&JMP_TAIL_CALL,
 		[BPF_ST  | BPF_NOSPEC] = &&ST_NOSPEC,
-<<<<<<< ours
-=======
 		[BPF_LDX | BPF_PROBE_MEM | BPF_B] = &&LDX_PROBE_MEM_B,
 		[BPF_LDX | BPF_PROBE_MEM | BPF_H] = &&LDX_PROBE_MEM_H,
 		[BPF_LDX | BPF_PROBE_MEM | BPF_W] = &&LDX_PROBE_MEM_W,
 		[BPF_LDX | BPF_PROBE_MEM | BPF_DW] = &&LDX_PROBE_MEM_DW,
->>>>>>> tarkzim
 	};
 #undef BPF_INSN_3_LBL
 #undef BPF_INSN_2_LBL
@@ -2065,8 +2038,6 @@ void bpf_prog_array_delete_safe(struct bpf_prog_array *array,
 		}
 }
 
-<<<<<<< ours
-=======
 /**
  * bpf_prog_array_delete_safe_at() - Replaces the program at the given
  *                                   index into the program array with
@@ -2122,7 +2093,6 @@ int bpf_prog_array_update_at(struct bpf_prog_array *array, int index,
 	return -ENOENT;
 }
 
->>>>>>> tarkzim
 int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
@@ -2308,12 +2278,9 @@ const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
 const struct bpf_func_proto bpf_map_push_elem_proto __weak;
 const struct bpf_func_proto bpf_map_pop_elem_proto __weak;
 const struct bpf_func_proto bpf_map_peek_elem_proto __weak;
-<<<<<<< ours
-=======
 const struct bpf_func_proto bpf_spin_lock_proto __weak;
 const struct bpf_func_proto bpf_spin_unlock_proto __weak;
 const struct bpf_func_proto bpf_jiffies64_proto __weak;
->>>>>>> tarkzim
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;

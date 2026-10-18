@@ -233,11 +233,7 @@ static void fdb_delete_local(struct net_bridge *br,
 		vg = nbp_vlan_group(op);
 		if (op != p && ether_addr_equal(op->dev->dev_addr, addr) &&
 		    (!vid || br_vlan_find(vg, vid))) {
-<<<<<<< ours
 			WRITE_ONCE(f->dst, op);
-=======
-			f->dst = op;
->>>>>>> tarkzim
 			clear_bit(BR_FDB_ADDED_BY_USER, &f->flags);
 			return;
 		}
@@ -248,11 +244,7 @@ static void fdb_delete_local(struct net_bridge *br,
 	/* Maybe bridge device has same hw addr? */
 	if (p && ether_addr_equal(br->dev->dev_addr, addr) &&
 	    (!vid || (v && br_vlan_should_use(v)))) {
-<<<<<<< ours
 		WRITE_ONCE(f->dst, NULL);
-=======
-		f->dst = NULL;
->>>>>>> tarkzim
 		clear_bit(BR_FDB_ADDED_BY_USER, &f->flags);
 		return;
 	}

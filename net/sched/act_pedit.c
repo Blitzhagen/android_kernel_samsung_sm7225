@@ -224,20 +224,14 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		p->tcfp_nkeys = parm->nkeys;
 	}
 	memcpy(p->tcfp_keys, parm->keys, ksize);
-<<<<<<< ours
-	for (i = 0; i < p->tcfp_nkeys; ++i) {
-=======
 	p->tcfp_off_max_hint = 0;
 	for (i = 0; i < p->tcfp_nkeys; ++i) {
 		u32 cur = p->tcfp_keys[i].off;
 
->>>>>>> tarkzim
 		/* sanitize the shift value for any later use */
 		p->tcfp_keys[i].shift = min_t(size_t, BITS_PER_TYPE(int) - 1,
 					      p->tcfp_keys[i].shift);
 
-<<<<<<< ours
-=======
 		/* The AT option can read a single byte, we can bound the actual
 		 * value with uchar max.
 		 */
@@ -245,7 +239,6 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 
 		/* Each key touches 4 bytes starting from the computed offset */
 		p->tcfp_off_max_hint = max(p->tcfp_off_max_hint, cur + 4);
->>>>>>> tarkzim
 	}
 
 	p->tcfp_flags = parm->flags;

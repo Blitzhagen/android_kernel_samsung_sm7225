@@ -956,7 +956,6 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 
 int f2fs_merge_page_bio(struct f2fs_io_info *fio)
 {
-<<<<<<< ours
 	struct bio *bio;
 	struct page *page = fio->encrypted_page ?
 			fio->encrypted_page : fio->page;
@@ -1168,8 +1167,6 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 
 int f2fs_merge_page_bio(struct f2fs_io_info *fio)
 {
-=======
->>>>>>> tarkzim
 	struct bio *bio = *fio->bio;
 	struct page *page = fio->encrypted_page ?
 			fio->encrypted_page : fio->page;
@@ -1968,18 +1965,12 @@ skip:
 
 sync_out:
 
-<<<<<<< ours
 	if (flag == F2FS_GET_BLOCK_DIO && map->m_flags & F2FS_MAP_MAPPED) {
 		f2fs_wait_on_block_writeback_range(inode,
 						map->m_pblk, map->m_len);
 		invalidate_mapping_pages(META_MAPPING(sbi),
 						map->m_pblk, map->m_pblk);
 	}
-=======
-	if (flag == F2FS_GET_BLOCK_DIO && map->m_flags & F2FS_MAP_MAPPED)
-		f2fs_wait_on_block_writeback_range(inode,
-						map->m_pblk, map->m_len);
->>>>>>> tarkzim
 
 	if (flag == F2FS_GET_BLOCK_PRECACHE) {
 		if (map->m_flags & F2FS_MAP_MAPPED) {

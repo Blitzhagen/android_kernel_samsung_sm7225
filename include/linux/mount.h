@@ -73,18 +73,11 @@ struct vfsmount {
 	struct mount *bp_mount;	/* pointer to mount*/
 #endif
 	int mnt_flags;
-<<<<<<< ours
-=======
 	void *data;
->>>>>>> tarkzim
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
-<<<<<<< ours
-	void *data;
-=======
->>>>>>> tarkzim
 } __randomize_layout;
 
 struct file; /* forward dec */

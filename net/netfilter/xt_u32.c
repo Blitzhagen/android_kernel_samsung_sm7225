@@ -99,11 +99,7 @@ static int u32_mt_checkentry(const struct xt_mtchk_param *par)
 {
 	const struct xt_u32 *data = par->matchinfo;
 	const struct xt_u32_test *ct;
-<<<<<<< ours
 	unsigned int i, j;
-=======
-	unsigned int i;
->>>>>>> tarkzim
 
 	if (data->ntests > ARRAY_SIZE(data->tests))
 		return -EINVAL;
@@ -114,7 +110,6 @@ static int u32_mt_checkentry(const struct xt_mtchk_param *par)
 		if (ct->nnums > ARRAY_SIZE(ct->location) ||
 		    ct->nvalues > ARRAY_SIZE(ct->value))
 			return -EINVAL;
-<<<<<<< ours
 
 		for (j = 1; j < ct->nnums; ++j) {
 			switch (ct->location[j].nextop) {
@@ -125,8 +120,6 @@ static int u32_mt_checkentry(const struct xt_mtchk_param *par)
 				break;
 			}
 		}
-=======
->>>>>>> tarkzim
 	}
 
 	return 0;

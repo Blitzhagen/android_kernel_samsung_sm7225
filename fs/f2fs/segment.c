@@ -342,7 +342,6 @@ void f2fs_drop_inmem_pages(struct inode *inode)
 
 	do {
 		mutex_lock(&fi->inmem_lock);
-<<<<<<< ours
 		if (list_empty(&fi->inmem_pages)) {
 			fi->i_gc_failures[GC_FAILURE_ATOMIC] = 0;
 
@@ -362,23 +361,6 @@ void f2fs_drop_inmem_pages(struct inode *inode)
 						true, false, true);
 		mutex_unlock(&fi->inmem_lock);
 	} while (1);
-=======
-		__revoke_inmem_pages(inode, &fi->inmem_pages,
-						true, false, true);
-		mutex_unlock(&fi->inmem_lock);
-	}
-
-	fi->i_gc_failures[GC_FAILURE_ATOMIC] = 0;
-
-	spin_lock(&sbi->inode_lock[ATOMIC_FILE]);
-	if (!list_empty(&fi->inmem_ilist))
-		list_del_init(&fi->inmem_ilist);
-	if (f2fs_is_atomic_file(inode)) {
-		clear_inode_flag(inode, FI_ATOMIC_FILE);
-		sbi->atomic_files--;
-	}
-	spin_unlock(&sbi->inode_lock[ATOMIC_FILE]);
->>>>>>> tarkzim
 }
 
 void f2fs_drop_inmem_page(struct inode *inode, struct page *page)
@@ -2733,7 +2715,6 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 
 	stat_inc_seg_type(sbi, curseg);
 	sbi->sec_stat.alloc_seg_type[curseg->alloc_type]++;
-<<<<<<< ours
 }
 
 void allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
@@ -2769,43 +2750,6 @@ unlock:
 	up_read(&SM_I(sbi)->curseg_lock);
 }
 
-=======
-}
-
-void allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
-					unsigned int start, unsigned int end)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	unsigned int segno;
-
-	down_read(&SM_I(sbi)->curseg_lock);
-	mutex_lock(&curseg->curseg_mutex);
-	down_write(&SIT_I(sbi)->sentry_lock);
-
-	segno = CURSEG_I(sbi, type)->segno;
-	if (segno < start || segno > end)
-		goto unlock;
-
-	if (f2fs_need_SSR(sbi) && get_ssr_segment(sbi, type))
-		change_curseg(sbi, type);
-	else
-		new_curseg(sbi, type, true);
-
-	stat_inc_seg_type(sbi, curseg);
-
-	locate_dirty_segment(sbi, segno);
-unlock:
-	up_write(&SIT_I(sbi)->sentry_lock);
-
-	if (segno != curseg->segno)
-		f2fs_notice(sbi, "For resize: curseg of type %d: %u ==> %u",
-			    type, segno, curseg->segno);
-
-	mutex_unlock(&curseg->curseg_mutex);
-	up_read(&SM_I(sbi)->curseg_lock);
-}
-
->>>>>>> tarkzim
 void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi, int type)
 {
 	struct curseg_info *curseg;

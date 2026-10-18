@@ -145,11 +145,7 @@ extern int sched_rt_handler(struct ctl_table *table, int write,
 
 #ifdef CONFIG_UCLAMP_TASK
 extern int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
-<<<<<<< ours
 				       void __user *buffer, size_t *lenp,
-=======
-				       void *buffer, size_t *lenp,
->>>>>>> tarkzim
 				       loff_t *ppos);
 #endif
 
@@ -167,14 +163,9 @@ extern bool is_sched_lib_based_app(pid_t pid);
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
 extern unsigned int sysctl_sched_energy_aware;
-<<<<<<< ours
 extern int sched_energy_aware_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *ppos);
-=======
-int sched_energy_aware_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
->>>>>>> tarkzim
 #endif
 
 #endif /* _LINUX_SCHED_SYSCTL_H */

@@ -103,14 +103,8 @@ static struct hlist_head *dev_map_create_hash(unsigned int entries,
 static inline struct hlist_head *dev_map_index_hash(struct bpf_dtab *dtab,
 						    int idx)
 {
-<<<<<<< ours
-	struct bpf_dtab *dtab;
-	u64 cost;
-	int err;
-=======
 	return &dtab->dev_index_head[idx & (dtab->n_buckets - 1)];
 }
->>>>>>> tarkzim
 
 static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 {
@@ -133,17 +127,6 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 	 */
 	attr->map_flags |= BPF_F_RDONLY_PROG;
 
-<<<<<<< ours
-	/* Lookup returns a pointer straight to dev->ifindex, so make sure the
-	 * verifier prevents writes from the BPF side
-	 */
-	attr->map_flags |= BPF_F_RDONLY_PROG;
-
-	dtab = kzalloc(sizeof(*dtab), GFP_USER);
-	if (!dtab)
-		return ERR_PTR(-ENOMEM);
-=======
->>>>>>> tarkzim
 
 	bpf_map_init_from_attr(&dtab->map, attr);
 

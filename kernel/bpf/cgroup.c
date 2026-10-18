@@ -19,8 +19,6 @@
 
 #include "../cgroup/cgroup-internal.h"
 
-#include "../cgroup/cgroup-internal.h"
-
 DEFINE_STATIC_KEY_FALSE(cgroup_bpf_enabled_key);
 EXPORT_SYMBOL(cgroup_bpf_enabled_key);
 
@@ -39,19 +37,6 @@ static void bpf_cgroup_storages_free(struct bpf_cgroup_storage *storages[])
 }
 
 static int bpf_cgroup_storages_alloc(struct bpf_cgroup_storage *storages[],
-<<<<<<< ours
-				     struct bpf_prog *prog)
-{
-	enum bpf_cgroup_storage_type stype;
-
-	for_each_cgroup_storage_type(stype) {
-		storages[stype] = bpf_cgroup_storage_alloc(prog, stype);
-		if (IS_ERR(storages[stype])) {
-			storages[stype] = NULL;
-			bpf_cgroup_storages_free(storages);
-			return -ENOMEM;
-		}
-=======
 				     struct bpf_cgroup_storage *new_storages[],
 				     enum bpf_attach_type type,
 				     struct bpf_prog *prog,
@@ -80,7 +65,6 @@ static int bpf_cgroup_storages_alloc(struct bpf_cgroup_storage *storages[],
 		}
 
 		new_storages[stype] = storages[stype];
->>>>>>> tarkzim
 	}
 
 	return 0;
@@ -96,11 +80,7 @@ static void bpf_cgroup_storages_assign(struct bpf_cgroup_storage *dst[],
 }
 
 static void bpf_cgroup_storages_link(struct bpf_cgroup_storage *storages[],
-<<<<<<< ours
-				     struct cgroup* cgrp,
-=======
 				     struct cgroup *cgrp,
->>>>>>> tarkzim
 				     enum bpf_attach_type attach_type)
 {
 	enum bpf_cgroup_storage_type stype;
@@ -109,14 +89,6 @@ static void bpf_cgroup_storages_link(struct bpf_cgroup_storage *storages[],
 		bpf_cgroup_storage_link(storages[stype], cgrp, attach_type);
 }
 
-<<<<<<< ours
-static void bpf_cgroup_storages_unlink(struct bpf_cgroup_storage *storages[])
-{
-	enum bpf_cgroup_storage_type stype;
-
-	for_each_cgroup_storage_type(stype)
-		bpf_cgroup_storage_unlink(storages[stype]);
-=======
 /* Called when bpf_cgroup_link is auto-detached from dying cgroup.
  * It drops cgroup and bpf_prog refcounts, and marks bpf_link as defunct. It
  * doesn't free link memory, which will eventually be done by bpf_link's
@@ -126,7 +98,6 @@ static void bpf_cgroup_link_auto_detach(struct bpf_cgroup_link *link)
 {
 	cgroup_put(link->cgroup);
 	link->cgroup = NULL;
->>>>>>> tarkzim
 }
 
 /**
@@ -139,12 +110,9 @@ static void cgroup_bpf_release(struct work_struct *work)
 	struct cgroup *p, *cgrp = container_of(work, struct cgroup,
 					       bpf.release_work);
 	struct bpf_prog_array *old_array;
-<<<<<<< ours
-=======
 	struct list_head *storages = &cgrp->bpf.storages;
 	struct bpf_cgroup_storage *storage, *stmp;
 
->>>>>>> tarkzim
 	unsigned int type;
 
 	mutex_lock(&cgroup_mutex);
@@ -155,16 +123,10 @@ static void cgroup_bpf_release(struct work_struct *work)
 
 		list_for_each_entry_safe(pl, pltmp, progs, node) {
 			list_del(&pl->node);
-<<<<<<< ours
-			bpf_prog_put(pl->prog);
-			bpf_cgroup_storages_unlink(pl->storage);
-			bpf_cgroup_storages_free(pl->storage);
-=======
 			if (pl->prog)
 				bpf_prog_put(pl->prog);
 			if (pl->link)
 				bpf_cgroup_link_auto_detach(pl->link);
->>>>>>> tarkzim
 			kfree(pl);
 			static_branch_dec(&cgroup_bpf_enabled_key);
 		}
@@ -174,14 +136,11 @@ static void cgroup_bpf_release(struct work_struct *work)
 		bpf_prog_array_free(old_array);
 	}
 
-<<<<<<< ours
-=======
 	list_for_each_entry_safe(storage, stmp, storages, list_cg) {
 		bpf_cgroup_storage_unlink(storage);
 		bpf_cgroup_storage_free(storage);
 	}
 
->>>>>>> tarkzim
 	mutex_unlock(&cgroup_mutex);
 
 	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
@@ -202,8 +161,6 @@ static void cgroup_bpf_release_fn(struct percpu_ref *ref)
 
 	INIT_WORK(&cgrp->bpf.release_work, cgroup_bpf_release);
 	queue_work(system_wq, &cgrp->bpf.release_work);
-<<<<<<< ours
-=======
 }
 
 /* Get underlying bpf_prog of bpf_prog_list entry, regardless if it's through
@@ -216,7 +173,6 @@ static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
 	if (pl->link)
 		return pl->link->link.prog;
 	return NULL;
->>>>>>> tarkzim
 }
 
 /* count number of elements in the list.
@@ -301,11 +257,7 @@ static int compute_effective_progs(struct cgroup *cgrp,
 				continue;
 
 			item = &progs->items[cnt];
-<<<<<<< ours
-			item->prog = pl->prog;
-=======
 			item->prog = prog_list_prog(pl);
->>>>>>> tarkzim
 			bpf_cgroup_storages_assign(item->cgroup_storage,
 						   pl->storage);
 			cnt++;
@@ -470,10 +422,7 @@ static struct bpf_prog_list *find_attach_entry(struct list_head *progs,
  *                         propagate the change to descendants
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to attach
-<<<<<<< ours
-=======
  * @link: A link to attach
->>>>>>> tarkzim
  * @replace_prog: Previously attached program to replace if BPF_F_REPLACE is set
  * @type: Type of attach operation
  * @flags: Option flags
@@ -481,27 +430,17 @@ static struct bpf_prog_list *find_attach_entry(struct list_head *progs,
  * Exactly one of @prog or @link can be non-null.
  * Must be called with cgroup_mutex held.
  */
-<<<<<<< ours
-int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-			struct bpf_prog *replace_prog,
-=======
 int __cgroup_bpf_attach(struct cgroup *cgrp,
 			struct bpf_prog *prog, struct bpf_prog *replace_prog,
 			struct bpf_cgroup_link *link,
->>>>>>> tarkzim
 			enum bpf_attach_type type, u32 flags)
 {
 	u32 saved_flags = (flags & (BPF_F_ALLOW_OVERRIDE | BPF_F_ALLOW_MULTI));
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	struct bpf_prog *old_prog = NULL;
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {};
-<<<<<<< ours
-	struct bpf_cgroup_storage *old_storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {};
-	struct bpf_prog_list *pl, *replace_pl = NULL;
-=======
 	struct bpf_cgroup_storage *new_storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {};
 	struct bpf_prog_list *pl;
->>>>>>> tarkzim
 	int err;
 
 	if (((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI)) ||
@@ -528,35 +467,6 @@ int __cgroup_bpf_attach(struct cgroup *cgrp,
 	if (prog_list_length(progs) >= BPF_CGROUP_MAX_PROGS)
 		return -E2BIG;
 
-<<<<<<< ours
-	if (flags & BPF_F_ALLOW_MULTI) {
-		list_for_each_entry(pl, progs, node) {
-			if (pl->prog == prog)
-				/* disallow attaching the same prog twice */
-				return -EINVAL;
-			if (pl->prog == replace_prog)
-				replace_pl = pl;
-		}
-		if ((flags & BPF_F_REPLACE) && !replace_pl)
-			/* prog to replace not found for cgroup */
-			return -ENOENT;
-	} else if (!list_empty(progs)) {
-		replace_pl = list_first_entry(progs, typeof(*pl), node);
-	}
-
-	if (bpf_cgroup_storages_alloc(storage, prog))
-		return -ENOMEM;
-
-	if (replace_pl) {
-		pl = replace_pl;
-		old_prog = pl->prog;
-		bpf_cgroup_storages_unlink(pl->storage);
-		bpf_cgroup_storages_assign(old_storage, pl->storage);
-	} else {
-		pl = kmalloc(sizeof(*pl), GFP_KERNEL);
-		if (!pl) {
-			bpf_cgroup_storages_free(storage);
-=======
 	pl = find_attach_entry(progs, prog, link, replace_prog,
 			       flags & BPF_F_ALLOW_MULTI);
 	if (IS_ERR(pl))
@@ -572,17 +482,13 @@ int __cgroup_bpf_attach(struct cgroup *cgrp,
 		pl = kmalloc(sizeof(*pl), GFP_KERNEL);
 		if (!pl) {
 			bpf_cgroup_storages_free(new_storage);
->>>>>>> tarkzim
 			return -ENOMEM;
 		}
 		list_add_tail(&pl->node, progs);
 	}
 
 	pl->prog = prog;
-<<<<<<< ours
-=======
 	pl->link = link;
->>>>>>> tarkzim
 	bpf_cgroup_storages_assign(pl->storage, storage);
 	cgrp->bpf.flags[type] = saved_flags;
 
@@ -590,24 +496,6 @@ int __cgroup_bpf_attach(struct cgroup *cgrp,
 	if (err)
 		goto cleanup;
 
-<<<<<<< ours
-	static_branch_inc(&cgroup_bpf_enabled_key);
-	bpf_cgroup_storages_free(old_storage);
-	if (old_prog) {
-		bpf_prog_put(old_prog);
-		static_branch_dec(&cgroup_bpf_enabled_key);
-	}
-	bpf_cgroup_storages_link(storage, cgrp, type);
-	return 0;
-
-cleanup:
-	/* and cleanup the prog list */
-	pl->prog = old_prog;
-	bpf_cgroup_storages_free(pl->storage);
-	bpf_cgroup_storages_assign(pl->storage, old_storage);
-	bpf_cgroup_storages_link(pl->storage, cgrp, type);
-	if (!replace_pl) {
-=======
 	if (old_prog)
 		bpf_prog_put(old_prog);
 	else
@@ -622,7 +510,6 @@ cleanup:
 	}
 	bpf_cgroup_storages_free(new_storage);
 	if (!old_prog) {
->>>>>>> tarkzim
 		list_del(&pl->node);
 		kfree(pl);
 	}
@@ -683,14 +570,9 @@ found:
  *
  * Must be called with cgroup_mutex held.
  */
-<<<<<<< ours
-int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			enum bpf_attach_type type)
-=======
 static int __cgroup_bpf_replace(struct cgroup *cgrp,
 				struct bpf_cgroup_link *link,
 				struct bpf_prog *new_prog)
->>>>>>> tarkzim
 {
 	struct list_head *progs = &cgrp->bpf.progs[link->type];
 	struct bpf_prog *old_prog;
@@ -868,11 +750,6 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 
 	/* now can actually delete it from this cgroup list */
 	list_del(&pl->node);
-<<<<<<< ours
-	bpf_cgroup_storages_unlink(pl->storage);
-	bpf_cgroup_storages_free(pl->storage);
-=======
->>>>>>> tarkzim
 	kfree(pl);
 	if (list_empty(progs))
 		/* last program was detached, reset flags to zero */
@@ -892,10 +769,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	u32 flags = cgrp->bpf.flags[type];
 	struct bpf_prog_array *effective;
-<<<<<<< ours
-=======
 	struct bpf_prog *prog;
->>>>>>> tarkzim
 	int cnt, ret = 0, i;
 
 	effective = rcu_dereference_protected(cgrp->bpf.effective[type],
@@ -957,13 +831,8 @@ int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 		}
 	}
 
-<<<<<<< ours
-	ret = cgroup_bpf_attach(cgrp, prog, replace_prog, attr->attach_type,
-				attr->attach_flags);
-=======
 	ret = cgroup_bpf_attach(cgrp, prog, replace_prog, NULL,
 				attr->attach_type, attr->attach_flags);
->>>>>>> tarkzim
 
 	if (replace_prog)
 		bpf_prog_put(replace_prog);
@@ -1024,8 +893,6 @@ static void bpf_cgroup_link_release(struct bpf_link *link)
 	cgroup_put(cg);
 }
 
-<<<<<<< ours
-=======
 static void bpf_cgroup_link_dealloc(struct bpf_link *link)
 {
 	struct bpf_cgroup_link *cg_link =
@@ -1146,7 +1013,6 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
 	return ret;
 }
 
->>>>>>> tarkzim
 /**
  * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
  * @sk: The socket sending or receiving traffic
@@ -1338,15 +1204,8 @@ cgroup_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_get_current_cgroup_id:
 		return &bpf_get_current_cgroup_id_proto;
-<<<<<<< ours
-	case BPF_FUNC_trace_printk:
-		if (capable(CAP_SYS_ADMIN))
-			return bpf_get_trace_printk_proto();
-		/* fall through */
-=======
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
->>>>>>> tarkzim
 	default:
 		return bpf_base_func_proto(func_id);
 	}

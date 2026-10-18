@@ -43,7 +43,6 @@ static struct file *ovl_open_realfile(const struct file *file,
 		acc_mode |= MAY_APPEND;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-<<<<<<< ours
 	err = inode_permission(realinode, MAY_OPEN | acc_mode);
 	if (err) {
 		realfile = ERR_PTR(err);
@@ -54,10 +53,6 @@ static struct file *ovl_open_realfile(const struct file *file,
 		realfile = open_with_fake_path(&file->f_path, flags, realinode,
 					       current_cred());
 	}
-=======
-	realfile = open_with_fake_path(&file->f_path, flags, realinode,
-				       current_cred());
->>>>>>> tarkzim
 	ovl_revert_creds(old_cred);
 
 	pr_debug("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
@@ -243,11 +238,7 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	ret = vfs_iter_read(real.file, iter, &iocb->ki_pos,
-<<<<<<< ours
-			    ovl_iocb_to_rwf(iocb));
-=======
 			    iocb_to_rw_flags(iocb->ki_flags, OVL_IOCB_MASK));
->>>>>>> tarkzim
 	ovl_revert_creds(old_cred);
 
 	ovl_file_accessed(file);

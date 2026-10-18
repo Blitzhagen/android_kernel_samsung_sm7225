@@ -1675,8 +1675,6 @@ ssize_t generic_copy_file_range(struct file *file_in, loff_t pos_in,
 }
 EXPORT_SYMBOL(generic_copy_file_range);
 
-<<<<<<< ours
-=======
 static ssize_t do_copy_file_range(struct file *file_in, loff_t pos_in,
 				  struct file *file_out, loff_t pos_out,
 				  size_t len, unsigned int flags)
@@ -1699,7 +1697,6 @@ static ssize_t do_copy_file_range(struct file *file_in, loff_t pos_in,
 				       flags);
 }
 
->>>>>>> tarkzim
 /*
  * copy_file_range() differs from regular file read and write in that it
  * specifically allows return partial success.  When it does so is up to
@@ -1757,21 +1754,9 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 		}
 	}
 
-<<<<<<< ours
-	if (file_out->f_op->copy_file_range) {
-		ret = file_out->f_op->copy_file_range(file_in, pos_in, file_out,
-						      pos_out, len, flags);
-		if (ret != -EOPNOTSUPP)
-			goto done;
-	}
-
-	ret = generic_copy_file_range(file_in, pos_in, file_out, pos_out, len,
-				      flags);
-=======
 	ret = do_copy_file_range(file_in, pos_in, file_out, pos_out, len,
 				flags);
 	WARN_ON_ONCE(ret == -EOPNOTSUPP);
->>>>>>> tarkzim
 done:
 	if (ret > 0) {
 		fsnotify_access(file_in);

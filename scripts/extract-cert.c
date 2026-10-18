@@ -129,17 +129,9 @@ int main(int argc, char **argv)
 		ERR(!f, "%s", cert_dst);
 		fclose(f);
 		exit(0);
-<<<<<<< ours
 	}
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR < 3
 	else if (!strncmp(cert_src, "pkcs11:", 7)) {
-=======
-	} else if (!strncmp(cert_src, "pkcs11:", 7)) {
-#ifdef OPENSSL_IS_BORINGSSL
-		ERR(1, "BoringSSL does not support extracting from PKCS#11");
-		exit(1);
-#else
->>>>>>> tarkzim
 		ENGINE *e;
 		struct {
 			const char *cert_id;
@@ -162,14 +154,9 @@ int main(int argc, char **argv)
 		ENGINE_ctrl_cmd(e, "LOAD_CERT_CTRL", 0, &parms, NULL, 1);
 		ERR(!parms.cert, "Get X.509 from PKCS#11");
 		write_cert(parms.cert);
-<<<<<<< ours
 	}
 #endif
 	else {
-=======
-#endif
-	} else {
->>>>>>> tarkzim
 		BIO *b;
 		X509 *x509;
 

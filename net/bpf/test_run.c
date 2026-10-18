@@ -10,14 +10,6 @@
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
 #include <linux/sched/signal.h>
-<<<<<<< ours
-#include <net/sock.h>
-#include <net/tcp.h>
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/bpf_test_run.h>
-
-=======
 #include <net/bpf_sk_storage.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -92,21 +84,13 @@ reset:
 	return false;
 }
 
->>>>>>> tarkzim
 static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 			u32 *retval, u32 *time, bool xdp)
 {
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE] = { NULL };
-<<<<<<< ours
-	enum bpf_cgroup_storage_type stype;
-	u64 time_start, time_spent = 0;
-	int ret = 0;
-	u32 i;
-=======
 	struct bpf_test_timer t = { NO_MIGRATE };
 	enum bpf_cgroup_storage_type stype;
 	int ret;
->>>>>>> tarkzim
 
 	for_each_cgroup_storage_type(stype) {
 		storage[stype] = bpf_cgroup_storage_alloc(prog, stype);
@@ -120,44 +104,6 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 
 	if (!repeat)
 		repeat = 1;
-<<<<<<< ours
-
-	rcu_read_lock();
-	migrate_disable();
-	time_start = ktime_get_ns();
-	for (i = 0; i < repeat; i++) {
-		bpf_cgroup_storage_set(storage);
-
-		if (xdp)
-			*retval = bpf_prog_run_xdp(prog, ctx);
-		else
-			*retval = BPF_PROG_RUN(prog, ctx);
-
-		if (signal_pending(current)) {
-			ret = -EINTR;
-			break;
-		}
-
-		if (need_resched()) {
-			time_spent += ktime_get_ns() - time_start;
-			migrate_enable();
-			rcu_read_unlock();
-
-			cond_resched();
-
-			rcu_read_lock();
-			migrate_disable();
-			time_start = ktime_get_ns();
-		}
-	}
-	time_spent += ktime_get_ns() - time_start;
-	migrate_enable();
-	rcu_read_unlock();
-
-	do_div(time_spent, repeat);
-	*time = time_spent > U32_MAX ? U32_MAX : (u32)time_spent;
-
-=======
 
 	bpf_test_timer_enter(&t);
 	do {
@@ -175,7 +121,6 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 	} while (bpf_test_timer_continue(&t, repeat, &ret, time));
 	bpf_test_timer_leave(&t);
 
->>>>>>> tarkzim
 	for_each_cgroup_storage_type(stype)
 		bpf_cgroup_storage_free(storage[stype]);
 
@@ -189,7 +134,6 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 	void __user *data_out = u64_to_user_ptr(kattr->test.data_out);
 	int err = -EFAULT;
 	u32 copy_size = size;
-<<<<<<< ours
 
 	/* Clamp copy if the user has provided a size hint, but copy the full
 	 * buffer if not to retain old behaviour.
@@ -200,18 +144,6 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 		err = -ENOSPC;
 	}
 
-=======
-
-	/* Clamp copy if the user has provided a size hint, but copy the full
-	 * buffer if not to retain old behaviour.
-	 */
-	if (kattr->test.data_size_out &&
-	    copy_size > kattr->test.data_size_out) {
-		copy_size = kattr->test.data_size_out;
-		err = -ENOSPC;
-	}
-
->>>>>>> tarkzim
 	if (data_out && copy_to_user(data_out, data, copy_size))
 		goto out;
 	if (copy_to_user(&uattr->test.data_size_out, &size, sizeof(size)))
@@ -231,12 +163,9 @@ out:
  * architecture dependent calling conventions. 7+ can be supported in the
  * future.
  */
-<<<<<<< ours
-=======
 __diag_push();
 __diag_ignore(GCC, 8, "-Wmissing-prototypes",
 	      "Global functions as their definitions will be in vmlinux BTF");
->>>>>>> tarkzim
 int noinline bpf_fentry_test1(int a)
 {
 	return a + 1;
@@ -267,8 +196,6 @@ int noinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
 	return a + (long)b + c + d + (long)e + f;
 }
 
-<<<<<<< ours
-=======
 struct bpf_fentry_test_t {
 	struct bpf_fentry_test_t *a;
 };
@@ -292,7 +219,6 @@ __diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
 
->>>>>>> tarkzim
 static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 			   u32 headroom, u32 tailroom)
 {
@@ -312,18 +238,6 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 		return ERR_PTR(-ENOMEM);
 
 	if (copy_from_user(data + headroom, data_in, user_size)) {
-<<<<<<< ours
-		kfree(data);
-		return ERR_PTR(-EFAULT);
-	}
-	if (bpf_fentry_test1(1) != 2 ||
-	    bpf_fentry_test2(2, 3) != 5 ||
-	    bpf_fentry_test3(4, 5, 6) != 15 ||
-	    bpf_fentry_test4((void *)7, 8, 9, 10) != 34 ||
-	    bpf_fentry_test5(11, (void *)12, 13, 14, 15) != 65 ||
-	    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111) {
-=======
->>>>>>> tarkzim
 		kfree(data);
 		return ERR_PTR(-EFAULT);
 	}
@@ -485,40 +399,6 @@ static void *bpf_ctx_init(const union bpf_attr *kattr, u32 max_size)
 	return data;
 }
 
-<<<<<<< ours
-static void *bpf_ctx_init(const union bpf_attr *kattr, u32 max_size)
-{
-	void __user *data_in = u64_to_user_ptr(kattr->test.ctx_in);
-	void __user *data_out = u64_to_user_ptr(kattr->test.ctx_out);
-	u32 size = kattr->test.ctx_size_in;
-	void *data;
-	int err;
-
-	if (!data_in && !data_out)
-		return NULL;
-
-	data = kzalloc(max_size, GFP_USER);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	if (data_in) {
-		err = bpf_check_uarg_tail_zero(data_in, max_size, size);
-		if (err) {
-			kfree(data);
-			return ERR_PTR(err);
-		}
-
-		size = min_t(u32, max_size, size);
-		if (copy_from_user(data, data_in, size)) {
-			kfree(data);
-			return ERR_PTR(-EFAULT);
-		}
-	}
-	return data;
-}
-
-=======
->>>>>>> tarkzim
 static int bpf_ctx_finish(const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr, const void *data,
 			  u32 size)
@@ -646,15 +526,12 @@ static void convert_skb_to___skb(struct sk_buff *skb, struct __sk_buff *__skb)
 	__skb->gso_segs = skb_shinfo(skb)->gso_segs;
 }
 
-<<<<<<< ours
-=======
 static struct proto bpf_dummy_proto = {
 	.name   = "bpf_dummy",
 	.owner  = THIS_MODULE,
 	.obj_size = sizeof(struct sock),
 };
 
->>>>>>> tarkzim
 int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr)
 {
@@ -699,31 +576,19 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		break;
 	}
 
-<<<<<<< ours
-	sk = kzalloc(sizeof(struct sock), GFP_USER);
-=======
 	sk = sk_alloc(net, AF_UNSPEC, GFP_USER, &bpf_dummy_proto, 1);
->>>>>>> tarkzim
 	if (!sk) {
 		kfree(data);
 		kfree(ctx);
 		return -ENOMEM;
 	}
-<<<<<<< ours
-	sock_net_set(sk, net);
-=======
->>>>>>> tarkzim
 	sock_init_data(NULL, sk);
 
 	skb = build_skb(data, 0);
 	if (!skb) {
 		kfree(data);
 		kfree(ctx);
-<<<<<<< ours
-		kfree(sk);
-=======
 		sk_free(sk);
->>>>>>> tarkzim
 		return -ENOMEM;
 	}
 	skb->sk = sk;
@@ -796,11 +661,7 @@ out:
 	if (dev && dev != net->loopback_dev)
 		dev_put(dev);
 	kfree_skb(skb);
-<<<<<<< ours
-	kfree(sk);
-=======
 	sk_free(sk);
->>>>>>> tarkzim
 	kfree(ctx);
 	return ret;
 }
@@ -872,38 +733,24 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 				     const union bpf_attr *kattr,
 				     union bpf_attr __user *uattr)
 {
-<<<<<<< ours
-=======
 	struct bpf_test_timer t = { NO_PREEMPT };
->>>>>>> tarkzim
 	u32 size = kattr->test.data_size_in;
 	struct bpf_flow_dissector ctx = {};
 	u32 repeat = kattr->test.repeat;
 	struct bpf_flow_keys *user_ctx;
 	struct bpf_flow_keys flow_keys;
-<<<<<<< ours
-	u64 time_start, time_spent = 0;
-=======
->>>>>>> tarkzim
 	const struct ethhdr *eth;
 	unsigned int flags = 0;
 	u32 retval, duration;
 	void *data;
 	int ret;
-<<<<<<< ours
-	u32 i;
-=======
->>>>>>> tarkzim
 
 	if (prog->type != BPF_PROG_TYPE_FLOW_DISSECTOR)
 		return -EINVAL;
 
-<<<<<<< ours
-=======
 	if (kattr->test.flags || kattr->test.cpu)
 		return -EINVAL;
 
->>>>>>> tarkzim
 	if (size < ETH_HLEN)
 		return -EINVAL;
 
@@ -932,41 +779,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	ctx.data = data;
 	ctx.data_end = (__u8 *)data + size;
 
-<<<<<<< ours
-	rcu_read_lock();
-	preempt_disable();
-	time_start = ktime_get_ns();
-	for (i = 0; i < repeat; i++) {
-		retval = bpf_flow_dissect(prog, &ctx, eth->h_proto, ETH_HLEN,
-					  size, flags);
-
-		if (signal_pending(current)) {
-			preempt_enable();
-			rcu_read_unlock();
-
-			ret = -EINTR;
-			goto out;
-		}
-
-		if (need_resched()) {
-			time_spent += ktime_get_ns() - time_start;
-			preempt_enable();
-			rcu_read_unlock();
-
-			cond_resched();
-
-			rcu_read_lock();
-			preempt_disable();
-			time_start = ktime_get_ns();
-		}
-	}
-	time_spent += ktime_get_ns() - time_start;
-	preempt_enable();
-	rcu_read_unlock();
-
-	do_div(time_spent, repeat);
-	duration = time_spent > U32_MAX ? U32_MAX : (u32)time_spent;
-=======
 	bpf_test_timer_enter(&t);
 	do {
 		retval = bpf_flow_dissect(prog, &ctx, eth->h_proto, ETH_HLEN,
@@ -976,7 +788,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 
 	if (ret < 0)
 		goto out;
->>>>>>> tarkzim
 
 	ret = bpf_test_finish(kattr, uattr, &flow_keys, sizeof(flow_keys),
 			      retval, duration);

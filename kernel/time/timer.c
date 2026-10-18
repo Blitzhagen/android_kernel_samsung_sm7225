@@ -1397,21 +1397,12 @@ static inline void del_timer_wait_running(struct timer_list *timer) { }
  * Now timer_delete_sync() will never return and never release somelock.
  * The interrupt on the other CPU is waiting to grab somelock but it has
  * interrupted the softirq that CPU0 is waiting to finish.
-<<<<<<< ours
  *
  * This function cannot guarantee that the timer is not rearmed again by
  * some concurrent or preempting code, right after it dropped the base
  * lock. If there is the possibility of a concurrent rearm then the return
  * value of the function is meaningless.
  *
-=======
- *
- * This function cannot guarantee that the timer is not rearmed again by
- * some concurrent or preempting code, right after it dropped the base
- * lock. If there is the possibility of a concurrent rearm then the return
- * value of the function is meaningless.
- *
->>>>>>> tarkzim
  * Return:
  * * %0	- The timer was not pending
  * * %1	- The timer was pending and deactivated
@@ -1432,14 +1423,11 @@ int timer_delete_sync(struct timer_list *timer)
 	lock_map_release(&timer->lockdep_map);
 	local_irq_restore(flags);
 #endif
-<<<<<<< ours
 	/*
 	 * don't use it in hardirq context, because it
 	 * could lead to deadlock.
 	 */
 	WARN_ON(in_irq() && !(timer->flags & TIMER_IRQSAFE));
-=======
->>>>>>> tarkzim
 
 	do {
 		ret = try_to_del_timer_sync(timer);

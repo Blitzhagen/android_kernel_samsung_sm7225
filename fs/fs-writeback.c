@@ -1421,7 +1421,6 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	 */
 	spin_lock(&inode->i_lock);
 	dirty = inode->i_state & I_DIRTY;
-<<<<<<< ours
 	if ((inode->i_state & I_DIRTY_TIME) &&
 	    ((dirty & I_DIRTY_INODE) ||
 	     wbc->sync_mode == WB_SYNC_ALL || wbc->for_sync ||
@@ -1430,8 +1429,6 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		dirty |= I_DIRTY_TIME;
 		trace_writeback_lazytime(inode);
 	}
-=======
->>>>>>> tarkzim
 	inode->i_state &= ~dirty;
 
 	/*
@@ -1454,11 +1451,8 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (newly_dirty)
 		__mark_inode_dirty(inode, I_DIRTY_PAGES);
-<<<<<<< ours
 	if (dirty & I_DIRTY_TIME)
 		mark_inode_dirty_sync(inode);
-=======
->>>>>>> tarkzim
 	/* Don't write the inode if only I_DIRTY_PAGES was set */
 	if (dirty & ~I_DIRTY_PAGES) {
 		int err = write_inode(inode, wbc);

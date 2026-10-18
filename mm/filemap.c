@@ -2517,30 +2517,6 @@ unsigned int mmap_readaround_limit = (VM_MAX_READAHEAD / 4); 		/* page */
 unsigned int mmap_readaround_limit = CONFIG_MMAP_READAROUND_LIMIT;	/* page */
 #endif
 
-<<<<<<< ours
-static struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
-					     struct file *fpin)
-{
-	int flags = vmf->flags;
-
-	if (fpin)
-		return fpin;
-
-	/*
-	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
-	 * anything, so we only pin the file and drop the mmap_sem if only
-	 * FAULT_FLAG_ALLOW_RETRY is set.
-	 */
-	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) ==
-	    FAULT_FLAG_ALLOW_RETRY) {
-		fpin = get_file(vmf->vma->vm_file);
-		up_read(&vmf->vma->vm_mm->mmap_sem);
-	}
-	return fpin;
-}
-
-=======
->>>>>>> tarkzim
 /*
  * lock_page_maybe_drop_mmap - lock the page, possibly dropping the mmap_sem
  * @vmf - the vm_fault for this fault.
@@ -2565,7 +2541,6 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 	 */
 	if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 		return 0;
-<<<<<<< ours
 
 	*fpin = maybe_unlock_mmap_for_io(vmf, *fpin);
 	if (vmf->flags & FAULT_FLAG_KILLABLE) {
@@ -2600,42 +2575,6 @@ static void filemap_tracing_mark_begin(struct file *file,
 		path = buf;
 	}
 
-=======
-
-	*fpin = maybe_unlock_mmap_for_io(vmf, *fpin);
-	if (vmf->flags & FAULT_FLAG_KILLABLE) {
-		if (__lock_page_killable(page)) {
-			/*
-			 * We didn't have the right flags to drop the mmap_sem,
-			 * but all fault_handlers only check for fatal signals
-			 * if we return VM_FAULT_RETRY, so we need to drop the
-			 * mmap_sem here and return 0 if we don't have a fpin.
-			 */
-			if (*fpin == NULL)
-				up_read(&vmf->vma->vm_mm->mmap_sem);
-			return 0;
-		}
-	} else
-		__lock_page(page);
-	return 1;
-}
-
-#ifdef CONFIG_TRACING
-static void filemap_tracing_mark_begin(struct file *file,
-		pgoff_t offset, unsigned int size, bool sync)
-{
-	char buf[TRACING_MARK_BUF_SIZE], *path;
-
-	if (!tracing_is_on())
-		return;
-
-	path = file_path(file, buf, TRACING_MARK_BUF_SIZE);
-	if (IS_ERR(path)) {
-		sprintf(buf, "file_path failed(%ld)", PTR_ERR(path));
-		path = buf;
-	}
-
->>>>>>> tarkzim
 	tracing_mark_begin("%d , %s , %lu , %d", sync, path, offset, size);
 }
 
