@@ -230,6 +230,12 @@ extern const struct file_operations proc_ns_dir_operations;
  */
 extern const struct file_operations proc_net_operations;
 extern const struct inode_operations proc_net_inode_operations;
+extern const struct dentry_operations proc_net_dentry_ops;
+static inline void pde_force_lookup(struct proc_dir_entry *pde)
+{
+	/* /proc/net/ entries can be changed under us by setns(CLONE_NEWNET) */
+	pde->proc_dops = &proc_net_dentry_ops;
+}
 
 #ifdef CONFIG_NET
 extern int proc_net_init(void);
