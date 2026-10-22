@@ -1586,19 +1586,34 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 	return rc;
 }
 
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
+
 void security_cred_free(struct cred *cred)
 {
 	/*
 	 * There is a failure case in prepare_creds() that
 	 * may result in a call here with ->security being NULL.
 	 */
+	dbg_fault_stage(0xC8, (unsigned long)cred->security);
 	if (unlikely(cred->security == NULL))
 		return;
 
 	call_void_hook(cred_free, cred);
+	dbg_fault_stage(0xC9, (unsigned long)cred->security);
 
+#ifdef CONFIG_KDP_CRED
+	kdp_free_security((unsigned long)cred->security);
+	dbg_fault_stage(0xCA, (unsigned long)cred->security);
+	/* EL1 write to a KDP-protected cred traps into EL2 and parks the
+	 * cpu; the field is dead anyway once the cred is freed. */
+	if (!is_kdp_protect_addr((unsigned long)cred))
+		cred->security = NULL;
+#else
 	kfree(cred->security);
+	dbg_fault_stage(0xCA, (unsigned long)cred->security);
 	cred->security = NULL;
+#endif
+	dbg_fault_stage(0xCB, (unsigned long)cred);
 }
 
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)

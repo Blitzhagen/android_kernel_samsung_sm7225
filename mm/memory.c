@@ -86,6 +86,8 @@
 
 #include "internal.h"
 
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/pagefault.h>
 
@@ -3831,6 +3833,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 	pte_t entry;
 	vm_fault_t ret;
 
+	dbg_fault_stage(0x60, vmf->address);
 	if (pmd_none(*vmf->pmd) && PageTransCompound(page) &&
 			IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
 		/* THP on COW? */
@@ -3842,6 +3845,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 	}
 
 	if (!vmf->pte) {
+		dbg_fault_stage(0x61, vmf->address);
 		ret = pte_alloc_one_map(vmf);
 		if (ret)
 			return ret;
@@ -3851,6 +3855,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 	if (unlikely(!pte_none(*vmf->pte)))
 		return VM_FAULT_NOPAGE;
 
+	dbg_fault_stage(0x62, vmf->address);
 	flush_icache_page(vma, page);
 	entry = mk_pte(page, vmf->vma_page_prot);
 	if (write)
@@ -3869,10 +3874,13 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
 		page_add_file_rmap(page, false);
 	}
+	dbg_fault_stage(0x63, vmf->address);
 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
+	dbg_fault_stage(0x64, vmf->address);
 
 	/* no need to invalidate: a not-present page won't be cached */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
+	dbg_fault_stage(0x65, vmf->address);
 
 	return 0;
 }
@@ -3908,12 +3916,19 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 	 * check even for read faults because we might have lost our CoWed
 	 * page
 	 */
+	dbg_fault_stage(0x50, vmf->address);
 	if (!(vmf->vma->vm_flags & VM_SHARED))
 		ret = check_stable_address_space(vmf->vma->vm_mm);
-	if (!ret)
+	if (!ret) {
+		dbg_fault_stage(0x51, vmf->address);
 		ret = alloc_set_pte(vmf, vmf->memcg, page);
-	if (vmf->pte)
+		dbg_fault_stage(0x52, vmf->address);
+	}
+	if (vmf->pte) {
+		dbg_fault_stage(0x53, vmf->address);
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+	}
+	dbg_fault_stage(0x54, vmf->address);
 	return ret;
 }
 
@@ -4054,6 +4069,8 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	vm_fault_t ret = 0;
 
+	dbg_fault_stage(0x41, vmf->address);
+
 	/*
 	 * Let's call ->map_pages() first and use ->fault() as fallback
 	 * if page by the offset is not ready to be mapped (cold cache or
@@ -4170,6 +4187,7 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
 	struct mm_struct *vm_mm = vma->vm_mm;
 	vm_fault_t ret;
 
+	dbg_fault_stage(0x40, vmf->address);
 	/*
 	 * The VMA was not fully populated on mmap() or missing VM_DONTEXPAND
 	 */
@@ -4392,6 +4410,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	pte_t entry;
 	int ret = 0;
 
+	dbg_fault_stage(0x30, vmf->address);
 	if (unlikely(pmd_none(*vmf->pmd))) {
 		/*
 		 * In the case of the speculative page fault handler we abort
@@ -4443,8 +4462,10 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	if (!vmf->pte) {
 		if (vma_is_anonymous(vmf->vma))
 			return do_anonymous_page(vmf);
-		else
+		else {
+			dbg_fault_stage(0x31, vmf->address);
 			return do_fault(vmf);
+		}
 	}
 
 	if (!pte_present(vmf->orig_pte))
@@ -4860,8 +4881,11 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
-	else
+	else {
+		dbg_fault_stage(0x20, address);
 		ret = __handle_mm_fault(vma, address, flags);
+		dbg_fault_stage(0x21, address);
+	}
 
 	if (flags & FAULT_FLAG_USER) {
 		mem_cgroup_exit_user_fault();

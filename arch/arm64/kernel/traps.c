@@ -52,8 +52,54 @@
 #include <asm/exception.h>
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
+#include <asm/pgtable.h>
+#include <asm/cacheflush.h>
 
 #include <linux/sec_debug.h>
+
+/* Crash beacon for gts7xllite bringup: write fault context to the pmsg
+ * region in persistent RAM so the recovery can read the exact fault PC.
+ * Guarded by kern_addr_valid() - safe before/after paging_init(). */
+#define DBG_BEACON_PA	0xB1BC0300UL
+static void dbg_die_beacon(const char *str, struct pt_regs *regs)
+{
+	char *p = (char *)__va(DBG_BEACON_PA);
+	unsigned long sp = regs ? regs->sp : 0;
+	unsigned long pc = regs ? regs->pc : 0;
+	unsigned long lr = regs ? regs->regs[30] : 0;
+
+	if (!kern_addr_valid((unsigned long)p))
+		return;
+	memcpy(p, "DIE!", 4);
+	memcpy(p + 8, &pc, 8);
+	memcpy(p + 16, &lr, 8);
+	memcpy(p + 24, &sp, 8);
+	strlcpy(p + 32, str ? str : "", 40);
+	__flush_dcache_area(p, 80);
+}
+
+/* Generic exception beacon at pmsg+0x380: records which exception handler
+ * ran, its esr/pc and a hit counter - catches silent exception storms that
+ * never reach printk (e.g. RAS SError loops). */
+#define DBG_EXC_PA	0xB1BC0380UL
+static void dbg_exc_beacon(unsigned int tag, unsigned int esr,
+			   unsigned long pc, unsigned long aux)
+{
+	char *p = (char *)__va(DBG_EXC_PA);
+	u32 cnt = 1;
+
+	if (!kern_addr_valid((unsigned long)p))
+		return;
+	if (!memcmp(p, "EXC!", 4) && !memcmp(p + 4, &tag, 4))
+		memcpy(&cnt, p + 12, 4), cnt++;
+	memcpy(p, "EXC!", 4);
+	memcpy(p + 4, &tag, 4);
+	memcpy(p + 12, &cnt, 4);
+	memcpy(p + 16, &esr, 4);
+	memcpy(p + 24, &pc, 8);
+	memcpy(p + 32, &aux, 8);
+	__flush_dcache_area(p, 40);
+}
 
 static const char *handler[]= {
 	"Synchronous Abort",
@@ -309,6 +355,7 @@ void die(const char *str, struct pt_regs *regs, int err)
 	int ret;
 	unsigned long flags;
 
+	dbg_die_beacon(str, regs);
 	raw_spin_lock_irqsave(&die_lock, flags);
 
 	oops_enter();
@@ -517,6 +564,7 @@ void arm64_notify_segfault(unsigned long addr)
 
 asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 {
+	dbg_exc_beacon(0x554E4421, 0, regs ? regs->pc : 0, 0); /* UND! */
 	/* check for AArch32 breakpoint instructions */
 	if (!aarch32_break_handler(regs))
 		return;
@@ -883,6 +931,7 @@ const char *esr_get_class_string(u32 esr)
  */
 asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 {
+	dbg_exc_beacon(0x42414421, esr, regs ? regs->pc : 0, reason); /* BAD! */
 	console_verbose();
 
 	sec_debug_save_badmode_info(reason, handler[reason],
@@ -902,6 +951,7 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
  */
 asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
+	dbg_exc_beacon(0x42453021, esr, regs ? regs->pc : 0, reason); /* BE0! */
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
@@ -999,6 +1049,7 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 
 asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 {
+	dbg_exc_beacon(0x53455221, esr, regs ? regs->pc : 0, 0); /* SER! */
 	nmi_enter();
 
 	/* non-RAS errors are not containable */

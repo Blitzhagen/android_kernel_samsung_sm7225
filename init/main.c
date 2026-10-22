@@ -47,6 +47,7 @@
 #include <linux/efi.h>
 #include <linux/tick.h>
 #include <linux/sched/isolation.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
@@ -96,6 +97,10 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
+#include <asm/processor.h>
+#include <asm/pgtable.h>
+#include <linux/mm.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_SECURITY_DEFEX
 #include <linux/defex.h>
@@ -1145,6 +1150,7 @@ static int try_to_run_init_process(const char *init_filename)
 }
 
 static noinline void __init kernel_init_freeable(void);
+static int dbg_pid1_watch(void *unused);
 
 #if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
 bool rodata_enabled __ro_after_init = true;
@@ -1316,4 +1322,108 @@ static noinline void __init kernel_init_freeable(void)
 	defex_load_rules();
 #endif
 
+	kthread_run(dbg_pid1_watch, NULL, "dbg_pid1w");
+}
+
+static int dbg_got_lvp;
+
+static void dbg_ipi_readpc(void *unused)
+{
+	struct pt_regs *r = get_irq_regs();
+	char *bp;
+
+	if (current->pid != 1 || !current->mm || !r || !user_mode(r))
+		return;
+	pr_err("DBG-LIVEPC: pc=%016llx sp=%016llx x30=%016llx pstate=%016llx\n",
+	       r->pc, r->sp, r->regs[30], r->pstate);
+	bp = (char *)__va(0xB1BC0580UL);
+	if (kern_addr_valid((unsigned long)bp)) {
+		memcpy(bp, "LVP!", 4);
+		memcpy(bp + 8, &r->pc, 8);
+		memcpy(bp + 16, &r->sp, 8);
+		memcpy(bp + 24, &r->regs[30], 8);
+		memcpy(bp + 32, &r->pstate, 8);
+		__flush_dcache_area(bp, 40);
+		dbg_got_lvp = 1;
+	}
+}
+
+static int dbg_pid1_watch(void *unused)
+{
+	struct task_struct *p;
+	int i, cpu = -1;
+
+	msleep(6500);
+	pr_err("DBG-PID1W: --- userspace task dump ---\n");
+	{
+		char *hp = (char *)__va(0xB1BC0000UL);
+		if (kern_addr_valid((unsigned long)hp)) {
+			u32 sz = 0x3FFF4;
+			memcpy(hp, "DBGC", 4);
+			memset(hp + 4, 0, 4);
+			memcpy(hp + 8, &sz, 4);
+			__flush_dcache_area(hp, 12);
+		}
+	}
+	rcu_read_lock();
+	for_each_process(p) {
+		struct pt_regs *r;
+		char *bp;
+		if (!p->mm)
+			continue;
+		r = task_pt_regs(p);
+		pr_err("DBG-USR: %s pid=%d pc=%016llx sp=%016llx pstate=%016llx\n",
+		       p->comm, p->pid, r->pc, r->sp, r->pstate);
+		bp = (char *)__va(0xB1BC0480UL);
+		if (kern_addr_valid((unsigned long)bp)) {
+			memcpy(bp, "USR!", 4);
+			memcpy(bp + 8, &p->pid, 4);
+			memcpy(bp + 12, p->comm, 16);
+			memcpy(bp + 32, &r->pc, 8);
+			memcpy(bp + 40, &r->sp, 8);
+			memcpy(bp + 48, &r->pstate, 8);
+			memcpy(bp + 56, &r->regs[30], 8);
+			__flush_dcache_area(bp, 64);
+		}
+		sched_show_task(p);
+		if (p->pid == 1)
+			cpu = task_cpu(p);
+	}
+	rcu_read_unlock();
+	for (i = 0; i < 60 && !dbg_got_lvp; i++) {
+		unsigned long pc, sp, x30, pstate;
+		int oncpu;
+
+		rcu_read_lock();
+		p = find_task_by_vpid(1);
+		if (!p || !p->mm) {
+			rcu_read_unlock();
+			break;
+		}
+		cpu = task_cpu(p);
+		oncpu = p->on_cpu;
+		if (!oncpu) {
+			struct pt_regs *r = task_pt_regs(p);
+			pc = r->pc; sp = r->sp;
+			x30 = r->regs[30]; pstate = r->pstate;
+		}
+		rcu_read_unlock();
+		if (!oncpu) {
+			char *bp = (char *)__va(0xB1BC05C0UL);
+			pr_err("DBG-PRP: offcpu pc=%016lx sp=%016lx x30=%016lx\n",
+			       pc, sp, x30);
+			if (kern_addr_valid((unsigned long)bp)) {
+				memcpy(bp, "PRP!", 4);
+				memcpy(bp + 8, &pc, 8);
+				memcpy(bp + 16, &sp, 8);
+				memcpy(bp + 24, &x30, 8);
+				memcpy(bp + 32, &pstate, 8);
+				__flush_dcache_area(bp, 40);
+			}
+			break;
+		}
+		smp_call_function_single(cpu, dbg_ipi_readpc, NULL, 0);
+		msleep(10);
+	}
+	return 0;
 }

@@ -31,6 +31,9 @@
 #include <linux/debugfs.h>
 #include <linux/sysfs.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
+#include <asm/cacheflush.h>
+#include <asm/processor.h>
 #include <soc/qcom/minidump.h>
 
 #include <linux/sec_debug.h>
@@ -221,6 +224,18 @@ void panic(const char *fmt, ...)
 	local_irq_disable();
 	preempt_disable_notrace();
 
+	/* gts7xllite bringup beacon: record panic in persistent RAM */
+	{
+		char *bp = (char *)__va(0xB1BC0380UL);
+		if (kern_addr_valid((unsigned long)bp)) {
+			unsigned long caller = (unsigned long)__builtin_return_address(0);
+			memcpy(bp, "PNC!", 4);
+			memcpy(bp + 8, &caller, 8);
+			strlcpy(bp + 24, fmt ? fmt : "", 60);
+			__flush_dcache_area(bp, 96);
+		}
+	}
+
 	/*
 	 * It's possible to come here directly from a panic-assertion and
 	 * not have preempt disabled. Some functions called from here want
@@ -250,6 +265,23 @@ void panic(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+
+	/* gts7xllite bringup: dump userspace task states on panic */
+	{
+		struct task_struct *p;
+		rcu_read_lock();
+		for_each_process(p) {
+			struct pt_regs *r;
+			if (!p->mm)
+				continue;
+			r = task_pt_regs(p);
+			pr_err("DBG-USR: %s pid=%d pc=%016llx sp=%016llx pstate=%016llx\n",
+			       p->comm, p->pid, r->pc, r->sp, r->pstate);
+			sched_show_task(p);
+		}
+		rcu_read_unlock();
+	}
+
 	dump_stack_minidump(0);
 	if (vendor_panic_cb)
 		vendor_panic_cb(0);

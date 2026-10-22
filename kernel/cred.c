@@ -24,6 +24,8 @@
 #include <linux/kdp.h>
 #endif
 
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
+
 #if 0
 #define kdebug(FMT, ...)						\
 	printk("[%-5.5s%5u] " FMT "\n",					\
@@ -153,6 +155,7 @@ void __put_cred(struct cred *cred)
 	kdebug("__put_cred(%p{%ld,%d})", cred,
 	       atomic_long_read(&cred->usage),
 	       read_cred_subscribers(cred));
+	dbg_fault_stage(0xD0, (unsigned long)cred);
 #ifdef CONFIG_KDP_CRED
 	if (is_kdp_protect_addr((unsigned long)cred))
 		BUG_ON(ROCRED_UC_READ(cred) != 0);
@@ -165,12 +168,14 @@ void __put_cred(struct cred *cred)
 	cred->magic = CRED_MAGIC_DEAD;
 	cred->put_addr = __builtin_return_address(0);
 #endif
+	dbg_fault_stage(0xD1, (unsigned long)cred);
 #ifdef CONFIG_KDP_CRED
 	if(cred == current->cred)
 		printk("[KDP] cred->security: 0x%lx\n", cred->security);
 #endif
 	BUG_ON(cred == current->cred);
 	BUG_ON(cred == current->real_cred);
+	dbg_fault_stage(0xD2, (unsigned long)cred);
 
 #ifdef CONFIG_KDP_CRED
 	if (is_kdp_protect_addr((unsigned long)cred)) {
@@ -188,6 +193,7 @@ void __put_cred(struct cred *cred)
 #ifdef CONFIG_KDP_CRED
 	}
 #endif
+	dbg_fault_stage(0xD3, (unsigned long)cred);
 }
 EXPORT_SYMBOL(__put_cred);
 
@@ -655,13 +661,16 @@ const struct cred *override_creds(const struct cred *new)
 	validate_creds(new);
 #ifdef CONFIG_KDP_CRED
 	if (kdp_enable) {
-		volatile unsigned int rkp_use_count = kdp_get_usecount(new);
+		volatile unsigned int rkp_use_count;
 		struct cred *new_ro;
 
+		get_new_cred(new);
+		alter_cred_subscribers(new, 1);
+		rkp_use_count = kdp_get_usecount(new);
 		new_ro = prepare_ro_creds(new, CMD_OVRD_CREDS, rkp_use_count);
+		GET_ROCRED_RCU(new_ro)->reflected_cred = (void *)new;
 		*cnew = new_ro;
 		rcu_assign_pointer(current->cred, new_ro);
-		put_cred(new);
 	} else {
 		get_new_cred((struct cred *)new);
 		alter_cred_subscribers(new, 1);
@@ -731,21 +740,27 @@ void revert_creds(const struct cred *old)
 	       atomic_long_read(&old->usage),
 	       read_cred_subscribers(old));
 
+	dbg_fault_stage(0xB0, (unsigned long)override);
 	validate_creds(old);
 	validate_creds(override);
 	alter_cred_subscribers(old, 1);
 	rcu_assign_pointer(current->cred, old);
 	alter_cred_subscribers(override, -1);
+	dbg_fault_stage(0xB1, (unsigned long)override);
 #ifdef CONFIG_KDP_CRED
 	if (kdp_enable) {
 		if (is_kdp_protect_addr((unsigned long)override)){
+			dbg_fault_stage(0xB2, (unsigned long)GET_ROCRED_RCU(override)->reflected_cred);
 			if(GET_ROCRED_RCU(override)->reflected_cred)
 				put_cred((struct cred *)GET_ROCRED_RCU(override)->reflected_cred);
+			dbg_fault_stage(0xB3, (unsigned long)override);
 			put_cred(override);
 		}
 	}
 #endif
+	dbg_fault_stage(0xB4, (unsigned long)override);
 	put_cred(override);
+	dbg_fault_stage(0xB5, (unsigned long)override);
 }
 EXPORT_SYMBOL(revert_creds);
 

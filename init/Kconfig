@@ -1052,6 +1052,14 @@ config CGROUP_FREEZER
 
 	  If you're using cgroup2, say N.
 
+config CGROUP_SFREEZER
+	bool "Samsung freezer controller stub"
+	help
+	  Registers an inert "sfreezer" cgroup v1 controller so that the
+	  /dev/freezer mount requested by Samsung vendor cgroups.json
+	  succeeds. The proprietary Samsung controller is not implemented;
+	  the hierarchy exists but performs no freezer actions.
+
 config CGROUP_HUGETLB
 	bool "HugeTLB controller"
 	depends on HUGETLB_PAGE

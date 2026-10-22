@@ -5,7 +5,9 @@
 #include <linux/errno.h>
 #include <linux/nospec.h>
 #include <linux/ptrace.h>
+#include <linux/sched.h>
 #include <linux/syscalls.h>
+#include <linux/uaccess.h>
 
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
@@ -16,6 +18,8 @@
 
 #ifdef CONFIG_SECURITY_DEFEX
 #include <linux/defex.h>
+
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
 #endif
 long compat_arm_syscall(struct pt_regs *regs, int scno);
 long sys_ni_syscall(void);
@@ -125,7 +129,56 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 			goto trace_exit;
 	}
 
-	invoke_syscall(regs, scno, sc_nr, syscall_table);
+	dbg_fault_stage(0x90, scno);
+	if ((scno == 240 || scno == 131) && user_mode(regs)) {
+		unsigned long sig = (scno == 240) ? regs->regs[2] : regs->regs[1];
+		if (sig == 6) {
+			u64 w[64];
+			int i;
+			pr_info("DBG-ABT: pid=%d scno=%d pc=%llx lr=%llx sp=%llx\n",
+				current->pid, scno, regs->pc, regs->regs[30], regs->sp);
+			if (!copy_from_user(w, (void __user *)regs->sp, sizeof(w)))
+				for (i = 0; i < 64; i += 8)
+					pr_info("DBG-STK: %016llx %016llx %016llx %016llx %016llx %016llx %016llx %016llx\n",
+						w[i], w[i+1], w[i+2], w[i+3],
+						w[i+4], w[i+5], w[i+6], w[i+7]);
+		}
+	}
+	{
+		unsigned long a0 = regs->regs[0], a1 = regs->regs[1];
+		unsigned long a2 = regs->regs[2], a3 = regs->regs[3];
+		unsigned long a4 = regs->regs[4], a5 = regs->regs[5];
+		invoke_syscall(regs, scno, sc_nr, syscall_table);
+		if (scno == 40 || scno == 39) {
+			long ret = (long)regs->regs[0];
+			char p1[64] = {0}, p2[32] = {0}, p3[32] = {0};
+			strncpy_from_user(p1, (void __user *)a0, 63);
+			strncpy_from_user(p2, (void __user *)a1, 31);
+			strncpy_from_user(p3, (void __user *)a2, 31);
+			pr_info("DBG-MNT: %s pid=%d scno=%d ret=%ld src='%s' tgt='%s' typ='%s' fl=%llx\n",
+				current->comm, current->pid, scno, ret, p1, p2, p3, a3);
+		}
+		if (current->pid == 1) {
+			long ret = (long)regs->regs[0];
+			if (ret < 0 && ret >= -4095 &&
+			    ret != -2 && ret != -4 && ret != -9 && ret != -11 &&
+			    ret != -17 && ret != -22 && ret != -25 && ret != -1 && ret != -5
+			    /* ENOENT,EINTR,EBADF,EAGAIN,EEXIST,EINVAL,ENOTTY,EPERM,EIO */) {
+				char p1[64] = {0}, p2[32] = {0};
+				if (scno == 56 || scno == 34 || scno == 79 || scno == 48 ||
+				    scno == 33 || scno == 35 || scno == 46 || scno == 78 ||
+				    scno == 260 || scno == 37 || scno == 38 || scno == 278)
+					strncpy_from_user(p1, (void __user *)a1, 63);
+				if (scno == 40) {
+					strncpy_from_user(p1, (void __user *)a1, 63);
+					strncpy_from_user(p2, (void __user *)a2, 31);
+				}
+				pr_info("DBG-ERR: pid=%d scno=%d ret=%ld x0=%llx x1=%llx x2=%llx x3=%llx x4=%llx x5=%llx p='%s' t='%s'\n",
+					current->pid, scno, ret, a0, a1, a2, a3, a4, a5, p1, p2);
+			}
+		}
+	}
+	dbg_fault_stage(0x91, scno);
 
 	/*
 	 * The tracing status may have changed under our feet, so we have to

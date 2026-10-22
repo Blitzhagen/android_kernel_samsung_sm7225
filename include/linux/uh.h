@@ -34,6 +34,7 @@ struct test_case {
 };
 
 int uh_call(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
+int uh_smc(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
 
 #endif //__ASSEMBLY__
 #endif //__UH_H__

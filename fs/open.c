@@ -361,6 +361,8 @@ extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
+
 long do_faccessat(int dfd, const char __user *filename, int mode)
 {
 	const struct cred *old_cred;
@@ -371,10 +373,12 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
 	int res;
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 
+	dbg_fault_stage(0xA0, (unsigned long)filename);
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 
 	override_cred = prepare_creds();
+	dbg_fault_stage(0xA1, (unsigned long)override_cred);
 	if (!override_cred)
 		return -ENOMEM;
 
@@ -411,8 +415,10 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
 	override_cred->non_rcu = 1;
 
 	old_cred = override_creds(override_cred);
+	dbg_fault_stage(0xA2, (unsigned long)old_cred);
 retry:
 	res = user_path_at(dfd, filename, lookup_flags, &path);
+	dbg_fault_stage(0xA3, (unsigned long)path.mnt);
 	if (res)
 		goto out;
 
@@ -430,6 +436,7 @@ retry:
 	}
 
 	res = inode_permission2(mnt, inode, mode | MAY_ACCESS);
+	dbg_fault_stage(0xA4, (unsigned long)inode);
 	/* SuS v2 requires we report a read only fs too */
 	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
 		goto out_path_release;
@@ -446,15 +453,19 @@ retry:
 	if (__mnt_is_readonly(path.mnt))
 		res = -EROFS;
 
+	dbg_fault_stage(0xA5, (unsigned long)path.mnt);
 out_path_release:
 	path_put(&path);
+	dbg_fault_stage(0xA6, res);
 	if (retry_estale(res, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
 out:
 	revert_creds(old_cred);
+	dbg_fault_stage(0xA7, res);
 	put_cred(override_cred);
+	dbg_fault_stage(0xA8, res);
 	return res;
 }
 

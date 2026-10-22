@@ -30,6 +30,7 @@
 #include <linux/sched/debug.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
+#include <linux/smp.h>
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
 
@@ -56,6 +57,8 @@ struct fault_info {
 	int	code;
 	const char *name;
 };
+
+void dbg_fault_stage(unsigned int stage, unsigned long addr);
 
 static const struct fault_info fault_info[];
 
@@ -517,7 +520,9 @@ retry:
 	if (!vma || !can_reuse_spf_vma(vma, addr))
 		vma = find_vma(mm, addr);
 
+	dbg_fault_stage(0x10, addr);
 	fault = __do_page_fault(vma, addr, mm_flags, vm_flags, tsk);
+	dbg_fault_stage(0x11, addr);
 	major |= fault & VM_FAULT_MAJOR;
 
 	/* Quick path to respond to signals */
@@ -770,14 +775,92 @@ int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 	return ghes_notify_sea();
 }
 
+static void dbg_exc_beacon_f(unsigned int tag, unsigned int esr,
+			     unsigned long pc, unsigned long aux)
+{
+	char *p = (char *)__va(0xB1BC0380UL);
+	u32 cnt = 1;
+
+	if (!kern_addr_valid((unsigned long)p))
+		return;
+	if (!memcmp(p, "EXC!", 4) && !memcmp(p + 4, &tag, 4))
+		memcpy(&cnt, p + 12, 4), cnt++;
+	memcpy(p, "EXC!", 4);
+	memcpy(p + 4, &tag, 4);
+	memcpy(p + 12, &cnt, 4);
+	memcpy(p + 16, &esr, 4);
+	memcpy(p + 24, &pc, 8);
+	memcpy(p + 32, &aux, 8);
+	__flush_dcache_area(p, 40);
+}
+
+static void dbg_abf_flag(unsigned int state, unsigned long addr,
+			 unsigned int esr)
+{
+	char *p = (char *)__va(0xB1BC03B0UL);
+	u64 st = state;
+
+	if (!kern_addr_valid((unsigned long)p))
+		return;
+	memcpy(p, "ABF!", 4);
+	memcpy(p + 8, &st, 8);
+	memcpy(p + 16, &addr, 8);
+	u32 e = esr;
+	memcpy(p + 24, &e, 4);
+	u64 c = raw_smp_processor_id();
+	memcpy(p + 32, &c, 8);
+	__flush_dcache_area(p, 40);
+}
+
+static u64 dbg_sc_hist[8][16];
+static int dbg_sc_idx[8];
+
+void dbg_fault_stage(unsigned int stage, unsigned long addr)
+{
+	u64 cpu = raw_smp_processor_id();
+	char *p = (char *)__va(0xB1BC0600UL) + cpu * 0x40;
+	u64 c;
+	if (!kern_addr_valid((unsigned long)p))
+		return;
+	if (stage == 0x90 && cpu < 8) {
+		dbg_sc_hist[cpu][dbg_sc_idx[cpu] & 15] = addr;
+		dbg_sc_idx[cpu]++;
+	}
+	memcpy(p, "FST!", 4);
+	memcpy(p + 8, &stage, 4);
+	memcpy(p + 16, &addr, 8);
+	memcpy(p + 24, &cpu, 8);
+	c = current->pid;
+	memcpy(p + 32, &c, 8);
+	__flush_dcache_area(p, 0x40);
+}
+EXPORT_SYMBOL(dbg_fault_stage);
+
+void dbg_get_schist(u64 cpu, u64 *out, int *idx)
+{
+	if (cpu < 8) {
+		memcpy(out, dbg_sc_hist[cpu], sizeof(dbg_sc_hist[cpu]));
+		*idx = dbg_sc_idx[cpu];
+	} else {
+		memset(out, 0, 16 * sizeof(u64));
+		*idx = 0;
+	}
+}
+EXPORT_SYMBOL(dbg_get_schist);
+
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 					 struct pt_regs *regs)
 {
 	const struct fault_info *inf = esr_to_fault_info(esr);
 	struct siginfo info;
 
-	if (!inf->fn(addr, esr, regs))
+	dbg_exc_beacon_f(0x4D414221, esr, addr, regs ? regs->pc : 0); /* MAB! */
+	dbg_abf_flag(1, addr, esr);
+	if (!inf->fn(addr, esr, regs)) {
+		dbg_abf_flag(0, addr, esr);
 		return;
+	}
+	dbg_abf_flag(0, addr, esr);
 
 	if (!user_mode(regs)) {
 		pr_alert("Unhandled fault at 0x%016lx\n", addr);
@@ -821,6 +904,8 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 					   struct pt_regs *regs)
 {
 	struct siginfo info;
+
+	dbg_exc_beacon_f(0x53504321, esr, addr, regs ? regs->pc : 0); /* SPC! */
 
 	if (user_mode(regs)) {
 		if (!is_ttbr0_addr(instruction_pointer(regs)))

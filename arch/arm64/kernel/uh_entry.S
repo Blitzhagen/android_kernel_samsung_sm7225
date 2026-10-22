@@ -1,7 +1,7 @@
 #include <linux/linkage.h>
 #include <linux/uh.h>
 
-ENTRY(uh_call)
+ENTRY(uh_smc)
 	stp x1, x0, [sp, #-16]!
 	stp x3, x2, [sp, #-16]!
 	stp x5, x4, [sp, #-16]!
@@ -23,10 +23,7 @@ ENTRY(uh_call)
 	stp x29, x28, [sp, #-16]!
 	stp xzr, x30, [sp, #-16]!
 
-back:
 	smc	#0x0
-	cmp	x0, #0x1
-	b.eq	back
 
 	ldp xzr, x30, [sp], #16
 	ldp x29, x28, [sp], #16
@@ -49,5 +46,5 @@ back:
 	ldp x3, x2, [sp], #16
 	ldp x1, x0, [sp], #16
 	ret
-ENDPROC(uh_call)
+ENDPROC(uh_smc)
 

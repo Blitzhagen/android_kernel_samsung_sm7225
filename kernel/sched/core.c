@@ -13,6 +13,11 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/scs.h>
+#include <linux/io.h>
+#include <linux/mm.h>
+#include <asm/pgtable.h>
+#include <asm/memory.h>
+#include <asm/cacheflush.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
@@ -8567,11 +8572,120 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 
 #endif	/* CONFIG_CGROUP_SCHED */
 
+static void __iomem *dbg_gicr_va;
+
 void dump_cpu_task(int cpu)
 {
 	pr_info("Task dump for CPU %d:\n", cpu);
 	sched_show_task(cpu_curr(cpu));
+	if (dbg_gicr_va && cpu < 8) {
+		void __iomem *rd = dbg_gicr_va + cpu * 0x20000;
+		void __iomem *r0 = dbg_gicr_va;
+
+		pr_err("DBG-GICR cpu%d: CTLR=%08x WAKER=%08x TYPER=%08x%08x IGROUP=%08x ISEN=%08x ISPEND=%08x ISACT=%08x\n",
+		       cpu,
+		       readl_relaxed(rd + 0x00),
+		       readl_relaxed(rd + 0x14),
+		       readl_relaxed(rd + 0x0c), readl_relaxed(rd + 0x08),
+		       readl_relaxed(rd + 0x10000 + 0x80),
+		       readl_relaxed(rd + 0x10000 + 0x100),
+		       readl_relaxed(rd + 0x10000 + 0x200),
+		       readl_relaxed(rd + 0x10000 + 0x300));
+		pr_err("DBG-GICR ref0: WAKER=%08x IGROUP=%08x ISEN=%08x ISPEND=%08x\n",
+		       readl_relaxed(r0 + 0x14),
+		       readl_relaxed(r0 + 0x10000 + 0x80),
+		       readl_relaxed(r0 + 0x10000 + 0x100),
+		       readl_relaxed(r0 + 0x10000 + 0x200));
+	}
+	{
+		struct task_struct *tk = cpu_curr(cpu);
+
+		if (tk->mm && tk->mm->pgd) {
+			struct pt_regs *r = task_pt_regs(tk);
+			unsigned long fva = 0x2f5c94UL, sva = r->sp;
+			pgd_t *pgd = pgd_offset(tk->mm, fva);
+			p4d_t *p4d = p4d_offset(pgd, fva);
+			pud_t *pud = pud_offset(p4d, fva);
+			pmd_t *pmd = pmd_offset(pud, fva);
+			u64 pgdv = pgd_val(*pgd), pudv = pud_val(*pud);
+			u64 pmdv = pmd_val(*pmd), ptev = 0, sptev = 0;
+			u64 sphys = 0;
+			char *bp;
+			int i;
+
+			if (pmd_table(*pmd)) {
+				pte_t *pe = pte_offset_kernel(pmd, fva);
+				ptev = pte_val(*pe);
+			}
+			/* stack page walk */
+			pgd = pgd_offset(tk->mm, sva);
+			p4d = p4d_offset(pgd, sva);
+			pud = pud_offset(p4d, sva);
+			pmd = pmd_offset(pud, sva);
+			if (pmd_table(*pmd)) {
+				pte_t *pe = pte_offset_kernel(pmd, sva);
+				sptev = pte_val(*pe);
+				if (pte_present(*pe))
+					sphys = pte_pfn(*pe) * PAGE_SIZE +
+						(sva & ~PAGE_MASK);
+			}
+			pr_err("DBG-PGW cpu%d: pid=%d pc=%016llx fva=%lx pgd=%llx pud=%llx pmd=%llx pte=%llx | sp=%llx spte=%llx\n",
+			       cpu, tk->pid, r->pc, fva, pgdv, pudv, pmdv, ptev,
+			       r->sp, sptev);
+			bp = (char *)__va(0xB1BC0C00UL);
+			if (kern_addr_valid((unsigned long)bp)) {
+				u64 vals[8] = { r->pc, fva, pgdv, pudv, pmdv,
+						ptev, sptev, sphys };
+				memcpy(bp, "PGW!", 4);
+				memcpy(bp + 8, vals, sizeof(vals));
+				if (sphys) {
+					void *s = __va(sphys & PAGE_MASK);
+					memcpy(bp + 0x100, s, 0x300);
+				}
+				__flush_dcache_area(bp, 0x400);
+			}
+			/* Raw kernel stack + full pt_regs of the stalled cpu's
+			 * current task: the exception frames sit in RAM and are
+			 * readable even while the cpu is dead. pt_regs SPSR
+			 * shows whether eret returned to EL0 with IRQs masked. */
+			bp = (char *)__va(0xB1BC0E00UL);
+			if (kern_addr_valid((unsigned long)bp)) {
+				u64 meta[16];
+
+				memset(bp, 0, 0x220);
+				memcpy(bp, "STF!", 4);
+				meta[0] = (u64)task_stack_page(tk);
+				meta[1] = (u64)r->pc;
+				meta[2] = (u64)r->sp;
+				meta[3] = (u64)r->pstate;
+				meta[4] = (u64)r->regs[29]; /* fp */
+				meta[5] = (u64)r->regs[30]; /* lr */
+				meta[6] = (u64)r->orig_x0;
+				meta[7] = (u64)r->syscallno;
+				meta[8] = (u64)tk->on_cpu;
+				meta[9] = (u64)task_cpu(tk);
+				memcpy(bp + 8, meta, sizeof(meta));
+				/* pt_regs block (34 regs) at frame top */
+				memcpy(bp + 0x100, r, 0x120);
+				__flush_dcache_area(bp, 0x220);
+				/* whole task kernel stack, separate region */
+				bp = (char *)__va(0xB1BC8000UL);
+				memcpy(bp, "KSTK", 4);
+				if (kern_addr_valid((unsigned long)task_stack_page(tk)))
+					memcpy(bp + 0x10, task_stack_page(tk),
+					       0x4000);
+				__flush_dcache_area(bp, 0x4010);
+			}
+		}
+	}
 }
+
+static int __init dbg_gicr_map(void)
+{
+	dbg_gicr_va = ioremap(0x17A60000UL, 0x100000);
+	return 0;
+}
+device_initcall(dbg_gicr_map);
 
 /*
  * Nice levels are multiplicative, with a gentle 10% change for every

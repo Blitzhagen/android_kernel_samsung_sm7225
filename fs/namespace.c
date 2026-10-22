@@ -1123,9 +1123,8 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 
 	atomic_inc(&fc->root->d_sb->s_active);
 #ifdef CONFIG_KDP_NS
-	mnt->mnt->mnt_sb	= fc->root->d_sb;
-	mnt->mnt->mnt_root	= dget(fc->root);
-	mnt->mnt_mountpoint	= mnt->mnt->mnt_root;
+	kdp_set_mnt_root_sb(mnt->mnt, dget(fc->root), fc->root->d_sb);
+	mnt->mnt_mountpoint = mnt->mnt->mnt_root;
 #else
 	mnt->mnt.mnt_sb		= fc->root->d_sb;
 	mnt->mnt.mnt_root	= dget(fc->root);
@@ -2979,17 +2978,21 @@ out:
 /*
  * add a mount into a namespace's mount tree
  */
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
+
 static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 {
 	struct mountpoint *mp;
 	struct mount *parent;
 	int err;
 
+	dbg_fault_stage(0xE5, (unsigned long)newmnt);
 	mnt_flags &= ~MNT_INTERNAL_FLAGS;
 
 	mp = lock_mount(path);
 	if (IS_ERR(mp))
 		return PTR_ERR(mp);
+	dbg_fault_stage(0xE6, (unsigned long)mp);
 
 	parent = real_mount(path->mnt);
 	err = -EINVAL;
@@ -3025,10 +3028,13 @@ static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 #else
 	newmnt->mnt.mnt_flags = mnt_flags;
 #endif
+	dbg_fault_stage(0xE7, (unsigned long)newmnt);
 	err = graft_tree(newmnt, parent, mp);
+	dbg_fault_stage(0xE8, err);
 
 unlock:
 	unlock_mount(mp);
+	dbg_fault_stage(0xE9, err);
 	return err;
 }
 
@@ -3057,10 +3063,12 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	up_write(&sb->s_umount);
 
 	mnt = vfs_create_mount(fc);
+	dbg_fault_stage(0xE3, (unsigned long)mnt);
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
 	error = do_add_mount(real_mount(mnt), mountpoint, mnt_flags);
+	dbg_fault_stage(0xE4, error);
 	if (error < 0)
 		mntput(mnt);
 	return error;
@@ -3104,12 +3112,15 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	if (subtype)
 		err = vfs_parse_fs_string(fc, "subtype",
 					  subtype, strlen(subtype));
+	dbg_fault_stage(0xE0, (unsigned long)fstype);
 	if (!err && name)
 		err = vfs_parse_fs_string(fc, "source", name, strlen(name));
 	if (!err)
 		err = parse_monolithic_mount_data(fc, data);
+	dbg_fault_stage(0xE1, (unsigned long)fc);
 	if (!err)
 		err = vfs_get_tree(fc);
+	dbg_fault_stage(0xE2, err);
 	if (!err)
 		err = do_new_mount_fc(fc, path, mnt_flags);
 

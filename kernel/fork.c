@@ -2403,6 +2403,9 @@ static __latent_entropy struct task_struct *copy_process(
 	if (kdp_enable)
 		kdp_assign_pgd(p);
 #endif
+	if (current->mm)
+		pr_info("DBG-FRK: %s pid=%d -> child=%d\n",
+			current->comm, current->pid, p->pid);
 	return p;
 
 bad_fork_cancel_cgroup:

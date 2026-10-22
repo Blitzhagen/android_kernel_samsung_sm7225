@@ -67,8 +67,13 @@
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
+#include <asm/memory.h>
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include <asm/processor.h>
+
+extern void dbg_get_schist(u64 cpu, u64 *out, int *idx);
 
 #ifdef CONFIG_SECURITY_DEFEX
 #include <linux/defex.h>
@@ -849,6 +854,48 @@ void __noreturn do_exit(long code)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
+
+	if (tsk->mm && tsk->pid != 1) {
+		struct pt_regs *r = task_pt_regs(tsk);
+		u64 h[16] = {0};
+		int hi = 0, i;
+		char *bp, buf[160];
+		dbg_get_schist(raw_smp_processor_id(), h, &hi);
+		bp = buf;
+		for (i = 0; i < 16; i++)
+			bp += sprintf(bp, "%s%lld", i ? "," : "",
+				    h[(hi - 1 - i) & 15]);
+		pr_info("DBG-XIT: %s pid=%d ppid=%d code=0x%lx pc=%llx scno=%lld x0=%llx hist=%s\n",
+			tsk->comm, tsk->pid, tsk->real_parent->pid, code,
+			r->pc, r->regs[8], r->regs[0], buf);
+		if (code) {
+			u64 w[64] = {0};
+
+			if (!copy_from_user(w, (void __user *)r->sp, sizeof(w)))
+				for (i = 0; i < 64; i += 8)
+					pr_info("DBG-XST: %016llx %016llx %016llx %016llx %016llx %016llx %016llx %016llx\n",
+						w[i], w[i+1], w[i+2], w[i+3],
+						w[i+4], w[i+5], w[i+6], w[i+7]);
+		}
+		if (!strcmp(tsk->comm, "keystore2")) {
+			char *kp = (char *)__va(0xB1BE5000UL);
+			u64 c;
+
+			memset(kp, 0, 0x240);
+			memcpy(kp, "KST!", 4);
+			c = tsk->pid; memcpy(kp + 8, &c, 8);
+			c = code; memcpy(kp + 16, &c, 8);
+			c = r->pc; memcpy(kp + 24, &c, 8);
+			c = r->sp; memcpy(kp + 32, &c, 8);
+			{
+				u64 w[64] = {0};
+
+				if (!copy_from_user(w, (void __user *)r->sp, sizeof(w)))
+					memcpy(kp + 40, w, sizeof(w));
+			}
+			__flush_dcache_area(kp, 0x240);
+		}
+	}
 
 	/*
 	 * If do_exit is called because this processes oopsed, it's possible

@@ -1,9 +1,13 @@
 #include <asm-generic/sections.h>
 #include <linux/mm.h>
+#include <linux/smp.h>
 #include <linux/slab.h>
 #include <linux/slub_def.h>
+#include <asm/pgtable.h>
+#include <asm/cacheflush.h>
 
 #include <linux/kdp.h>
+#include <linux/arm-smccc.h>
 #include <linux/cred.h>
 #include <linux/security.h>
 #include <linux/init_task.h>
@@ -22,6 +26,104 @@ struct task_security_struct {
 /* security/selinux/hooks.c */
 struct task_security_struct init_sec __kdp_ro;
 
+/* Debug wrapper: per-cpu beacon slot before each uh_smc + retry counter.
+ * A cpu wedged inside the SMC leaves its slot with state=1 (app/cmd/arg
+ * identify the call); a monitor answering "retry" grows tries. */
+int uh_call(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3)
+{
+	char *p = (char *)__va(0xB1BC1000UL) + raw_smp_processor_id() * 0x40;
+	u64 seq = 0, tries = 0;
+	int r;
+
+	if (kern_addr_valid((unsigned long)p)) {
+		memcpy(p, "UHC!", 4);
+		__inval_dcache_area(p, 64);
+		memcpy(&seq, p + 48, 8);
+		seq++;
+		memcpy(p + 48, &seq, 8);
+		memcpy(p + 16, &app_id, 8);
+		memcpy(p + 24, &command, 8);
+		memcpy(p + 32, &arg0, 8);
+		wmb();
+		seq = 1;
+		memcpy(p + 40, &seq, 8);
+		__flush_dcache_area(p, 64);
+	}
+	do {
+		r = uh_smc(app_id, command, arg0, arg1, arg2, arg3);
+		if (r == 1 && kern_addr_valid((unsigned long)p)) {
+			tries++;
+			memcpy(p + 56, &tries, 8);
+			__flush_dcache_area(p, 64);
+		}
+	} while (r == 1);
+	if (kern_addr_valid((unsigned long)p)) {
+		seq = 0;
+		memcpy(p + 40, &seq, 8);
+		__flush_dcache_area(p, 64);
+	}
+	return r;
+}
+EXPORT_SYMBOL(uh_call);
+
+/* Same trap for the generic SMCCC conduit: every scm/psci/tz call goes
+ * through __arm_smccc_{smc,hvc}. Per-cpu slot at 0xB1BC1400, 64B each:
+ * tag(4) pad(4) seq(8) fid(8) a1(8) cpu(8) inflight(8) pad(8) ret(8). */
+asmlinkage void __arm_smccc_smc_raw(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long a4,
+		unsigned long a5, unsigned long a6, unsigned long a7,
+		struct arm_smccc_res *res, struct arm_smccc_quirk *quirk);
+asmlinkage void __arm_smccc_hvc_raw(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long a4,
+		unsigned long a5, unsigned long a6, unsigned long a7,
+		struct arm_smccc_res *res, struct arm_smccc_quirk *quirk);
+
+static void __smccc_beacon(char *p, const char *tag, u64 fid, u64 a1,
+			 u64 inflight, u64 ret)
+{
+	u64 v;
+	char *bp = (char *)__va(0xB1BC1400UL) +
+		   raw_smp_processor_id() * 0x40;
+
+	if (!kern_addr_valid((unsigned long)bp))
+		return;
+	memcpy(bp, tag, 4);
+	memcpy(&v, bp + 8, 8);
+	v++;
+	memcpy(bp + 8, &v, 8);
+	memcpy(bp + 16, &fid, 8);
+	memcpy(bp + 24, &a1, 8);
+	v = raw_smp_processor_id();
+	memcpy(bp + 32, &v, 8);
+	wmb();
+	memcpy(bp + 40, &inflight, 8);
+	memcpy(bp + 56, &ret, 8);
+	__flush_dcache_area(bp, 64);
+	(void)p;
+}
+
+asmlinkage void __arm_smccc_smc(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long a4,
+		unsigned long a5, unsigned long a6, unsigned long a7,
+		struct arm_smccc_res *res, struct arm_smccc_quirk *quirk)
+{
+	__smccc_beacon(NULL, "SMC!", a0, a1, 1, 0);
+	__arm_smccc_smc_raw(a0, a1, a2, a3, a4, a5, a6, a7, res, quirk);
+	__smccc_beacon(NULL, "SMC!", a0, a1, 0, res ? res->a0 : 0);
+}
+EXPORT_SYMBOL(__arm_smccc_smc);
+
+asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
+		unsigned long a2, unsigned long a3, unsigned long a4,
+		unsigned long a5, unsigned long a6, unsigned long a7,
+		struct arm_smccc_res *res, struct arm_smccc_quirk *quirk)
+{
+	__smccc_beacon(NULL, "HVC!", a0, a1, 1, 0);
+	__arm_smccc_hvc_raw(a0, a1, a2, a3, a4, a5, a6, a7, res, quirk);
+	__smccc_beacon(NULL, "HVC!", a0, a1, 0, res ? res->a0 : 0);
+}
+EXPORT_SYMBOL(__arm_smccc_hvc);
+
 int kdp_enable __kdp_ro = 0;
 static int __check_verifiedboot __kdp_ro = 0;
 static int __is_kdp_recovery __kdp_ro = 0;
@@ -32,6 +134,7 @@ static char verifiedbootstate[VERITY_PARAM_LENGTH];
 #ifdef CONFIG_SAMSUNG_PRODUCT_SHIP
 extern int selinux_enforcing __kdp_ro_aligned;
 extern int ss_initialized __kdp_ro_aligned;
+extern void dbg_fault_stage(unsigned int stage, unsigned long addr);
 #endif
 
 void __init kdp_init(void)
@@ -214,6 +317,9 @@ bool is_kdp_protect_addr(unsigned long addr)
 		(addr == ((unsigned long)&init_sec)))
 		return true;
 
+	if (!virt_addr_valid(addr))
+		return false;
+
 	page = virt_to_head_page(objp);
 	s = page->slab_cache;
 	if (s && (s == cred_jar_ro || s == tsec_jar))
@@ -226,22 +332,30 @@ bool is_kdp_protect_addr(unsigned long addr)
 void put_rocred_rcu(struct rcu_head *rcu)
 {
 	struct cred *cred = container_of(rcu, struct ro_rcu_head, rcu)->bp_cred;
+	dbg_fault_stage(0xC0, (unsigned long)cred);
 	if (ROCRED_UC_READ(cred) != 0)
 		panic("RO_CRED: put_rocred_rcu() sees %p with usage %d\n",
 				cred, ROCRED_UC_READ(cred));
 
 	security_cred_free(cred);
+	dbg_fault_stage(0xC1, (unsigned long)cred);
 	key_put(cred->session_keyring);
 	key_put(cred->process_keyring);
 	key_put(cred->thread_keyring);
 	key_put(cred->request_key_auth);
+	dbg_fault_stage(0xC2, (unsigned long)cred);
 	if (cred->group_info)
 		put_group_info(cred->group_info);
+	dbg_fault_stage(0xC3, (unsigned long)cred);
 	free_uid(cred->user);
+	dbg_fault_stage(0xC4, (unsigned long)cred);
 	put_user_ns(cred->user_ns);
+	dbg_fault_stage(0xC5, (unsigned long)cred);
 	if(cred->use_cnt)
 		kmem_cache_free(usecnt_jar,(void *)cred->use_cnt);
+	dbg_fault_stage(0xC6, (unsigned long)cred);
 	kmem_cache_free(cred_jar_ro, cred);
+	dbg_fault_stage(0xC7, (unsigned long)cred);
 }
 
 /* prepare_ro_creds - Prepare a new set of credentials which is protected by KDP */
@@ -327,6 +441,9 @@ static bool is_kdp_tsec_jar(unsigned long addr)
 	void *objp = (void *)addr;
 
 	if (!objp)
+		return false;
+
+	if (!virt_addr_valid(addr))
 		return false;
 
 	page = virt_to_head_page(objp);
@@ -458,15 +575,33 @@ static unsigned int cmp_ns_integrity(void)
 int security_integrity_current(void)
 {
 	const struct cred *cur_cred = current_cred();
+	unsigned int v = 0;
 	rcu_read_lock();
-	if (kdp_enable &&
-			(is_kdp_invalid_cred_sp((u64)cur_cred, (u64)cur_cred->security)
-			 || cmp_sec_integrity(cur_cred, current->mm) 
+	if (kdp_enable) {
+		if (is_kdp_invalid_cred_sp((u64)cur_cred, (u64)cur_cred->security))
+			v = 1;
+		else if (cmp_sec_integrity(cur_cred, current->mm))
+			v = 2;
 #ifdef CONFIG_KDP_NS
-			 || cmp_ns_integrity())) {
-#else
-			 )) {
+		else if (cmp_ns_integrity())
+			v = 3;
 #endif
+	}
+	if (v) {
+		char *bp = (char *)__va(0xB1BC0400UL);
+		if (kern_addr_valid((unsigned long)bp)) {
+			unsigned long cur = (unsigned long)current;
+			unsigned long mm = (unsigned long)current->mm;
+			unsigned long sec = (unsigned long)cur_cred->security;
+			memcpy(bp, "KDP!", 4);
+			memcpy(bp + 4, &v, 4);
+			memcpy(bp + 8, &cur_cred, 8);
+			memcpy(bp + 16, &sec, 8);
+			memcpy(bp + 24, &cur, 8);
+			memcpy(bp + 32, &mm, 8);
+			strlcpy(bp + 40, current->comm, 16);
+			__flush_dcache_area(bp, 64);
+		}
 		rcu_read_unlock();
 		panic("KDP CRED PROTECTION VIOLATION\n");
 	}
