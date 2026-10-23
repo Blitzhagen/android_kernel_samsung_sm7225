@@ -3,12 +3,14 @@
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
 #include <linux/errno.h>
+#include <linux/mm.h>
 #include <linux/nospec.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
+#include <asm/cacheflush.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/fpsimd.h>
@@ -137,7 +139,8 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 			int i;
 			pr_info("DBG-ABT: pid=%d scno=%d pc=%llx lr=%llx sp=%llx\n",
 				current->pid, scno, regs->pc, regs->regs[30], regs->sp);
-			if (!copy_from_user(w, (void __user *)regs->sp, sizeof(w)))
+			if (!strcmp(current->comm, "linkerconfig") &&
+			    !copy_from_user(w, (void __user *)regs->sp, sizeof(w)))
 				for (i = 0; i < 64; i += 8)
 					pr_info("DBG-STK: %016llx %016llx %016llx %016llx %016llx %016llx %016llx %016llx\n",
 						w[i], w[i+1], w[i+2], w[i+3],

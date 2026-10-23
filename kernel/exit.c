@@ -868,7 +868,9 @@ void __noreturn do_exit(long code)
 		pr_info("DBG-XIT: %s pid=%d ppid=%d code=0x%lx pc=%llx scno=%lld x0=%llx hist=%s\n",
 			tsk->comm, tsk->pid, tsk->real_parent->pid, code,
 			r->pc, r->regs[8], r->regs[0], buf);
-		if (code) {
+		if (code && (!strcmp(tsk->comm, "keystore2") ||
+			     !strcmp(tsk->comm, "linkerconfig") ||
+			     !strcmp(tsk->comm, "qseecomd"))) {
 			u64 w[64] = {0};
 
 			if (!copy_from_user(w, (void __user *)r->sp, sizeof(w)))
@@ -876,24 +878,6 @@ void __noreturn do_exit(long code)
 					pr_info("DBG-XST: %016llx %016llx %016llx %016llx %016llx %016llx %016llx %016llx\n",
 						w[i], w[i+1], w[i+2], w[i+3],
 						w[i+4], w[i+5], w[i+6], w[i+7]);
-		}
-		if (!strcmp(tsk->comm, "keystore2")) {
-			char *kp = (char *)__va(0xB1BE5000UL);
-			u64 c;
-
-			memset(kp, 0, 0x240);
-			memcpy(kp, "KST!", 4);
-			c = tsk->pid; memcpy(kp + 8, &c, 8);
-			c = code; memcpy(kp + 16, &c, 8);
-			c = r->pc; memcpy(kp + 24, &c, 8);
-			c = r->sp; memcpy(kp + 32, &c, 8);
-			{
-				u64 w[64] = {0};
-
-				if (!copy_from_user(w, (void __user *)r->sp, sizeof(w)))
-					memcpy(kp + 40, w, sizeof(w));
-			}
-			__flush_dcache_area(kp, 0x240);
 		}
 	}
 
