@@ -1396,6 +1396,12 @@ int msm_venc_s_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 			inst->bit_depth = MSM_VIDC_BIT_DEPTH_10;
 		}
 
+		rc = msm_comm_try_state(inst, MSM_VIDC_OPEN_DONE);
+		if (rc) {
+			s_vpr_e(inst->sid, "Failed to open instance\n");
+			goto exit;
+		}
+
 		rc = msm_vidc_calculate_buffer_counts(inst);
 		if (rc) {
 			s_vpr_e(inst->sid,
