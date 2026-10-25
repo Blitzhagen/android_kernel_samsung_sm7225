@@ -2,7 +2,6 @@
 #
 # Makefile for the linux memory manager.
 #
-subdir-ccflags-y := -Wformat
 KASAN_SANITIZE_slab_common.o := n
 KASAN_SANITIZE_slab.o := n
 KASAN_SANITIZE_slub.o := n
