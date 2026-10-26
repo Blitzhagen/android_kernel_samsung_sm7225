@@ -355,8 +355,21 @@ class ELF:
             self.__relocs_rodata = list()
             relocs = self.get_raw_by_tool(self.__readelf_path, ["-rW",  self.__elf_file])
             rel = re.compile(r"^(" + self.__re_hexadecimal + ")\s*", re.MULTILINE)
+            # llvm-readelf prints .relr.dyn entries in a columnar format
+            # ("Index: Entry Address Symbolic" plus "-" continuation lines)
+            # where the relocated address is not the line's first token, so the
+            # regex above never matches them. Collect the address column
+            # (last 16-digit hex token on each line) separately.
+            relr_addrs = list()
+            for relr_block in re.findall(
+                    r"Relocation section '\.relr\.dyn'[^\n]*\n(.*?)(?=Relocation section|\Z)",
+                    relocs, re.DOTALL):
+                for relr_line in relr_block.splitlines():
+                    tokens = re.findall(r"\b[0-9A-Fa-f]{16}\b", relr_line)
+                    if tokens:
+                        relr_addrs.append(tokens[-1])
             section_text, section_rodata = self.get_rodata_text_scope()
-            for el in rel.findall(relocs.strip()):
+            for el in rel.findall(relocs.strip()) + relr_addrs:
                 rel_addr = self.utils.to_int(el)
                 if self.filtered_addr_by_section(rel_addr, section_rodata):
                     self.__relocs_rodata.append(rel_addr)
