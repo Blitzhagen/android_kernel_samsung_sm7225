@@ -795,6 +795,22 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	struct msm_watchdog_data *wdog_dd = (struct msm_watchdog_data *)dev_id;
 	unsigned long nanosec_rem;
 	unsigned long long t = sched_clock();
+	int count;
+
+	/*
+	 * A bark IRQ can be delivered late, e.g. when it pended while the
+	 * system sat in suspend-to-idle and the suspend/resume path has
+	 * already re-armed the counter by the time it is serviced here.
+	 * Only bite if the hardware counter is still at/past the bark
+	 * threshold; otherwise re-arm and ignore the stale interrupt.
+	 */
+	count = (__raw_readl(wdog_dd->base + WDT0_STS) >> 1) & 0xFFFFF;
+	if (count < (wdog_dd->bark_time * WDT_HZ) / 1000) {
+		__raw_writel(1, wdog_dd->base + WDT0_RST);
+		wdog_dd->last_pet = sched_clock();
+		dev_info(wdog_dd->dev, "Ignoring stale watchdog bark\n");
+		return IRQ_HANDLED;
+	}
 #ifndef CONFIG_SAMSUNG_PRODUCT_SHIP 
 	sec_delay_check = 0;
 #endif
