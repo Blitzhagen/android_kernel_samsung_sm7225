@@ -37,9 +37,9 @@
  *		  unsigned long a6, unsigned long a7, struct arm_smccc_res *res,
  *		  struct arm_smccc_quirk *quirk)
  */
-ENTRY(__arm_smccc_smc_raw)
+ENTRY(__arm_smccc_smc)
 	SMCCC	smc
-ENDPROC(__arm_smccc_smc_raw)
+ENDPROC(__arm_smccc_smc)
 
 /*
  * void arm_smccc_hvc(unsigned long a0, unsigned long a1, unsigned long a2,
@@ -47,6 +47,6 @@ ENDPROC(__arm_smccc_smc_raw)
  *		  unsigned long a6, unsigned long a7, struct arm_smccc_res *res,
  *		  struct arm_smccc_quirk *quirk)
  */
-ENTRY(__arm_smccc_hvc_raw)
+ENTRY(__arm_smccc_hvc)
 	SMCCC	hvc
-ENDPROC(__arm_smccc_hvc_raw)
+ENDPROC(__arm_smccc_hvc)

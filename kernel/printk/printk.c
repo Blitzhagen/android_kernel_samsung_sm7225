@@ -882,16 +882,6 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 		return -EFAULT;
 	}
 
-	/* DBG: drop repeating userspace spam so ramoops keeps early boot */
-	if (strstr(buf, "IKeystoreService") || strstr(buf, "lazy AIDL") ||
-	    strstr(buf, "type=1300") || strstr(buf, "type=1305") ||
-	    strstr(buf, "type=1320") || strstr(buf, "type=1325") ||
-	    strstr(buf, "type=1327") ||
-	    strstr(buf, "type=1403") || strstr(buf, "type=1406")) {
-		kfree(buf);
-		return ret;
-	}
-
 	/*
 	 * Extract and skip the syslog prefix <[0-9]*>. Coming from userspace
 	 * the decimal value represents 32bit, the lower 3 bit are the log

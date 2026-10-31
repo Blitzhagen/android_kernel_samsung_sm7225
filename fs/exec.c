@@ -1679,10 +1679,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 	if (retval)
 		return retval;
 
-	if (bprm->filename && current->mm)
-		pr_info("DBG-XEC: pid=%d %s\n", current->pid,
-			bprm->filename);
-
 	retval = -ENOENT;
  retry:
 	read_lock(&binfmt_lock);
