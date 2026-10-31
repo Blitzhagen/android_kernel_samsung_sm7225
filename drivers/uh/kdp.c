@@ -214,6 +214,9 @@ bool is_kdp_protect_addr(unsigned long addr)
 		(addr == ((unsigned long)&init_sec)))
 		return true;
 
+	if (!virt_addr_valid(addr))
+		return false;
+
 	page = virt_to_head_page(objp);
 	s = page->slab_cache;
 	if (s && (s == cred_jar_ro || s == tsec_jar))
@@ -327,6 +330,9 @@ static bool is_kdp_tsec_jar(unsigned long addr)
 	void *objp = (void *)addr;
 
 	if (!objp)
+		return false;
+
+	if (!virt_addr_valid(addr))
 		return false;
 
 	page = virt_to_head_page(objp);

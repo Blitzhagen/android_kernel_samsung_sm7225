@@ -655,13 +655,16 @@ const struct cred *override_creds(const struct cred *new)
 	validate_creds(new);
 #ifdef CONFIG_KDP_CRED
 	if (kdp_enable) {
-		volatile unsigned int rkp_use_count = kdp_get_usecount(new);
+		volatile unsigned int rkp_use_count;
 		struct cred *new_ro;
 
+		get_new_cred(new);
+		alter_cred_subscribers(new, 1);
+		rkp_use_count = kdp_get_usecount(new);
 		new_ro = prepare_ro_creds(new, CMD_OVRD_CREDS, rkp_use_count);
+		GET_ROCRED_RCU(new_ro)->reflected_cred = (void *)new;
 		*cnew = new_ro;
 		rcu_assign_pointer(current->cred, new_ro);
-		put_cred(new);
 	} else {
 		get_new_cred((struct cred *)new);
 		alter_cred_subscribers(new, 1);

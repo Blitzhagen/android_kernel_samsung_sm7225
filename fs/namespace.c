@@ -1123,9 +1123,8 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 
 	atomic_inc(&fc->root->d_sb->s_active);
 #ifdef CONFIG_KDP_NS
-	mnt->mnt->mnt_sb	= fc->root->d_sb;
-	mnt->mnt->mnt_root	= dget(fc->root);
-	mnt->mnt_mountpoint	= mnt->mnt->mnt_root;
+	kdp_set_mnt_root_sb(mnt->mnt, dget(fc->root), fc->root->d_sb);
+	mnt->mnt_mountpoint = mnt->mnt->mnt_root;
 #else
 	mnt->mnt.mnt_sb		= fc->root->d_sb;
 	mnt->mnt.mnt_root	= dget(fc->root);

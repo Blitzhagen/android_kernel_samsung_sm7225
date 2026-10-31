@@ -1597,8 +1597,16 @@ void security_cred_free(struct cred *cred)
 
 	call_void_hook(cred_free, cred);
 
+#ifdef CONFIG_KDP_CRED
+	kdp_free_security((unsigned long)cred->security);
+	/* EL1 write to a KDP-protected cred traps into EL2 and parks the
+	 * cpu; the field is dead anyway once the cred is freed. */
+	if (!is_kdp_protect_addr((unsigned long)cred))
+		cred->security = NULL;
+#else
 	kfree(cred->security);
 	cred->security = NULL;
+#endif
 }
 
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)

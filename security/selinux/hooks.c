@@ -253,6 +253,7 @@ static void cred_init_security(void)
 #ifdef CONFIG_KDP_CRED
 	tsec = &init_sec;
 	tsec->bp_cred = cred;
+	cred->security = tsec;
 #else
 	tsec = selinux_cred(cred);
 #endif
