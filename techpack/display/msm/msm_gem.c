@@ -276,6 +276,12 @@ vm_fault_t msm_gem_fault(struct vm_fault *vmf)
 	/* We don't use vmf->pgoff since that has the fake offset: */
 	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
+	/* Imported buffers may not provide a CPU-accessible backing page. */
+	if (!pages || pgoff >= (obj->size >> PAGE_SHIFT) || !pages[pgoff]) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+
 	pfn = page_to_pfn(pages[pgoff]);
 
 	VERB("Inserting %pK pfn %lx, pa %lx", (void *)vmf->address,

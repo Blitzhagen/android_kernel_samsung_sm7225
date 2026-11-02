@@ -129,7 +129,7 @@ static int ipa3_attach_to_smmu(void);
 static int ipa3_alloc_pkt_init(void);
 
 static void ipa3_load_ipa_fw(struct work_struct *work);
-static DECLARE_WORK(ipa3_fw_loading_work, ipa3_load_ipa_fw);
+static DECLARE_DELAYED_WORK(ipa3_fw_loading_work, ipa3_load_ipa_fw);
 
 static void ipa_dec_clients_disable_clks_on_wq(struct work_struct *work);
 static DECLARE_DELAYED_WORK(ipa_dec_clients_disable_clks_on_wq_work,
@@ -6180,6 +6180,9 @@ static int ipa3_pil_load_ipa_fws(const char *sub_sys)
 static void ipa3_load_ipa_fw(struct work_struct *work)
 {
 	int result;
+	/* Backoff between firmware load retries; firmware may only become
+	 * readable after userspace publishes its search path. */
+	static unsigned int retry_delay_ms = 500;
 
 	IPADBG("Entry\n");
 
@@ -6211,11 +6214,15 @@ static void ipa3_load_ipa_fw(struct work_struct *work)
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 
 	if (result) {
-		IPAERR("IPA FW loading process has failed result=%d\n",
-			result);
-		ipa_assert();
+		IPAERR("IPA FW loading failed result=%d; retry in %u ms\n",
+			result, retry_delay_ms);
+		queue_delayed_work(ipa3_ctx->transport_power_mgmt_wq,
+			&ipa3_fw_loading_work,
+			msecs_to_jiffies(retry_delay_ms));
+		retry_delay_ms = min(retry_delay_ms * 2, 60000U);
 		return;
 	}
+	retry_delay_ms = 500;
 	pr_info("IPA FW loaded successfully\n");
 
 	result = ipa3_post_init(&ipa3_res, ipa3_ctx->cdev.dev);
@@ -6335,8 +6342,8 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 	/* Schedule WQ to load ipa-fws */
 	ipa3_ctx->fw_loaded = true;
 
-	queue_work(ipa3_ctx->transport_power_mgmt_wq,
-		&ipa3_fw_loading_work);
+	queue_delayed_work(ipa3_ctx->transport_power_mgmt_wq,
+		&ipa3_fw_loading_work, 0);
 
 	IPADBG("Scheduled a work to load IPA FW\n");
 	return count;

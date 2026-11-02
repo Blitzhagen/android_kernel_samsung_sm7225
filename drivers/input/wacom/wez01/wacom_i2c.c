@@ -18,6 +18,12 @@
  */
 
 #include "wacom_dev.h"
+#include <linux/moduleparam.h>
+
+/* Preserve digitizer firmware during native Linux hardware tests. */
+bool wacom_skip_fw_update = true;
+module_param_named(skip_fw_update, wacom_skip_fw_update, bool, 0444);
+MODULE_PARM_DESC(skip_fw_update, "Disable digitizer firmware programming (default: true)");
 
 struct wacom_i2c *g_wac_i2c;
 static void wacom_i2c_cover_handler(struct wacom_i2c *wac_i2c, char *data);
@@ -1954,6 +1960,11 @@ int wacom_fw_update_on_hidden_menu(struct wacom_i2c *wac_i2c, u8 fw_update_way)
 	int retry = 3;
 	int i;
 
+	if (wacom_skip_fw_update) {
+		input_info(true, &client->dev, "firmware programming disabled by skip_fw_update\n");
+		return -EPERM;
+	}
+
 	input_info(true, &client->dev, "%s: update:%d\n", __func__, fw_update_way);
 
 	if (wake_lock_active(&wac_i2c->fw_wakelock)) {
@@ -2085,6 +2096,11 @@ int wacom_fw_update_on_probe(struct wacom_i2c *wac_i2c)
 	int ret, i;
 	int retry = 3;
 	bool bforced = false;
+
+	if (wacom_skip_fw_update) {
+		input_info(true, &client->dev, "probe firmware programming disabled by skip_fw_update\n");
+		goto out_update_fw;
+	}
 
 	input_info(true, &client->dev, "%s\n", __func__);
 

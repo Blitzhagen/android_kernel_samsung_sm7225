@@ -14,6 +14,8 @@
 #include <linux/spu-verify.h>
 #include "wacom_reg.h"
 
+extern bool wacom_skip_fw_update;
+
 #if IS_ENABLED(CONFIG_INPUT_SEC_INPUT)
 #include "../../sec_input/sec_input.h"
 #else

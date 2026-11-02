@@ -595,6 +595,11 @@ int wacom_i2c_flash(struct wacom_i2c *wac_i2c)
 {
 	int ret;
 
+	if (wacom_skip_fw_update) {
+		input_err(true, &wac_i2c->client->dev, "firmware programming blocked by skip_fw_update\n");
+		return -EPERM;
+	}
+
 	if (wac_i2c->fw_data == NULL) {
 		input_err(true, &wac_i2c->client->dev,
 				"epen:Data is NULL. Exit.\n");
