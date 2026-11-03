@@ -2793,11 +2793,12 @@ static int do_reconfigure_mnt(struct path *path, unsigned int mnt_flags)
 		return -EPERM;
 
 	down_write(&sb->s_umount);
-	lock_mount_hash();
+	/* Do not take lock_mount_hash() here: change_mount_ro_state() ->
+	 * mnt_make_readonly() acquires it internally. Holding it around the
+	 * call self-deadlocks every MS_REMOUNT readonly transition. */
 	ret = change_mount_ro_state(mnt, mnt_flags);
 	if (ret == 0)
 		set_mount_attributes(mnt, mnt_flags);
-	unlock_mount_hash();
 	up_write(&sb->s_umount);
 	return ret;
 }
