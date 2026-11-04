@@ -8056,9 +8056,12 @@ int dsi_display_enable(struct dsi_display *display)
 	 */
 	if (display->is_cont_splash_enabled) {
 
+		pr_err("gts7xl-disp: commit s1 config_ctrl\n");
 		dsi_display_config_ctrl_for_cont_splash(display);
 
+		pr_err("gts7xl-disp: commit s2 splash_cleanup\n");
 		rc = dsi_display_splash_res_cleanup(display);
+		pr_err("gts7xl-disp: commit s3 cleanup rc=%d\n", rc);
 		if (rc) {
 			DSI_ERR("Continuous splash res cleanup failed, rc=%d\n",
 				rc);
@@ -8076,7 +8079,18 @@ int dsi_display_enable(struct dsi_display *display)
 
 		mutex_lock(&display->display_lock);
 
+		/* gts7xl: TDDI panels (CSOT/Himax) need the full ON command
+		 * sequence to initialize the in-cell touch block. The
+		 * cont-splash path skips DSI_CMD_SET_ON via
+		 * samsung_splash_enabled, which leaves touch dead.
+		 * Clear the flag before panel_enable so the ON commands
+		 * are sent over the live DSI link - no power transition
+		 * is required, avoiding the fragile off->on path. */
+		vdd->samsung_splash_enabled = false;
+
+		pr_err("gts7xl-disp: commit s4 panel_enable\n");
 		dsi_panel_enable(display->panel);
+		pr_err("gts7xl-disp: commit s5 panel_enable done\n");
 
 		/* In case of that first commit includes VRR, it should handle VRR or multi resolution.
 		 * dsi_mode_flags has no DSI_MODE_FLAG_DMS set which is set in
@@ -8102,6 +8116,7 @@ int dsi_display_enable(struct dsi_display *display)
 		mutex_unlock(&display->display_lock);
 
 		vdd->samsung_splash_enabled = false;
+		pr_err("gts7xl-disp: commit s6 done\n");
 		LCD_INFO(vdd, "%s : samsung splash diable! \n", __func__);
 #else
 		display->panel->panel_initialized = true;
