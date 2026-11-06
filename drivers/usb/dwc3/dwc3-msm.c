@@ -359,6 +359,8 @@ struct dwc3_msm {
 	int dwc3_msm_probe_done;
 	int dwc3_msm_current_speed_mode;
 	struct delayed_work sdp_check;
+	struct delayed_work lpm_retry_work;
+	int lpm_retry_cnt;
 	bool usb_compliance_mode;
 	struct mutex suspend_resume_mutex;
 
@@ -402,6 +404,8 @@ int speed_setting;
 #define dev_dbg dev_err
 
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
+static void dwc3_msm_lpm_retry_work(struct work_struct *w);
+static void dwc3_msm_kick_lpm_retry(struct dwc3_msm *mdwc);
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned int mA);
 static void dwc3_msm_notify_event(struct dwc3 *dwc, unsigned int event,
 						unsigned int value);
@@ -2660,6 +2664,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 				"%s: %d device events pending, abort suspend\n",
 				__func__, evt->count / 4);
 			mutex_unlock(&mdwc->suspend_resume_mutex);
+			dwc3_msm_kick_lpm_retry(mdwc);
 			return -EBUSY;
 		}
 	}
@@ -2679,6 +2684,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 			"%s: cable disconnected while not in idle otg state\n",
 			__func__);
 		mutex_unlock(&mdwc->suspend_resume_mutex);
+		dwc3_msm_kick_lpm_retry(mdwc);
 		return -EBUSY;
 	}
 
@@ -2694,12 +2700,14 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 					__func__, dwc->gadget.state);
 		pr_err("%s(): LPM is not performed.\n", __func__);
 		mutex_unlock(&mdwc->suspend_resume_mutex);
+		dwc3_msm_kick_lpm_retry(mdwc);
 		return -EBUSY;
 	}
 
 	ret = dwc3_msm_prepare_suspend(mdwc);
 	if (ret) {
 		mutex_unlock(&mdwc->suspend_resume_mutex);
+		dwc3_msm_kick_lpm_retry(mdwc);
 		return ret;
 	}
 
@@ -2840,8 +2848,10 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 	dbg_event(0xFF, "Ctl Sus", atomic_read(&dwc->in_lpm));
 
 	/* kick_sm if it is waiting for lpm sequence to finish */
-	if (test_and_clear_bit(WAIT_FOR_LPM, &mdwc->inputs))
+	if (test_and_clear_bit(WAIT_FOR_LPM, &mdwc->inputs)) {
+		mdwc->lpm_retry_cnt = 0;
 		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
+	}
 
 	mutex_unlock(&mdwc->suspend_resume_mutex);
 
@@ -2861,8 +2871,10 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	 * If h/w exited LPM without any events, ensure
 	 * h/w is reset before processing any new events.
 	 */
-	if (!mdwc->vbus_active && mdwc->id_state)
+	if (!mdwc->vbus_active && mdwc->id_state) {
 		set_bit(WAIT_FOR_LPM, &mdwc->inputs);
+		dwc3_msm_kick_lpm_retry(mdwc);
+	}
 
 	mutex_lock(&mdwc->suspend_resume_mutex);
 	if (!atomic_read(&dwc->in_lpm)) {
@@ -4035,6 +4047,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
 	INIT_DELAYED_WORK(&mdwc->perf_vote_work, msm_dwc3_perf_vote_work);
 	INIT_DELAYED_WORK(&mdwc->sdp_check, check_for_sdp_connection);
+	INIT_DELAYED_WORK(&mdwc->lpm_retry_work, dwc3_msm_lpm_retry_work);
 
 	mdwc->dwc3_wq = alloc_ordered_workqueue("dwc3_wq", 0);
 	if (!mdwc->dwc3_wq) {
@@ -4465,6 +4478,7 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&mdwc->perf_vote_work);
 	cancel_delayed_work_sync(&mdwc->sm_work);
+	cancel_delayed_work_sync(&mdwc->lpm_retry_work);
 
 	if (mdwc->hs_phy)
 		mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
@@ -4606,6 +4620,64 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
  *
  * Returns 0 on success otherwise negative errno.
  */
+/*
+ * WAIT_FOR_LPM is set when a role teardown (or an LPM exit without events)
+ * requires the controller to reach low power mode before the otg state
+ * machine may advance. dwc3_msm_suspend() clears the bit and re-kicks
+ * sm_work on success. If the suspend is aborted (-EBUSY, e.g. pending
+ * device events during cable disconnect) or never runs at all, the bit
+ * would stay set forever and the state machine wedges in DRD_STATE_IDLE.
+ * Retry LPM a bounded number of times; on exhaustion clear the bit and
+ * unblock the state machine anyway (degraded, but USB stays usable).
+ */
+#define DWC3_LPM_RETRY_MAX	5
+#define DWC3_LPM_RETRY_DELAY_MS	100
+
+static void dwc3_msm_lpm_retry_work(struct work_struct *w)
+{
+	struct dwc3_msm *mdwc = container_of(to_delayed_work(w),
+					struct dwc3_msm, lpm_retry_work);
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	int ret;
+
+	if (!test_bit(WAIT_FOR_LPM, &mdwc->inputs))
+		return;
+
+	if (atomic_read(&dwc->in_lpm))
+		return;
+
+	if (++mdwc->lpm_retry_cnt > DWC3_LPM_RETRY_MAX) {
+		dev_err(mdwc->dev,
+			"%s: LPM never completed, unblocking otg sm\n",
+			__func__);
+		dbg_event(0xFF, "LPM giveup", mdwc->drd_state);
+		mdwc->lpm_retry_cnt = 0;
+		clear_bit(WAIT_FOR_LPM, &mdwc->inputs);
+		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
+		return;
+	}
+
+	ret = pm_runtime_suspend(mdwc->dev);
+	dbg_event(0xFF, "LPM retry", ret);
+	if (ret)
+		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->lpm_retry_work,
+				msecs_to_jiffies(DWC3_LPM_RETRY_DELAY_MS));
+}
+
+/*
+ * If WAIT_FOR_LPM is pending but the controller is not in LPM, arrange a
+ * retry so the pending bit cannot wedge the otg state machine.
+ */
+static void dwc3_msm_kick_lpm_retry(struct dwc3_msm *mdwc)
+{
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+
+	if (test_bit(WAIT_FOR_LPM, &mdwc->inputs) &&
+			!atomic_read(&dwc->in_lpm))
+		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->lpm_retry_work,
+				msecs_to_jiffies(DWC3_LPM_RETRY_DELAY_MS));
+}
+
 static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 {
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
@@ -4761,6 +4833,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		pm_runtime_put_sync_suspend(mdwc->dev);
 		dbg_event(0xFF, "StopHost psync",
 			atomic_read(&mdwc->dev->power.usage_count));
+		dwc3_msm_kick_lpm_retry(mdwc);
 #if defined(CONFIG_CCIC_ALTERNATE_MODE)
 #if defined(CONFIG_CCIC_MAX77705)
 				max77705_set_host_turn_on_event(on);
@@ -4871,6 +4944,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 	pm_runtime_put_sync(mdwc->dev);
 	dbg_event(0xFF, "StopGdgt psync",
 		atomic_read(&mdwc->dev->power.usage_count));
+	dwc3_msm_kick_lpm_retry(mdwc);
 
 	return 0;
 }
@@ -5140,6 +5214,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			pm_runtime_put_sync_suspend(mdwc->dev);
 			dbg_event(0xFF, "!BSV psync",
 				atomic_read(&mdwc->dev->power.usage_count));
+			dwc3_msm_kick_lpm_retry(mdwc);
 			work = 1;
 		} else if (test_bit(B_SUSPEND, &mdwc->inputs) &&
 			test_bit(B_SESS_VLD, &mdwc->inputs)) {
