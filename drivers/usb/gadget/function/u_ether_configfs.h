@@ -50,7 +50,7 @@
 		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int ret;						\
 									\
-		if (opts->bound == false) {		\
+		if (!opts->net) {		\
 			pr_err("Gadget function do not bind yet.\n");	\
 			return -ENODEV;			\
 		}							\
@@ -95,7 +95,7 @@
 		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int ret;						\
 									\
-		if (opts->bound == false) {		\
+		if (!opts->net) {		\
 			pr_err("Gadget function do not bind yet.\n");	\
 			return -ENODEV;			\
 		}							\

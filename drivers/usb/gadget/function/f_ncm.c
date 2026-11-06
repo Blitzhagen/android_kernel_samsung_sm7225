@@ -1493,11 +1493,13 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 	if (!ncm_opts->bound) {
 		mutex_lock(&ncm_opts->lock);
+		if (!ncm_opts->net) {
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
-		ncm_opts->net = gether_setup_name_default("ncm");
+			ncm_opts->net = gether_setup_name_default("ncm");
 #else
-		ncm_opts->net = gether_setup_default();
+			ncm_opts->net = gether_setup_default();
 #endif
+		}
 		if (IS_ERR(ncm_opts->net)) {
 			status = PTR_ERR(ncm_opts->net);
 			mutex_unlock(&ncm_opts->lock);
@@ -1508,6 +1510,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 		mutex_unlock(&ncm_opts->lock);
 		if (status) {
 			free_netdev(ncm_opts->net);
+			ncm_opts->net = NULL;
 			goto error;
 		}
 		ncm_opts->bound = true;
@@ -1877,16 +1880,22 @@ static void ncm_free_inst(struct usb_function_instance *f)
 	struct f_ncm_opts *opts;
 
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
-	cancel_work_sync(&_ncm_setup_desc->work);
-	/* release _ncm_setup_desc related resource */
-	device_destroy(_ncm_setup_desc->device->class,
-		_ncm_setup_desc->device->devt);
-	kfree(_ncm_setup_desc);
+	if (_ncm_setup_desc) {
+		cancel_work_sync(&_ncm_setup_desc->work);
+		/* release _ncm_setup_desc related resource */
+		if (!IS_ERR_OR_NULL(_ncm_setup_desc->device))
+			device_destroy(_ncm_setup_desc->device->class,
+				_ncm_setup_desc->device->devt);
+		kfree(_ncm_setup_desc);
+		_ncm_setup_desc = NULL;
+	}
 #endif
 
 	opts = container_of(f, struct f_ncm_opts, func_inst);
 	if (opts->bound)
 		gether_cleanup(netdev_priv(opts->net));
+	else if (opts->net)
+		free_netdev(opts->net);
 	kfree(opts);
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	ncm_function_cleanup();
@@ -1934,6 +1943,23 @@ static struct usb_function_instance *ncm_alloc_inst(void)
 	INIT_WORK(&_ncm_setup_desc->work, ncm_setup_work);
 	_ncm_setup_desc->device = create_function_device("f_ncm");
 #endif
+
+	/*
+	 * Create the net device early so configfs dev_addr/host_addr
+	 * writes work before bind (upstream semantics). Registration
+	 * still happens at bind.
+	 */
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	opts->net = gether_setup_name_default("ncm");
+#else
+	opts->net = gether_setup_default();
+#endif
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		opts->net = NULL;
+		ncm_free_inst(&opts->func_inst);
+		return ERR_CAST(net);
+	}
 
 	return &opts->func_inst;
 }
