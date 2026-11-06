@@ -2344,6 +2344,12 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 	memcpy(&template, _template, sizeof(template));
 	template.index = 0;
 
+	if (!template.get) {
+		if (!template.access)
+			template.access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
+		template.access &= ~SNDRV_CTL_ELEM_ACCESS_READ;
+	}
+
 	if (!long_name)
 		long_name = template.name;
 
@@ -3762,11 +3768,13 @@ int snd_soc_info_multi_ext(struct snd_kcontrol *kcontrol,
 {
 	struct soc_multi_mixer_control *mc =
 		(struct soc_multi_mixer_control *)kcontrol->private_value;
-	int platform_max;
+	long platform_max;
 
 	if (!mc->platform_max)
 		mc->platform_max = mc->max;
-	platform_max = mc->platform_max;
+	platform_max = (unsigned int)mc->platform_max;
+	if (platform_max > INT_MAX)
+		platform_max = INT_MAX;
 
 	if (platform_max == 1 && !strnstr(kcontrol->id.name, " Volume", 30))
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;

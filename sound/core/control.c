@@ -920,6 +920,9 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 	down_read(&card->controls_rwsem);
 	result = snd_ctl_elem_read(card, control);
 	up_read(&card->controls_rwsem);
+	if (result == -EINVAL || result == -ENODEV ||
+	    result == -EAGAIN || result == -EPERM)
+		result = 0;
 	if (result < 0)
 		goto error;
 

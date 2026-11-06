@@ -567,9 +567,10 @@ static int msm_qti_pp_get_rms_value_control(struct snd_kcontrol *kcontrol,
 	pr_debug("%s: FROM DSP value[0] 0x%x\n",
 		__func__, update_param_value[0]);
 get_rms_value_err:
+	ucontrol->value.integer.value[0] = 0;
 	msm_pcm_routing_release_lock();
 	kfree(param_value);
-	return rc;
+	return 0;
 }
 
 static int msm_qti_pp_put_rms_value_control(struct snd_kcontrol *kcontrol,
