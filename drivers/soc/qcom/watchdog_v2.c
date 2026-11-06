@@ -168,11 +168,20 @@ module_param(ipi_en, int, 0444);
 static void dump_cpu_alive_mask(struct msm_watchdog_data *wdog_dd)
 {
 	static char alive_mask_buf[MASK_SIZE];
+	int cpu;
 
 	scnprintf(alive_mask_buf, MASK_SIZE, "%*pb1", cpumask_pr_args(
 				&wdog_dd->alive_mask));
 	dev_info(wdog_dd->dev, "cpu alive mask from last pet %s\n",
 				alive_mask_buf);
+	/* Name the cpu whose keep-alive ping never returned, so the
+	 * post-mortem console log identifies where the hang lives. */
+	for_each_present_cpu(cpu) {
+		if (wdog_dd->ping_start[cpu] && !wdog_dd->ping_end[cpu])
+			dev_info(wdog_dd->dev,
+				 "cpu%d did not answer watchdog ping (start %llu)\n",
+				 cpu, wdog_dd->ping_start[cpu]);
+	}
 }
 
 static int msm_watchdog_suspend(struct device *dev)
