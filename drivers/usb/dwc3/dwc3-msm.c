@@ -2715,8 +2715,15 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 	if (dwc->irq)
 		disable_irq(dwc->irq);
 
+	/*
+	 * Wait for a running gadget bottom half to finish touching core
+	 * registers. If it is still active while the clocks/GDSC are cut
+	 * below, its next register access can stall the bus and wedge
+	 * the CPU (observed as watchdog bark with unanswered cpu ping).
+	 */
 	if (work_busy(&dwc->bh_work))
 		dbg_event(0xFF, "pend evt", 0);
+	cancel_work_sync(&dwc->bh_work);
 
 	/* disable power event irq, hs and ss phy irq is used as wake up src */
 	disable_irq(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
