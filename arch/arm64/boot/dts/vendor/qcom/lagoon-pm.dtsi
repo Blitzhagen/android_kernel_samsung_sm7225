@@ -99,6 +99,7 @@
 					qcom,min-residency-us = <4001>;
 					qcom,is-reset;
 					qcom,use-broadcast-timer;
+					status = "disabled";
 				};
 			};
 
@@ -142,6 +143,7 @@
 					qcom,min-residency-us = <5555>;
 					qcom,is-reset;
 					qcom,use-broadcast-timer;
+					status = "disabled";
 				};
 			};
 		};

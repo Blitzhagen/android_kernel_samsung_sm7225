@@ -501,7 +501,12 @@ static int parse_cpu(struct device_node *node, struct lpm_cpu *cpu)
 	int ret, i;
 
 	for_each_child_of_node(node, n) {
-		struct lpm_cpu_level *l = &cpu->levels[cpu->nlevels];
+		struct lpm_cpu_level *l;
+
+		if (!of_device_is_available(n))
+			continue;
+
+		l = &cpu->levels[cpu->nlevels];
 
 		cpu->nlevels++;
 
