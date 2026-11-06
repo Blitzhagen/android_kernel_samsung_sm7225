@@ -2760,6 +2760,14 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 
 	enable_irq(dwc->irq);
 
+	/*
+	 * Tell the udc core about the new vbus state so it can re-arm the
+	 * pullup via usb_gadget_connect(). Without this, softconnect stays
+	 * cleared after a vbus_disconnect() teardown and the gadget can
+	 * never attach again (stuck in DWC3_GADGET_CABLE_CONN).
+	 */
+	usb_udc_vbus_handler(&dwc->gadget, is_active);
+
 	return 0;
 }
 
