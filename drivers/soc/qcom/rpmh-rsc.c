@@ -746,7 +746,7 @@ void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
 	 * has happened.
 	 * Crash and report.
 	 */
-	BUG_ON(busy);
+	WARN_ON(busy);
 }
 
 static int rpmh_probe_tcs_config(struct platform_device *pdev,
