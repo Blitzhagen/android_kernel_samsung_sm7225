@@ -2400,6 +2400,7 @@ void send_otg_notify(struct otg_notify *n,
 			(&u_notify->otg_notifier, event, &enable);
 	else
 		goto before_unlock;
+	pr_info("WDX otg_notify chain done ev=%lu\n", event);
 
 before_unlock:
 	notify_event_unlock(u_notify, type);

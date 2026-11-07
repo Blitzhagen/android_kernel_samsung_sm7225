@@ -2011,7 +2011,7 @@ static void dwc3_msm_set_vbus_current_work(struct work_struct *w)
 	struct dwc3 *dwc = container_of(w, struct dwc3,	set_vbus_current_work);
 	struct otg_notify *o_notify = get_otg_notify();
 
-	pr_info("%s: dwc->vbus_current = %d\n", __func__, dwc->vbus_current);
+	pr_info("WDX vbuscur work enter cur=%d\n", dwc->vbus_current);
 
 	switch (dwc->vbus_current) {
 #ifdef CONFIG_ENABLE_USB_SUSPEND_STATE
@@ -2030,7 +2030,9 @@ static void dwc3_msm_set_vbus_current_work(struct work_struct *w)
 	default:
 		break;
 	}
+	pr_info("WDX vbuscur set_current\n");
 	dwc3_set_vbus_current(dwc->vbus_current);
+	pr_info("WDX vbuscur done\n");
 	return;
 }
 #endif
@@ -2041,7 +2043,9 @@ static void dwc3_msm_vbus_draw_work(struct work_struct *w)
 			vbus_draw_work);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
+	pr_info("WDX vbusdraw work enter\n");
 	dwc3_msm_gadget_vbus_draw(mdwc, dwc->vbus_draw);
+	pr_info("WDX vbusdraw work done\n");
 }
 
 static void dwc3_gsi_event_buf_alloc(struct dwc3 *dwc)
@@ -2647,6 +2651,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 	bool can_suspend_ssphy, no_active_ss;
 	bool restart_with_dp = false;
 
+	dev_info(mdwc->dev, "WDX suspend enter\n");
 	mutex_lock(&mdwc->suspend_resume_mutex);
 	if (atomic_read(&dwc->in_lpm)) {
 		dev_dbg(mdwc->dev, "%s: Already suspended\n", __func__);
@@ -2711,6 +2716,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 		return ret;
 	}
 
+	dev_info(mdwc->dev, "WDX suspend irq-off seq\n");
 	/* Disable core irq */
 	if (dwc->irq)
 		disable_irq(dwc->irq);
@@ -2774,6 +2780,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 	/* make sure above writes are completed before turning off clocks */
 	wmb();
 
+	dev_info(mdwc->dev, "WDX suspend clocks off\n");
 	/* Disable clocks */
 	if (mdwc->bus_aggr_clk)
 		clk_disable_unprepare(mdwc->bus_aggr_clk);
@@ -2827,6 +2834,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool enable_wakeup)
 	}
 
 	atomic_set(&dwc->in_lpm, 1);
+	dev_info(mdwc->dev, "WDX suspend done\n");
 
 	/*
 	 * with DCP or during cable disconnect, we dont require wakeup
@@ -2883,7 +2891,9 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 		dwc3_msm_kick_lpm_retry(mdwc);
 	}
 
+	dev_info(mdwc->dev, "WDX resume mutex wait\n");
 	mutex_lock(&mdwc->suspend_resume_mutex);
+	dev_info(mdwc->dev, "WDX resume mutex got\n");
 	if (!atomic_read(&dwc->in_lpm)) {
 		dev_dbg(mdwc->dev, "%s: Already resumed\n", __func__);
 		mutex_unlock(&mdwc->suspend_resume_mutex);
@@ -3028,7 +3038,9 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	 * Handle other power events that could not have been handled during
 	 * Low Power Mode
 	 */
+	dev_info(mdwc->dev, "WDX resume pwr_evnt\n");
 	dwc3_pwr_event_handler(mdwc);
+	dev_info(mdwc->dev, "WDX resume done\n");
 
 	if (pm_qos_request_active(&mdwc->pm_qos_req_dma))
 		schedule_delayed_work(&mdwc->perf_vote_work,
@@ -3260,7 +3272,9 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	u32 irq_stat, irq_clear = 0;
 
+	dev_info(mdwc->dev, "WDX pwr_evnt rd start\n");
 	irq_stat = dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG);
+	dev_info(mdwc->dev, "WDX pwr_evnt rd done %x\n", irq_stat);
 	dev_dbg(mdwc->dev, "%s irq_stat=%X\n", __func__, irq_stat);
 
 	/* Check for P3 events */
@@ -4747,6 +4761,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->host_nb.notifier_call = dwc3_msm_host_notifier;
 		usb_register_notify(&mdwc->host_nb);
 
+		dev_info(mdwc->dev, "WDX host set_prtcap\n");
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
 		dwc3_en_sleep_mode(dwc);
 		mdwc->usbdev_nb.notifier_call = msm_dwc3_usbdev_notify;
@@ -4909,7 +4924,9 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		 * Core reset is not required during start peripheral. Only
 		 * DBM reset is required, hence perform only DBM reset here.
 		 */
+		dev_info(mdwc->dev, "WDX periph blockreset\n");
 		dwc3_msm_block_reset(mdwc, false);
+		dev_info(mdwc->dev, "WDX periph set_prtcap\n");
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		dwc3_dis_sleep_mode(dwc);
 		mdwc->in_device_mode = true;
@@ -4948,7 +4965,9 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		pm_qos_remove_request(&mdwc->pm_qos_req_dma);
 
 		mdwc->in_device_mode = false;
+		dev_info(mdwc->dev, "WDX periph off vbus_disconnect\n");
 		usb_gadget_vbus_disconnect(&dwc->gadget);
+		dev_info(mdwc->dev, "WDX periph off phy_notify\n");
 		usb_phy_notify_disconnect(mdwc->hs_phy, USB_SPEED_HIGH);
 		usb_phy_notify_disconnect(mdwc->ss_phy, USB_SPEED_SUPER);
 		dwc3_override_vbus_status(mdwc, false);

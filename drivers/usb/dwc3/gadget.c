@@ -3466,7 +3466,9 @@ static void dwc3_suspend_gadget(struct dwc3 *dwc)
 		gadget_driver = dwc->gadget_driver;
 		spin_unlock(&dwc->lock);
 		dbg_event(0xFF, "SUSPEND", 0);
+		pr_info("WDX gadget suspend cb\n");
 		gadget_driver->suspend(&dwc->gadget);
+		pr_info("WDX gadget suspend cb done\n");
 		spin_lock(&dwc->lock);
 	}
 }
@@ -3635,7 +3637,9 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 	reg &= ~DWC3_DCTL_INITU2ENA;
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
+	pr_info("WDX disconnect_gadget\n");
 	dwc3_disconnect_gadget(dwc);
+	pr_info("WDX disconnect_gadget done\n");
 
 	dwc->gadget.speed = USB_SPEED_UNKNOWN;
 	dwc->setup_packet_pending = false;
@@ -3711,7 +3715,9 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 
 	usb_gadget_vbus_draw(&dwc->gadget, 100);
 
+	pr_info("WDX reset_gadget\n");
 	dwc3_reset_gadget(dwc);
+	pr_info("WDX reset_gadget done\n");
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	reg &= ~DWC3_DCTL_TSTCTRL_MASK;
