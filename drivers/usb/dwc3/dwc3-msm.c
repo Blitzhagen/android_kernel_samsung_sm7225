@@ -3319,7 +3319,17 @@ static irqreturn_t msm_dwc3_pwr_irq_thread(int irq, void *_mdwc)
 
 	dev_dbg(mdwc->dev, "%s\n", __func__);
 
-	if (atomic_read(&dwc->in_lpm))
+	/*
+	 * The thread may have been scheduled before the IRQ got disabled
+	 * during suspend/teardown and then run while the clocks/GDSC are
+	 * already off — in_lpm is only set *after* the clocks are cut, so
+	 * it does not cover that window. A register read on the unclocked
+	 * block stalls the bus and wedges the SoC without any panic.
+	 * Unless the device is fully RPM_ACTIVE, route through resume
+	 * work, which serializes on suspend_resume_mutex and re-enables
+	 * the clocks before touching registers.
+	 */
+	if (atomic_read(&dwc->in_lpm) || !pm_runtime_active(mdwc->dev))
 		dwc3_resume_work(&mdwc->resume_work);
 	else
 		dwc3_pwr_event_handler(mdwc);
@@ -3342,7 +3352,7 @@ static irqreturn_t msm_dwc3_pwr_irq(int irq, void *data)
 	 * clocks, dwc3_msm_resume will call dwc3_pwr_event_handler to handle
 	 * all other power events.
 	 */
-	if (atomic_read(&dwc->in_lpm)) {
+	if (atomic_read(&dwc->in_lpm) || !pm_runtime_active(mdwc->dev)) {
 		/* set this to call dwc3_msm_resume() */
 		mdwc->resume_pending = true;
 		return IRQ_WAKE_THREAD;
