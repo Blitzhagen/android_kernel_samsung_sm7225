@@ -34,6 +34,8 @@
 #ifdef CONFIG_QCOM_INITIAL_LOGBUF
 #include <linux/kallsyms.h>
 #include <linux/math64.h>
+#include <linux/nmi.h>
+#include <linux/sched/debug.h>
 #endif
 
 #include <linux/sec_debug.h>
@@ -834,6 +836,19 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 			(unsigned long) wdog_dd->last_pet, nanosec_rem / 1000);
 	if (wdog_dd->do_ipi_ping)
 		dump_cpu_alive_mask(wdog_dd);
+
+	/*
+	 * Post-mortem diagnostics: emit a backtrace attempt for all CPUs
+	 * plus the full task state while the machine still runs, then
+	 * panic so the pstore console record captures the stall context
+	 * before the hardware bite resets the SoC. panic_wdog_handler
+	 * extends the watchdog budget so the console flush completes.
+	 */
+	dev_emerg(wdog_dd->dev,
+		  "watchdog bark: dumping backtraces and task state\n");
+	trigger_all_cpu_backtrace();
+	show_state();
+	panic("watchdog bark");
 
 	msm_trigger_wdog_bite();
 	return IRQ_HANDLED;
