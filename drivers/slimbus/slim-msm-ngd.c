@@ -2253,15 +2253,10 @@ static int ngd_slim_suspend(struct device *dev)
 		return ret;
 	}
 
-	if (cdev->state == MSM_CTRL_AWAKE) {
-		ret = -EBUSY;
-		SLIM_INFO(cdev, "system suspend: %d\n", ret);
-		return ret;
-
-	}
 	if (!pm_runtime_enabled(dev) ||
 		(!pm_runtime_suspended(dev) &&
-			cdev->state == MSM_CTRL_IDLE)) {
+			(cdev->state == MSM_CTRL_IDLE ||
+			 cdev->state == MSM_CTRL_AWAKE))) {
 		cdev->qmi.deferred_resp = true;
 		ret = ngd_slim_runtime_suspend(dev);
 		/*
