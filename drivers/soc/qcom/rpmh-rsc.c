@@ -101,11 +101,25 @@ static void write_tcs_reg(struct rsc_drv *drv, int reg, int tcs_id, u32 data)
 static void write_tcs_reg_sync(struct rsc_drv *drv, int reg, int tcs_id,
 			       u32 data)
 {
+	int retries = 10000;
+
 	writel(data, drv->tcs_base + reg + RSC_DRV_TCS_OFFSET * tcs_id);
 	for (;;) {
 		if (data == readl(drv->tcs_base + reg +
 				  RSC_DRV_TCS_OFFSET * tcs_id))
 			break;
+		if (!--retries) {
+			/*
+			 * The readback never lands when the RSC block is
+			 * wedged (e.g. stalled fabric). Spinning forever
+			 * here while holding drv->lock wedges every other
+			 * rpmh writer with it. Bail out loudly instead.
+			 */
+			WARN_ON(1);
+			pr_err("RSC:%s reg 0x%x tcs %d write 0x%x readback timed out\n",
+			       drv->name, reg, tcs_id, data);
+			break;
+		}
 		udelay(1);
 	}
 }
@@ -114,6 +128,8 @@ static bool tcs_is_free(struct rsc_drv *drv, int tcs_id)
 {
 	return !test_bit(tcs_id, drv->tcs_in_use);
 }
+
+static void rpmh_reclaim_tcs(struct rsc_drv *drv, int tcs_id);
 
 static struct tcs_group *get_tcs_of_type(struct rsc_drv *drv, int type)
 {
@@ -558,7 +574,7 @@ static int tcs_ctrl_write(struct rsc_drv *drv, const struct tcs_request *msg)
  */
 void rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
 {
-	int m;
+	int m, retries;
 	struct tcs_group *tcs = get_tcs_of_type(drv, ACTIVE_TCS);
 
 	/*
@@ -569,11 +585,26 @@ void rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
 	 */
 	if (!tcs->num_tcs)
 		tcs = get_tcs_of_type(drv, WAKE_TCS);
+
+	retries = 2000;
 again:
 	spin_lock(&drv->lock);
 	for (m = tcs->offset; m < tcs->offset + tcs->num_tcs; m++) {
 		if (!tcs_is_free(drv, m)) {
 			spin_unlock(&drv->lock);
+			if (!--retries) {
+				/*
+				 * A TCS whose response never arrived stays
+				 * busy forever and would spin this loop
+				 * endlessly. Reclaim the poisoned slot so
+				 * the system degrades instead of hanging.
+				 */
+				pr_err("RSC:%s tcs %d stuck in solver set, reclaiming\n",
+				       drv->name, m);
+				rpmh_reclaim_tcs(drv, m);
+				return;
+			}
+			usleep_range(1000, 2000);
 			goto again;
 		}
 	}
@@ -659,22 +690,41 @@ static struct tcs_group *get_tcs_from_index(struct rsc_drv *drv, int tcs_id)
 	return NULL;
 }
 
-static void print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl)
+/*
+ * Force-free a TCS slot whose response never arrived. The caller already
+ * timed out, so its on-stack request may be gone: drop the req pointer
+ * first so a late response IRQ takes the !req skip path instead of
+ * touching freed memory.
+ */
+static void rpmh_reclaim_tcs(struct rsc_drv *drv, int tcs_id)
+{
+	struct tcs_group *tcs_grp = get_tcs_from_index(drv, tcs_id);
+
+	if (tcs_grp)
+		tcs_grp->req[tcs_id - tcs_grp->offset] = NULL;
+	write_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id, 0);
+	write_tcs_reg(drv, RSC_DRV_CMD_WAIT_FOR_CMPL, tcs_id, 0);
+	write_tcs_reg(drv, RSC_DRV_IRQ_CLEAR, 0, BIT(tcs_id));
+	clear_bit(tcs_id, drv->tcs_in_use);
+}
+
+static bool print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl)
 {
 	struct tcs_group *tcs_grp = get_tcs_from_index(drv, tcs_id);
 	const struct tcs_request *req = get_req_from_tcs(drv, tcs_id);
 	unsigned long cmds_enabled;
 	u32 addr, data, msgid, sts, irq_sts;
 	bool in_use = test_bit(tcs_id, drv->tcs_in_use);
+	bool stuck = false;
 	int i;
 
 	if (!tcs_grp || !req)
-		return;
+		return false;
 
 	sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id, 0);
 	cmds_enabled = read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id, 0);
 	if (!cmds_enabled)
-		return;
+		return false;
 
 	data = read_tcs_reg(drv, RSC_DRV_CONTROL, tcs_id, 0);
 	irq_sts = read_tcs_reg(drv, RSC_DRV_IRQ_STATUS, 0, 0);
@@ -695,9 +745,13 @@ static void print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl)
 			i, addr, data, msgid, sts);
 		if (!(sts & CMD_STATUS_ISSUED))
 			continue;
-		if (!(sts & CMD_STATUS_COMPL))
+		if (!(sts & CMD_STATUS_COMPL)) {
 			*accl |= BIT(ACCL_TYPE(addr));
+			stuck = true;
+		}
 	}
+
+	return stuck;
 }
 
 void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
@@ -715,7 +769,16 @@ void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
 		if (!test_bit(i, drv->tcs_in_use))
 			continue;
 		busy++;
-		print_tcs_info(drv, i, &accl);
+		if (print_tcs_info(drv, i, &accl)) {
+			/*
+			 * This TCS's commands never completed: the slot stays
+			 * in_use forever, poisoning find_free_tcs and spinning
+			 * mode_solver_set. Reclaim it — the timed-out caller
+			 * is gone, a late response IRQ takes the !req path.
+			 */
+			pr_warn("reclaiming stuck tcs %d\n", i);
+			rpmh_reclaim_tcs(drv, i);
+		}
 	}
 
 	if (!rsc_irq_data) {
