@@ -1305,6 +1305,8 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	info = SHMEM_I(inode);
 	if (info->flags & VM_LOCKED)
 		goto redirty;
+	if (SHMEM_SB(inode->i_sb)->noswap)
+		goto redirty;
 	if (!total_swap_pages)
 		goto redirty;
 
@@ -3375,6 +3377,12 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 		}
 		if (!*this_char)
 			continue;
+		if (!strcmp(this_char, "noswap")) {
+			if (remount)
+				continue;
+			sbinfo->noswap = true;
+			continue;
+		}
 		if ((value = strchr(this_char,'=')) != NULL) {
 			*value++ = 0;
 		} else {
