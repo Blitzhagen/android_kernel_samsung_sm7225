@@ -2941,6 +2941,8 @@ QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
 		int errno = iommu_domain_get_attr(domain,
 						  DOMAIN_ATTR_S1_BYPASS, &attr);
 
+		pr_err("gts7xl-dbg: dom=%p get_attr=%d attr=%d\n",
+		       domain, errno, attr);
 		wlan_smmu_enabled = !errno && !attr;
 	} else {
 		cds_info("No SMMU mapping present");
@@ -2959,6 +2961,8 @@ QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
 
 	ipa_smmu_enabled = qdf_get_ipa_smmu_enabled();
 
+	pr_err("gts7xl-dbg: ipa_present=%d ipa_smmu=%d wlan_smmu=%d\n",
+	       (int)ipa_present, (int)ipa_smmu_enabled, (int)wlan_smmu_enabled);
 	osdev->smmu_s1_enabled = ipa_smmu_enabled && wlan_smmu_enabled;
 	if (ipa_smmu_enabled != wlan_smmu_enabled) {
 		cds_err("SMMU mismatch; IPA:%s, WLAN:%s",
@@ -3007,6 +3011,9 @@ QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
 	ipa_smmu_enabled = qdf_get_ipa_smmu_enabled();
 
 	osdev->smmu_s1_enabled = ipa_smmu_enabled && wlan_smmu_enabled;
+	pr_err("gts7xl-dbg: smmu map=%p ipa=%d wlan=%d ipa_present=%d\n",
+	       mapping, (int)ipa_smmu_enabled, (int)wlan_smmu_enabled,
+	       (int)ipa_present);
 	if (ipa_smmu_enabled != wlan_smmu_enabled) {
 		cds_err("SMMU mismatch; IPA:%s, WLAN:%s",
 			ipa_smmu_enabled ? "enabled" : "disabled",

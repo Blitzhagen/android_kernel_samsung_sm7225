@@ -7747,6 +7747,7 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 	IPADBG(
 	  "WLAN CB PROBE dev=%pK DOMAIN ATTRS bypass=%d fast=%d\n",
 	  dev, bypass, fast);
+	pr_err("gts7xl-dbg: WLAN-CB-PROBE bypass=%d fast=%d\n", bypass, fast);
 
 	ipa3_ctx->s1_bypass_arr[IPA_SMMU_CB_WLAN] = (bypass != 0);
 
@@ -7855,6 +7856,7 @@ static int ipa_smmu_uc_cb_probe(struct device *dev)
 
 	IPADBG("UC CB PROBE dev=%pK DOMAIN ATTRS bypass=%d fast=%d\n",
 		   dev, bypass, fast);
+	pr_err("gts7xl-dbg: UC-CB-PROBE bypass=%d fast=%d\n", bypass, fast);
 
 	ipa3_ctx->s1_bypass_arr[IPA_SMMU_CB_UC] = (bypass != 0);
 
@@ -7947,6 +7949,7 @@ static int ipa_smmu_ap_cb_probe(struct device *dev)
 
 	IPADBG("AP CB PROBE dev=%pK DOMAIN ATTRS bypass=%d fast=%d\n",
 		   dev, bypass, fast);
+	pr_err("gts7xl-dbg: AP-CB-PROBE bypass=%d fast=%d\n", bypass, fast);
 
 	ipa3_ctx->s1_bypass_arr[IPA_SMMU_CB_AP] = (bypass != 0);
 

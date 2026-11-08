@@ -3779,6 +3779,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 
 		if (!reinit && !unint) {
 			ret = pld_power_on(qdf_dev->dev);
+			pr_err("gts7xl-dbg: pld_power_on=%d\n", ret);
 			if (ret) {
 				hdd_err("Failed to power up device; errno:%d",
 					ret);
@@ -3794,6 +3795,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 				   qdf_dev->bus_type,
 				   (reinit == true) ?  HIF_ENABLE_TYPE_REINIT :
 				   HIF_ENABLE_TYPE_PROBE);
+		pr_err("gts7xl-dbg: hif_open=%d\n", ret);
 		if (ret) {
 			hdd_err("Failed to open hif; errno: %d", ret);
 			goto power_down;
@@ -3807,6 +3809,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		}
 
 		status = ol_cds_init(qdf_dev, hif_ctx);
+		pr_err("gts7xl-dbg: ol_cds_init=%d\n", (int)status);
 		if (status != QDF_STATUS_SUCCESS) {
 			hdd_err("No Memory to Create BMI Context; status: %d",
 				status);
@@ -3840,6 +3843,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		hdd_update_cds_ac_specs_params(hdd_ctx);
 
 		status = hdd_component_psoc_open(hdd_ctx->psoc);
+		pr_err("gts7xl-dbg: psoc_open=%d\n", (int)status);
 		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("Failed to Open legacy components; status: %d",
 				status);
@@ -3848,6 +3852,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		}
 
 		ret = hdd_update_config(hdd_ctx);
+		pr_err("gts7xl-dbg: update_config=%d\n", ret);
 		if (ret) {
 			hdd_err("Failed to update configuration; errno: %d",
 				ret);
@@ -3859,6 +3864,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 			hdd_err("WBUFF init unsuccessful; status: %d", status);
 
 		status = cds_open(hdd_ctx->psoc);
+		pr_err("gts7xl-dbg: cds_open=%d\n", (int)status);
 		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("Failed to Open CDS; status: %d", status);
 			ret = qdf_status_to_os_return(status);
@@ -3879,6 +3885,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 
 		/* initialize components configurations after psoc open */
 		ret = hdd_update_components_config(hdd_ctx);
+		pr_err("gts7xl-dbg: upd_components_cfg=%d\n", ret);
 		if (ret) {
 			hdd_err("Failed to update component configs; errno: %d",
 				ret);
@@ -3886,6 +3893,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		}
 
 		status = cds_dp_open(hdd_ctx->psoc);
+		pr_err("gts7xl-dbg: cds_dp_open=%d\n", (int)status);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to Open cds post open; status: %d",
 				status);
@@ -3896,12 +3904,14 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		hif_config_irq_set_perf_affinity_hint(hif_ctx);
 
 		ret = hdd_register_cb(hdd_ctx);
+		pr_err("gts7xl-dbg: register_cb=%d\n", ret);
 		if (ret) {
 			hdd_err("Failed to register HDD callbacks!");
 			goto cds_txrx_free;
 		}
 
 		ret = hdd_register_notifiers(hdd_ctx);
+		pr_err("gts7xl-dbg: register_notifiers=%d\n", ret);
 		if (ret)
 			goto deregister_cb;
 
@@ -3913,6 +3923,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		hdd_nan_register_callbacks(hdd_ctx);
 
 		status = cds_pre_enable();
+		pr_err("gts7xl-dbg: cds_pre_enable=%d\n", (int)status);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to pre-enable CDS; status: %d", status);
 			ret = qdf_status_to_os_return(status);
@@ -3943,6 +3954,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		}
 
 		ret = hdd_configure_cds(hdd_ctx);
+		pr_err("gts7xl-dbg: configure_cds=%d\n", ret);
 		if (ret) {
 			hdd_err("Failed to Enable cds modules; errno: %d", ret);
 			goto destroy_driver_sysfs;
@@ -14567,6 +14579,7 @@ int hdd_wlan_startup(struct hdd_context *hdd_ctx)
 	hdd_dp_trace_init(hdd_ctx->config);
 
 	errno = hdd_wlan_start_modules(hdd_ctx, false);
+	pr_err("gts7xl-dbg: start_modules=%d\n", errno);
 	if (errno) {
 		hdd_err("Failed to start modules; errno:%d", errno);
 		goto memdump_deinit;

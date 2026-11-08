@@ -475,14 +475,29 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 		return -EINVAL;
 	}
 
-	do {
-		ret = tcs_write(drv, msg);
+	{
+		int retries = 50000;
+
+		do {
+			ret = tcs_write(drv, msg);
+			if (ret == -EBUSY) {
+				pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x\n",
+						    drv->name, msg->cmds[0].addr);
+				udelay(10);
+			}
+		} while (ret == -EBUSY && --retries);
+
 		if (ret == -EBUSY) {
-			pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x\n",
-					    drv->name, msg->cmds[0].addr);
-			udelay(10);
+			/* TCS never freed up: the RSC fabric is wedged. An
+			 * unbounded spin here starves the pet timer on this
+			 * cpu (watchdog bite) and chains onto every other
+			 * rpmh writer via drv->lock. Fail loudly instead. */
+			WARN_ON(1);
+			pr_err("RSC:%s TCS still busy after %d tries, addr=%#x, giving up\n",
+			       drv->name, 50000, msg->cmds[0].addr);
+			ret = -ETIMEDOUT;
 		}
-	} while (ret == -EBUSY);
+	}
 
 	return ret;
 }

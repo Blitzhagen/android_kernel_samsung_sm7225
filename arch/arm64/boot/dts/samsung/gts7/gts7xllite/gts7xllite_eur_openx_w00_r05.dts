@@ -4795,13 +4795,6 @@
 				phandle = <0x52>;
 			};
 
-			qcom,wb-display@0 {
-				compatible = "qcom,wb-display";
-				cell-index = <0x0>;
-				label = "wb_display";
-				phandle = <0x51>;
-			};
-
 			qcom,msm_notifier@0 {
 				compatible = "qcom,msm-notifier";
 				panel = <0x4b 0x4c 0x4d 0x4e 0x4f>;
@@ -4835,7 +4828,7 @@
 		target = <0xffffffff>;
 
 		__overlay__ {
-			connectors = <0x51 0x52 0xffffffff 0xffffffff>;
+			connectors = <0x52 0xffffffff 0xffffffff>;
 		};
 	};
 

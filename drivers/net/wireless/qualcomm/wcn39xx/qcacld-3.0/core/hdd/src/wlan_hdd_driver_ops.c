@@ -531,22 +531,27 @@ static int __hdd_soc_probe(struct device *dev,
 	cds_set_recovery_in_progress(false);
 
 	errno = hdd_init_qdf_ctx(dev, bdev, bus_type, bid);
+	pr_err("gts7xl-dbg: init_qdf_ctx=%d\n", errno);
 	if (errno)
 		goto unlock;
 
 	dp_prealloc_init();
 
 	hdd_ctx = hdd_context_create(dev);
+	pr_err("gts7xl-dbg: ctx_create=%s%ld\n",
+	       IS_ERR(hdd_ctx) ? "ERR " : "ok ", IS_ERR(hdd_ctx) ? PTR_ERR(hdd_ctx) : 0L);
 	if (IS_ERR(hdd_ctx)) {
 		errno = PTR_ERR(hdd_ctx);
 		goto assert_fail_count;
 	}
 
 	errno = hdd_wlan_startup(hdd_ctx);
+	pr_err("gts7xl-dbg: wlan_startup=%d\n", errno);
 	if (errno)
 		goto hdd_context_destroy;
 
 	status = hdd_psoc_create_vdevs(hdd_ctx);
+	pr_err("gts7xl-dbg: create_vdevs=%d\n", (int)status);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		errno = qdf_status_to_os_return(status);
 		goto wlan_exit;
@@ -602,6 +607,7 @@ static int hdd_soc_probe(struct device *dev,
 	hdd_info("probing driver");
 
 	errno = osif_psoc_sync_create_and_trans(&psoc_sync);
+	pr_err("gts7xl-dbg: psoc_sync=%d\n", errno);
 	if (errno)
 		return errno;
 

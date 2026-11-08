@@ -1161,6 +1161,8 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 {
 	struct drm_msm_gem_new *args = data;
 
+	pr_err("gts7xl-gem: ioctl_new size=%llu flags=%x\n",
+		(unsigned long long)args->size, args->flags);
 	if (args->flags & ~MSM_BO_FLAGS) {
 		DRM_ERROR("invalid flags: %08x\n", args->flags);
 		return -EINVAL;

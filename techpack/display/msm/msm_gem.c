@@ -598,6 +598,9 @@ int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	args->pitch = align_pitch(args->width, args->bpp);
 	args->size  = PAGE_ALIGN(args->pitch * args->height);
+	pr_err("gts7xl-gem: dumb %ux%u@%u pitch=%u size=%llu\n",
+		args->width, args->height, args->bpp, args->pitch,
+		(unsigned long long)args->size);
 	return msm_gem_new_handle(dev, file, args->size,
 			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle);
 }
@@ -1047,6 +1050,9 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	else if ((flags & MSM_BO_STOLEN) && priv->vram.size)
 		use_vram = true;
 
+	pr_err("gts7xl-gem: new size=%u flags=%x use_vram=%d vram_size=%pa\n",
+		size, flags, use_vram, &priv->vram.size);
+
 	if (WARN_ON(use_vram && !priv->vram.size))
 		return ERR_PTR(-EINVAL);
 
@@ -1087,13 +1093,16 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 		vma->iova = physaddr(obj);
 	} else {
 		ret = drm_gem_object_init(dev, obj, size);
-		if (ret)
+		if (ret) {
+			pr_err("gts7xl-gem: gem_object_init ret=%d\n", ret);
 			goto fail;
+		}
 	}
 
 	return obj;
 
 fail:
+	pr_err("gts7xl-gem: new failed ret=%d\n", ret);
 	drm_gem_object_put_unlocked(obj);
 	return ERR_PTR(ret);
 }
