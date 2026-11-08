@@ -327,10 +327,10 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 #ifdef CONFIG_KDP
 	if (kdp_enable && is_kdp_kmem_cache(s)) {
 #ifdef CONFIG_RUSTUH_KDP
-		uh_call_staged(UH_APP_KDP, SET_FREEPTR, (u64)object, (u64)s->offset, (u64)fp,
+		uh_call(UH_APP_KDP, SET_FREEPTR, (u64)object, (u64)s->offset, (u64)fp,
 				(u64)freelist_ptr(s, fp, freeptr_addr));
 #else
-		uh_call_staged(UH_APP_KDP, SET_FREEPTR, (u64)object, (u64)s->offset, (u64)fp, key);
+		uh_call(UH_APP_KDP, SET_FREEPTR, (u64)object, (u64)s->offset, (u64)fp, key);
 #endif
 	} else
 #endif
@@ -1848,7 +1848,7 @@ def_alloc:
 
 		if (type) {
 			for (sc = 0; sc < (1 << oo_order(oo)); sc++) {
-				uh_call_staged(UH_APP_KDP, SET_SLAB_RO, va_page, type, 0, 0);
+				uh_call(UH_APP_KDP, SET_SLAB_RO, va_page, type, 0, 0);
 				va_page += PAGE_SIZE;
 			}
 		}
@@ -1858,17 +1858,17 @@ def_alloc:
 
 		if (!strncmp(s->name, CRED_JAR_RO, strlen(CRED_JAR_RO))) {
 			for(sc = 0; sc < (1 << oo_order(oo)); sc++) {
-				uh_call_staged(UH_APP_KDP, SET_CRED_RO, va_page, 0, 0, 0);
+				uh_call(UH_APP_KDP, SET_CRED_RO, va_page, 0, 0, 0);
 				va_page += PAGE_SIZE;
 			}
 		} else if (!strncmp(s->name, TSEC_JAR, strlen(TSEC_JAR))) {
 			for(sc = 0; sc < (1 << oo_order(oo)); sc++) {
-				uh_call_staged(UH_APP_KDP, SER_SP_RO, va_page, 0, 0, 0);
+				uh_call(UH_APP_KDP, SER_SP_RO, va_page, 0, 0, 0);
 				va_page += PAGE_SIZE;
 			}
 		} else if (!strncmp(s->name, VFSMNT_JAR, strlen(VFSMNT_JAR))) {
 			for(sc = 0; sc < (1 << oo_order(oo)); sc++) {
-				uh_call_staged(UH_APP_KDP, SET_NS_RO, va_page, 0, 0, 0);
+				uh_call(UH_APP_KDP, SET_NS_RO, va_page, 0, 0, 0);
 				va_page += PAGE_SIZE;
 			}
 		}
@@ -1936,7 +1936,7 @@ static void free_ro_pages(struct kmem_cache *s,struct page *page, int order)
 #ifdef CONFIG_RKP
 	if (is_rkp_ro_buffer(va_page)) {
 		for (sc = 0; sc < (1 << order); sc++) {
-			uh_call_staged(UH_APP_KDP, PGD_RWX, va_page, 0, 0, 0);
+			uh_call(UH_APP_KDP, PGD_RWX, va_page, 0, 0, 0);
 			rkp_ro_free((void *)va_page);
 			va_page += PAGE_SIZE;
 		}
@@ -1945,7 +1945,7 @@ static void free_ro_pages(struct kmem_cache *s,struct page *page, int order)
 #endif
 	spin_lock_irqsave(&ro_pages_lock,flags);
 	for (sc = 0; sc < (1 << order); sc++) {
-		uh_call_staged(UH_APP_KDP, PGD_RWX, va_page, 0, 0, 0);
+		uh_call(UH_APP_KDP, PGD_RWX, va_page, 0, 0, 0);
 		va_page += PAGE_SIZE;
 	}
 	memcg_uncharge_slab(page, order, s);

@@ -33,23 +33,23 @@ void __init rkp_init(void)
 	init_data.id_map_pgd = (u64)__pa(idmap_pg_dir);
 	init_data.zero_pg_addr = (u64)__pa(empty_zero_page);
 
-	uh_call_staged(UH_APP_RKP, RKP_START, (u64)&init_data, (u64)kimage_voffset, 0, 0);
+	uh_call(UH_APP_RKP, RKP_START, (u64)&init_data, (u64)kimage_voffset, 0, 0);
 	rkp_started = true;
 }
 
 /* init/main.c */
 void rkp_deferred_init(void)
 {
-	uh_call_staged(UH_APP_RKP, RKP_DEFERRED_START, 0, 0, 0, 0);
+	uh_call(UH_APP_RKP, RKP_DEFERRED_START, 0, 0, 0, 0);
 }
 
 /* RO BUFFER */
 void rkp_robuffer_init(void)
 {
 #ifdef CONFIG_RUSTUH_RKP
-	uh_call_staged(UH_APP_RKP, RKP_GET_RO_INFO, (u64)&robuffer_base, (u64)&robuffer_size, 0, 0);
+	uh_call(UH_APP_RKP, RKP_GET_RO_INFO, (u64)&robuffer_base, (u64)&robuffer_size, 0, 0);
 #else
-	uh_call_staged(UH_APP_RKP, RKP_GET_RO_BUFFER, (u64)&robuffer_base, (u64)&robuffer_size, 0, 0);
+	uh_call(UH_APP_RKP, RKP_GET_RO_BUFFER, (u64)&robuffer_base, (u64)&robuffer_size, 0, 0);
 #endif
 }
 
@@ -59,7 +59,7 @@ inline phys_addr_t rkp_ro_alloc_phys(void)
 {
 	phys_addr_t alloc_addr = 0;
 
-	uh_call_staged(UH_APP_RKP, RKP_ROBUFFER_ALLOC, (u64)&alloc_addr, 1, 0, 0);
+	uh_call(UH_APP_RKP, RKP_ROBUFFER_ALLOC, (u64)&alloc_addr, 1, 0, 0);
 
 	return alloc_addr;
 }
@@ -68,7 +68,7 @@ inline void *rkp_ro_alloc(void)
 {
 	void *addr = NULL;
 
-	uh_call_staged(UH_APP_RKP, RKP_ROBUFFER_ALLOC, (u64)&addr, 1, 0, 0);
+	uh_call(UH_APP_RKP, RKP_ROBUFFER_ALLOC, (u64)&addr, 1, 0, 0);
 	if (!addr)
 		return 0;
 
@@ -77,7 +77,7 @@ inline void *rkp_ro_alloc(void)
 
 inline void rkp_ro_free(void *addr)
 {
-	uh_call_staged(UH_APP_RKP, RKP_ROBUFFER_FREE, (u64)addr, 0, 0, 0);
+	uh_call(UH_APP_RKP, RKP_ROBUFFER_FREE, (u64)addr, 0, 0, 0);
 }
 
 inline bool is_rkp_ro_buffer(u64 addr)

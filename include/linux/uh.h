@@ -33,12 +33,7 @@ struct test_case {
 	char * describe;
 };
 
-int uh_call_staged(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
-
-/* debug: staged variant — records (app_id<<32)|command per-CPU before the
- * SMC so a remote observer can tell which µH call froze a CPU. */
-DECLARE_PER_CPU(unsigned long, kdp_uh_stage);
-int uh_call_staged(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
+int uh_call(u64 app_id, u64 command, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
 
 #endif //__ASSEMBLY__
 #endif //__UH_H__

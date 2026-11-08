@@ -9,25 +9,6 @@
 #include <linux/init_task.h>
 #include <../../fs/mount.h>
 
-/* debug: stage tracker — nonzero while this CPU sits inside an uh_call SMC */
-DEFINE_PER_CPU(unsigned long, kdp_uh_stage);
-EXPORT_PER_CPU_SYMBOL(kdp_uh_stage);
-
-int uh_call_staged(u64 app_id, u64 command, u64 a0, u64 a1, u64 a2, u64 a3)
-{
-	int ret;
-	this_cpu_write(kdp_uh_stage, (app_id << 32) | command);
-	ret = uh_call(app_id, command, a0, a1, a2, a3);
-	this_cpu_write(kdp_uh_stage, 0);
-	return ret;
-}
-EXPORT_SYMBOL(uh_call_staged);
-
-static void kdp_uh(u64 command, u64 a0, u64 a1, u64 a2, u64 a3)
-{
-	uh_call_staged(UH_APP_KDP, command, a0, a1, a2, a3);
-}
-
 /* security/selinux/include/objsec.h */
 struct task_security_struct {
 	u32 osid;               /* SID prior to last execve */
@@ -94,7 +75,7 @@ void __init kdp_init(void)
 	cred.selinux.selinux_enforcing_va  = 0;
 	cred.selinux.ss_initialized_va	= 0;
 #endif
-	uh_call_staged(UH_APP_KDP, KDP_INIT, (u64)&cred, 0, 0, 0);
+	uh_call(UH_APP_KDP, KDP_INIT, (u64)&cred, 0, 0, 0);
 }
 
 static int __init verifiedboot_state_setup(char *str)
@@ -167,9 +148,9 @@ void __init kdp_cred_init(void)
 		panic("Unable to create use count jar\n");
 
 #ifdef CONFIG_RUSTUH_KDP
-	uh_call_staged(UH_APP_KDP, JARRO_TSEC_SIZE, (u64)cred_jar_ro->size, (u64)tsec_jar->size, 0, 0);
+	uh_call(UH_APP_KDP, JARRO_TSEC_SIZE, (u64)cred_jar_ro->size, (u64)tsec_jar->size, 0, 0);
 #else
-	uh_call_staged(UH_APP_KDP, CRED_INIT, (u64)cred_jar_ro->size, (u64)tsec_jar->size, 0, 0);
+	uh_call(UH_APP_KDP, CRED_INIT, (u64)cred_jar_ro->size, (u64)tsec_jar->size, 0, 0);
 #endif
 }
 
@@ -301,7 +282,7 @@ struct cred *prepare_ro_creds(struct cred *old, int kdp_cmd, u64 p)
 	param_data.type = kdp_cmd;
 	param_data.use_cnt = (u64)p;
 
-	uh_call_staged(UH_APP_KDP, PREPARE_RO_CRED, (u64)&param_data, (u64)current, 0, 0);
+	uh_call(UH_APP_KDP, PREPARE_RO_CRED, (u64)&param_data, (u64)current, 0, 0);
 	if (kdp_cmd == CMD_COPY_CREDS) {
 		if ((new_ro->bp_task != (void *)p) ||
 			new_ro->security != tsec ||
@@ -380,7 +361,7 @@ void kdp_assign_pgd(struct task_struct *p)
 {
 	u64 pgd = (u64)(p->mm? p->mm->pgd: swapper_pg_dir);
 
-	uh_call_staged(UH_APP_KDP, SET_CRED_PGD, (u64)p->cred, (u64)pgd, 0, 0);
+	uh_call(UH_APP_KDP, SET_CRED_PGD, (u64)p->cred, (u64)pgd, 0, 0);
 }
 
 struct task_security_struct init_sec __kdp_ro;
@@ -540,13 +521,13 @@ void __init kdp_mnt_init(void)
 	nsparam.flag_offset = (u64)offsetof(struct vfsmount, mnt_flags);
 	nsparam.data_offset = (u64)offsetof(struct vfsmount, data);
 
-	uh_call_staged(UH_APP_KDP, NS_INIT, (u64)&nsparam, 0, 0, 0);
+	uh_call(UH_APP_KDP, NS_INIT, (u64)&nsparam, 0, 0, 0);
 }
 
 void __init kdp_init_mount_tree(struct vfsmount *mnt)
 {
 	if (!rootfs_sb)
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&rootfs_sb, (u64)mnt, KDP_SB_ROOTFS, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&rootfs_sb, (u64)mnt, KDP_SB_ROOTFS, 0);
 }
 
 bool is_kdp_vfsmnt_cache(unsigned long addr)
@@ -667,12 +648,12 @@ int is_kdp_priv_task(void)
 
 inline void kdp_set_mnt_root_sb(struct vfsmount *mnt, struct dentry *mnt_root, struct super_block *mnt_sb)
 {
-	kdp_uh(SET_NS_ROOT_SB, (u64)mnt, (u64)mnt_root, (u64)mnt_sb, 0);
+	uh_call(UH_APP_KDP, SET_NS_ROOT_SB, (u64)mnt, (u64)mnt_root, (u64)mnt_sb, 0);
 }
 
 inline void kdp_assign_mnt_flags(struct vfsmount *mnt, int flags)
 {
-	kdp_uh(SET_NS_FLAGS, (u64)mnt, (u64)flags, 0, 0);
+	uh_call(UH_APP_KDP, SET_NS_FLAGS, (u64)mnt, (u64)flags, 0, 0);
 }
 
 inline void kdp_clear_mnt_flags(struct vfsmount *mnt, int flags)
@@ -691,7 +672,7 @@ inline void kdp_set_mnt_flags(struct vfsmount *mnt, int flags)
 
 void kdp_set_ns_data(struct vfsmount *mnt, void *data)
 {
-	kdp_uh(SET_NS_DATA, (u64)mnt, (u64)data, 0, 0);
+	uh_call(UH_APP_KDP, SET_NS_DATA, (u64)mnt, (u64)data, 0, 0);
 }
 
 int kdp_mnt_alloc_vfsmount(struct mount *mnt)
@@ -704,9 +685,9 @@ int kdp_mnt_alloc_vfsmount(struct mount *mnt)
 
 	spin_lock(&mnt_vfsmnt_lock);
 #ifdef CONFIG_RUSTUH_KDP
-	kdp_uh(SET_NS_BP, (u64)vfsmnt, (u64)mnt, 0, 0);
+	uh_call(UH_APP_KDP, SET_NS_BP, (u64)vfsmnt, (u64)mnt, 0, 0);
 #else
-	kdp_uh(ALLOC_VFSMOUNT, (u64)vfsmnt, (u64)mnt, 0, 0);
+	uh_call(UH_APP_KDP, ALLOC_VFSMOUNT, (u64)vfsmnt, (u64)mnt, 0, 0);
 #endif
 	mnt->mnt = vfsmnt;
 	spin_unlock(&mnt_vfsmnt_lock);
@@ -725,23 +706,23 @@ static void kdp_populate_sb(char *mount_point, struct vfsmount *mnt)
 		return;
 
 	if (!odm_sb && !strncmp(mount_point, KDP_MOUNT_PRODUCT, KDP_MOUNT_PRODUCT_LEN))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&odm_sb, (u64)mnt, KDP_SB_ODM, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&odm_sb, (u64)mnt, KDP_SB_ODM, 0);
 	else if (!sys_sb && !strncmp(mount_point, KDP_MOUNT_SYSTEM, KDP_MOUNT_SYSTEM_LEN))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&sys_sb, (u64)mnt, KDP_SB_SYS, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&sys_sb, (u64)mnt, KDP_SB_SYS, 0);
 	else if (!vendor_sb && !strncmp(mount_point, KDP_MOUNT_VENDOR, KDP_MOUNT_VENDOR_LEN))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&vendor_sb, (u64)mnt, KDP_SB_VENDOR, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&vendor_sb, (u64)mnt, KDP_SB_VENDOR, 0);
 	else if (!art_sb && !strncmp(mount_point, KDP_MOUNT_ART, KDP_MOUNT_ART_LEN - 1))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&art_sb, (u64)mnt, KDP_SB_ART, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&art_sb, (u64)mnt, KDP_SB_ART, 0);
 	else if (!crypt_sb && !strncmp(mount_point, KDP_MOUNT_CRYPT, KDP_MOUNT_CRYPT_LEN - 1))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&crypt_sb, (u64)mnt, KDP_SB_CRYPT, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&crypt_sb, (u64)mnt, KDP_SB_CRYPT, 0);
 	else if (!dex2oat_sb && !strncmp(mount_point, KDP_MOUNT_DEX2OAT, KDP_MOUNT_DEX2OAT_LEN - 1))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&dex2oat_sb, (u64)mnt, KDP_SB_DEX2OAT, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&dex2oat_sb, (u64)mnt, KDP_SB_DEX2OAT, 0);
 	else if (!dex2oat_count && !strncmp(mount_point, KDP_MOUNT_DEX2OAT, KDP_MOUNT_DEX2OAT_LEN)) {
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&dex2oat_sb, (u64)mnt, KDP_SB_DEX2OAT, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&dex2oat_sb, (u64)mnt, KDP_SB_DEX2OAT, 0);
 		dex2oat_count++;
 	}
 	else if (!adbd_sb && !strncmp(mount_point, KDP_MOUNT_ADBD, KDP_MOUNT_ADBD_LEN - 1))
-		uh_call_staged(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&adbd_sb, (u64)mnt, KDP_SB_ADBD, 0);
+		uh_call(UH_APP_KDP, SET_NS_SB_VFSMOUNT, (u64)&adbd_sb, (u64)mnt, KDP_SB_ADBD, 0);
 }
 
 int kdp_do_new_mount(struct vfsmount *mnt, struct path *path)

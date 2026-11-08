@@ -955,7 +955,7 @@ skip_init_ctx:
 	prog->jited = 1;
 	prog->jited_len = image_size;
 #ifdef CONFIG_RKP
-	uh_call_staged(UH_APP_RKP, RKP_BPF_LOAD, (u64)header, (u64)(header->pages * 0x1000), 0, 0);
+	uh_call(UH_APP_RKP, RKP_BPF_LOAD, (u64)header, (u64)(header->pages * 0x1000), 0, 0);
 #endif
 	if (!prog->is_func || extra_pass) {
 out_off:

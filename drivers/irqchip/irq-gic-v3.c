@@ -845,7 +845,6 @@ static void gic_send_sgi(u64 cluster_id, u16 tlist, unsigned int irq)
 	gic_write_sgi1r(val);
 }
 
-DEFINE_PER_CPU(int, mntdbg_gic_stage);
 
 static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 {
@@ -854,13 +853,11 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	if (WARN_ON(irq >= 16))
 		return;
 
-	this_cpu_write(mntdbg_gic_stage, 1);
 	/*
 	 * Ensure that stores to Normal memory are visible to the
 	 * other CPUs before issuing the IPI.
 	 */
 	wmb();
-	this_cpu_write(mntdbg_gic_stage, 2);
 
 	for_each_cpu(cpu, mask) {
 		u64 cluster_id = MPIDR_TO_SGI_CLUSTER_ID(cpu_logical_map(cpu));
@@ -868,13 +865,10 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 		tlist = gic_compute_target_list(&cpu, mask, cluster_id);
 		gic_send_sgi(cluster_id, tlist, irq);
-		this_cpu_inc(mntdbg_gic_stage);
 	}
-	this_cpu_write(mntdbg_gic_stage, 0x100);
 
 	/* Force the above writes to ICC_SGI1R_EL1 to be executed */
 	isb();
-	this_cpu_write(mntdbg_gic_stage, 0);
 }
 
 static void gic_smp_init(void)

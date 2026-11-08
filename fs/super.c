@@ -1336,16 +1336,12 @@ int vfs_get_super(struct fs_context *fc,
 		BUG();
 	}
 
-	pr_err("MNTDBG:%d p%d c%d pre-sget\n", 20, current->pid, smp_processor_id());
 	sb = sget_fc(fc, test, set_anon_super_fc);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
-	pr_err("MNTDBG:%d p%d c%d post-sget root=%d\n", 21, current->pid, smp_processor_id(), !!sb->s_root);
 
 	if (!sb->s_root) {
-		pr_err("MNTDBG:%d p%d c%d pre-fill_super\n", 22, current->pid, smp_processor_id());
 		int err = fill_super(sb, fc);
-		pr_err("MNTDBG:%d p%d c%d post-fill_super err=%d\n", 23, current->pid, smp_processor_id(), err);
 		if (err) {
 			deactivate_locked_super(sb);
 			return err;
@@ -1353,10 +1349,8 @@ int vfs_get_super(struct fs_context *fc,
 
 		sb->s_flags |= SB_ACTIVE;
 	}
-	pr_err("MNTDBG:%d pre-dget\n", 42);
 	BUG_ON(fc->root);
 	fc->root = dget(sb->s_root);
-	pr_err("MNTDBG:%d post-dget\n", 43);
 	return 0;
 }
 EXPORT_SYMBOL(vfs_get_super);
@@ -1687,9 +1681,7 @@ int vfs_get_tree(struct fs_context *fc)
 	}
 
 	sb = fc->root->d_sb;
-	pr_err("MNTDBG:%d pre-warn_bdi bdi=%p\n", 46, sb->s_bdi);
 	WARN_ON(!sb->s_bdi);
-	pr_err("MNTDBG:%d post-warn_bdi\n", 47);
 
 	/*
 	 * Write barrier is for super_cache_count(). We place it before setting
@@ -1700,9 +1692,7 @@ int vfs_get_tree(struct fs_context *fc)
 	smp_wmb();
 	sb->s_flags |= SB_BORN;
 
-	pr_err("MNTDBG:%d pre-sec_mnt_opts\n", 44);
 	error = security_sb_set_mnt_opts(sb, fc->security, 0, NULL);
-	pr_err("MNTDBG:%d post-sec_mnt_opts err=%d\n", 45, error);
 	if (unlikely(error)) {
 		fc_drop_locked(fc);
 		return error;
@@ -1714,10 +1704,8 @@ int vfs_get_tree(struct fs_context *fc)
 	 * this warning for a little while to try and catch filesystems that
 	 * violate this rule.
 	 */
-	pr_err("MNTDBG:%d pre-warn_maxbytes mxb=%lld\n", 48, sb->s_maxbytes);
 	WARN((sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
 		"negative value (%lld)\n", fc->fs_type->name, sb->s_maxbytes);
-	pr_err("MNTDBG:%d get_tree-return\n", 49);
 
 	return 0;
 }
