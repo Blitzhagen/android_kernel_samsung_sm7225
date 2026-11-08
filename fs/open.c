@@ -31,6 +31,7 @@
 #include <linux/ima.h>
 #include <linux/dnotify.h>
 #include <linux/compat.h>
+#include <uapi/linux/openat2.h>
 
 #include "internal.h"
 
@@ -1049,6 +1050,51 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 	return 0;
 }
 
+static inline int build_open_how(const struct open_how *how,
+				 struct open_flags *op)
+{
+	int err;
+
+	/* Validate the open_how flags. */
+	if (how->flags & ~VALID_OPEN_FLAGS)
+		return -EINVAL;
+	if (how->resolve & ~VALID_RESOLVE_FLAGS)
+		return -EINVAL;
+
+	/* Deal with the mode. */
+	if (how->flags & (O_CREAT | __O_TMPFILE)) {
+		if (how->mode & ~S_IALLUGO)
+			return -EINVAL;
+	} else if (how->mode) {
+		return -EINVAL;
+	}
+
+	/* Scoping resolve flags are mutually exclusive. */
+	if ((how->resolve & RESOLVE_BENEATH) &&
+	    (how->resolve & RESOLVE_IN_ROOT))
+		return -EINVAL;
+
+	err = build_open_flags((int)how->flags, (umode_t)how->mode, op);
+	if (err)
+		return err;
+
+	if (how->flags & O_EMPTYPATH)
+		op->lookup_flags |= LOOKUP_EMPTY;
+	if (how->resolve & RESOLVE_NO_XDEV)
+		op->lookup_flags |= LOOKUP_NO_XDEV;
+	if (how->resolve & RESOLVE_NO_MAGICLINKS)
+		op->lookup_flags |= LOOKUP_NO_MAGICLINKS;
+	if (how->resolve & RESOLVE_NO_SYMLINKS)
+		op->lookup_flags |= LOOKUP_NO_SYMLINKS;
+	if (how->resolve & RESOLVE_BENEATH)
+		op->lookup_flags |= LOOKUP_BENEATH;
+	if (how->resolve & RESOLVE_IN_ROOT)
+		op->lookup_flags |= LOOKUP_IN_ROOT;
+	if (how->resolve & RESOLVE_CACHED)
+		op->lookup_flags |= LOOKUP_CACHED;
+	return 0;
+}
+
 /**
  * file_open_name - open file and return file pointer
  *
@@ -1151,6 +1197,60 @@ SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
 		flags |= O_LARGEFILE;
 
 	return do_sys_open(dfd, filename, flags, mode);
+}
+
+static long do_sys_openat2(int dfd, const char __user *filename,
+			   struct open_how *how)
+{
+	struct open_flags op;
+	int fd = build_open_how(how, &op);
+	struct filename *tmp;
+
+	if (fd)
+		return fd;
+
+	tmp = getname_flags(filename, op.lookup_flags & LOOKUP_EMPTY, NULL);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	fd = get_unused_fd_flags(how->flags);
+	if (fd >= 0) {
+		struct file *f = do_filp_open(dfd, tmp, &op);
+#ifdef CONFIG_SECURITY_DEFEX
+		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat2)) {
+			fput(f);
+			f = ERR_PTR(-EPERM);
+		}
+#endif
+		if (IS_ERR(f)) {
+			put_unused_fd(fd);
+			fd = PTR_ERR(f);
+		} else {
+			fsnotify_open(f);
+			fd_install(fd, f);
+		}
+	}
+	putname(tmp);
+	return fd;
+}
+
+SYSCALL_DEFINE4(openat2, int, dfd, const char __user *, filename,
+		struct open_how __user *, how, size_t, usize)
+{
+	int err;
+	struct open_how tmp;
+
+	/* Only sizeof(struct open_how) is expected (as of Linux 4.19). */
+	BUILD_BUG_ON(sizeof(struct open_how) != sizeof(*how));
+
+	err = copy_struct_from_user(&tmp, sizeof(tmp), how, usize);
+	if (err)
+		return err;
+
+	if (force_o_largefile())
+		tmp.flags |= O_LARGEFILE;
+
+	return do_sys_openat2(dfd, filename, &tmp);
 }
 
 #ifdef CONFIG_COMPAT

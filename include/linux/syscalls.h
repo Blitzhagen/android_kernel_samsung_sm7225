@@ -34,6 +34,7 @@ struct nfsctl_arg;
 struct __old_kernel_stat;
 struct oldold_utsname;
 struct old_utsname;
+struct open_how;
 struct pollfd;
 struct rlimit;
 struct rlimit64;
@@ -427,6 +428,8 @@ asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group);
 asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 			   umode_t mode);
+asmlinkage long sys_openat2(int dfd, const char __user *filename,
+			    struct open_how __user *how, size_t usize);
 asmlinkage long sys_close(unsigned int fd);
 asmlinkage long sys_close_range(unsigned int fd, unsigned int max_fd,
 				unsigned int flags);
