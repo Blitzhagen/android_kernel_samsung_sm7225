@@ -699,9 +699,11 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!uid_valid(info->root_uid))
 		info->root_uid = GLOBAL_ROOT_UID;
 
+	pr_err("MNTDBG:%d pre-new_inode\n", 30);
 	inode = new_inode(sb);
 	if (!inode)
 		return -ENOMEM;
+	pr_err("MNTDBG:%d post-new_inode\n", 31);
 
 	inode->i_ino = FIRST_INODE;
 	inode->i_fop = &simple_dir_operations;
@@ -713,15 +715,19 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
 		return -ENOMEM;
+	pr_err("MNTDBG:%d post-d_make_root\n", 32);
 
 	ret = binderfs_binder_ctl_create(sb);
+	pr_err("MNTDBG:%d post-ctl_create ret=%d\n", 33, ret);
 	if (ret)
 		return ret;
 
 	name = binder_devices_param;
 	for (len = strcspn(name, ","); len > 0; len = strcspn(name, ",")) {
+		pr_err("MNTDBG:%d dev-create %.*s\n", 34, (int)len, name);
 		strscpy(device_info.name, name, len + 1);
 		ret = binderfs_binder_device_create(inode, NULL, &device_info);
+		pr_err("MNTDBG:%d dev-created ret=%d\n", 35, ret);
 		if (ret)
 			return ret;
 		name += len;
@@ -729,9 +735,11 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 			name++;
 	}
 
+	pr_err("MNTDBG:%d pre-stats_check\n", 40);
 	if (info->mount_opts.stats_mode == STATS_GLOBAL)
 		return init_binder_logs(sb);
 
+	pr_err("MNTDBG:%d fill_super-return\n", 41);
 	return 0;
 }
 

@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/mutex.h>
+
 struct super_block;
 struct file_system_type;
 struct iomap;
@@ -18,6 +20,7 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
+struct vfsmount;
 
 /*
  * block_dev.c
@@ -177,6 +180,24 @@ extern int rw_verify_area(int, struct file *, const loff_t *, size_t);
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;
+extern const struct file_operations fscontext_fops;
+
+/*
+ * fsopen.c - filesystem context userspace API (new mount API backport)
+ */
+enum fsctx_phase {
+	FSCTX_PHASE_PARAMS,	/* accepting parameters */
+	FSCTX_PHASE_MOUNTED,	/* CMD_CREATE done, awaiting fsmount() */
+	FSCTX_PHASE_RECONF,	/* fspick: accepting reconfig params */
+};
+
+struct fsctx_file {
+	struct fs_context *fc;
+	enum fsctx_phase phase;
+	struct mutex uapi_mutex;	/* serializes fsconfig/fsmount ops */
+};
+
+void dissolve_on_fput(struct vfsmount *mnt);
 
 /*
  * fs_pin.c

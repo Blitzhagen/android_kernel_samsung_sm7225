@@ -248,6 +248,8 @@ struct security_class_mapping secclass_map[] = {
 	  {"open", "cpu", "kernel", "tracepoint", "read", "write"} },
 	{ "anon_inode",
 	  { COMMON_FILE_PERMS, NULL } },
+	{ "service_manager",
+	  { "add", "find", "list", NULL } },
 	{ NULL }
   };
 

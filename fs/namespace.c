@@ -22,11 +22,20 @@
 #include <linux/fsnotify.h>	/* fsnotify_vfsmount_delete */
 #include <linux/uaccess.h>
 #include <linux/proc_ns.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/pid.h>
+#include <linux/kallsyms.h>
+#include <asm/sections.h>
+#include <asm/stacktrace.h>
+#include <linux/sched/task_stack.h>
 #include <linux/magic.h>
 #include <linux/bootmem.h>
 #include <linux/task_work.h>
 #include <linux/sched/task.h>
 #include <linux/fslog.h>
+#include <linux/file.h>
+#include <uapi/linux/mount.h>
 
 #ifdef CONFIG_KDP_NS
 #include <linux/kdp.h>
@@ -35,6 +44,9 @@
 
 #include "pnode.h"
 #include "internal.h"
+
+static int mntdbg_loglevel;
+#define mntdbg_print(...) do { if (mntdbg_loglevel) pr_err(__VA_ARGS__); } while (0)
 
 /* Maximum number of mounts in a mount namespace */
 unsigned int sysctl_mount_max __read_mostly = 100000;
@@ -1051,9 +1063,15 @@ static struct mount *next_mnt(struct mount *p, struct mount *root)
 {
 	struct list_head *next = p->mnt_mounts.next;
 	if (next == &p->mnt_mounts) {
+		int guard = 0;
 		while (1) {
 			if (p == root)
 				return NULL;
+			if (++guard > 10000) {
+				mntdbg_print("MNTDBG CYCLE next_mnt p=%p root=%p parent=%p\n",
+				       p, root, p->mnt_parent);
+				return NULL;
+			}
 			next = p->mnt_child.next;
 			if (next != &p->mnt_parent->mnt_mounts)
 				break;
@@ -1907,6 +1925,10 @@ static int do_umount(struct mount *mnt, int flags)
 			if (!list_empty(&mnt->mnt_list))
 				umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 			retval = 0;
+		} else {
+			mntdbg_print("FSAPI: umount busy mnt=%p cnt=%u mounts_empty=%d\n",
+				     mnt, mnt_get_count(mnt),
+				     list_empty(&mnt->mnt_mounts));
 		}
 	}
 out:
@@ -2460,14 +2482,20 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	} else {
 		lock_mount_hash();
 	}
+	mntdbg_print("MNTDBG:%d p%d c%d in-hash pp=%d\n", 7, current->pid, smp_processor_id(), !!parent_path);
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
 		attach_mnt(source_mnt, dest_mnt, dest_mp);
 		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
+		if (source_mnt->mnt_ns && source_mnt->mnt_ns->seq == 0) {
+			/* move from anon - the caller will destroy */
+			list_del_init(&source_mnt->mnt_ns->list);
+		}
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		commit_tree(source_mnt);
 	}
+	mntdbg_print("MNTDBG:%d p%d c%d post-commit\n", 8, current->pid, smp_processor_id());
 
 	hlist_for_each_entry_safe(child, n, &tree_list, mnt_hash) {
 		struct mount *q;
@@ -2509,7 +2537,13 @@ static struct mountpoint *lock_mount(struct path *path)
 {
 	struct vfsmount *mnt;
 	struct dentry *dentry = path->dentry;
+	int retries = 0;
 retry:
+	if (++retries > 40) {
+		mntdbg_print("MNTDBG CYCLE lock_mount retry>40 dentry=%s\n",
+		       dentry->d_name.name);
+		return ERR_PTR(-ELOOP);
+	}
 	inode_lock(dentry->d_inode);
 	if (unlikely(cant_mount(dentry))) {
 		inode_unlock(dentry->d_inode);
@@ -2902,7 +2936,7 @@ static inline int tree_contains_unbindable(struct mount *mnt)
 	return 0;
 }
 
-static int do_move_mount(struct path *path, const char *old_name)
+static int do_move_mount_old(struct path *path, const char *old_name)
 {
 	struct path old_path, parent_path;
 	struct mount *p;
@@ -2987,9 +3021,11 @@ static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 
 	mnt_flags &= ~MNT_INTERNAL_FLAGS;
 
+	mntdbg_print("MNTDBG:%d p%d c%d pre-lock_mount\n", 4, current->pid, smp_processor_id());
 	mp = lock_mount(path);
 	if (IS_ERR(mp))
 		return PTR_ERR(mp);
+	mntdbg_print("MNTDBG:%d p%d c%d post-lock_mount\n", 5, current->pid, smp_processor_id());
 
 	parent = real_mount(path->mnt);
 	err = -EINVAL;
@@ -3026,6 +3062,7 @@ static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 	newmnt->mnt.mnt_flags = mnt_flags;
 #endif
 	err = graft_tree(newmnt, parent, mp);
+	mntdbg_print("MNTDBG:%d p%d c%d post-graft err=%d\n", 6, current->pid, smp_processor_id(), err);
 
 unlock:
 	unlock_mount(mp);
@@ -3045,9 +3082,12 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	struct super_block *sb = fc->root->d_sb;
 	int error;
 
+	mntdbg_print("MNTDBG:%d p%d c%d pre-sec_kern\n", 50, current->pid, smp_processor_id());
 	error = security_sb_kern_mount(sb);
+	mntdbg_print("MNTDBG:%d p%d c%d pre-reveal\n", 51, current->pid, smp_processor_id());
 	if (!error && mount_too_revealing(sb, &mnt_flags))
 		error = -EPERM;
+	mntdbg_print("MNTDBG:%d p%d c%d post-reveal err=%d\n", 52, current->pid, smp_processor_id(), error);
 
 	if (unlikely(error)) {
 		fc_drop_locked(fc);
@@ -3057,6 +3097,7 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	up_write(&sb->s_umount);
 
 	mnt = vfs_create_mount(fc);
+	mntdbg_print("MNTDBG:%d p%d c%d post-create_mount mnt=%lx\n", 53, current->pid, smp_processor_id(), (unsigned long)mnt);
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
@@ -3108,10 +3149,20 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 		err = vfs_parse_fs_string(fc, "source", name, strlen(name));
 	if (!err)
 		err = parse_monolithic_mount_data(fc, data);
+	mntdbg_print("MNTDBG:%d p%d c%d %s pre-get_tree\n", 1, current->pid, smp_processor_id(), fstype);
 	if (!err)
 		err = vfs_get_tree(fc);
+	mntdbg_print("MNTDBG:2a just-ret\n");
+	{
+		unsigned long mflags;
+		local_irq_save(mflags);
+		mntdbg_print("MNTDBG:2b irqoff-ret\n");
+		local_irq_restore(mflags);
+	}
+	mntdbg_print("MNTDBG:%d p%d c%d post-get_tree err=%d\n", 2, current->pid, smp_processor_id(), err);
 	if (!err)
 		err = do_new_mount_fc(fc, path, mnt_flags);
+	mntdbg_print("MNTDBG:%d p%d c%d post-new_mount_fc err=%d\n", 3, current->pid, smp_processor_id(), err);
 
 	put_fs_context(fc);
 	return err;
@@ -3431,7 +3482,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE))
 		retval = do_change_type(&path, flags);
 	else if (flags & MS_MOVE)
-		retval = do_move_mount(&path, dev_name);
+		retval = do_move_mount_old(&path, dev_name);
 	else
 		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
 				      dev_name, data_page);
@@ -4008,9 +4059,17 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 	bool visible = false;
 
 	down_read(&namespace_sem);
+	{
+		int guard = 0;
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		struct mount *child;
 		int mnt_flags;
+		if (++guard > 10000) {
+			mntdbg_print("MNTDBG CYCLE in ns->list ns=%p mnt=%p next=%p\n",
+			       ns, mnt, mnt->mnt_list.next);
+			visible = true;
+			goto found;
+		}
 #ifdef CONFIG_KDP_NS
 		if (mnt->mnt->mnt_sb->s_type != sb->s_type)
 			continue;
@@ -4080,6 +4139,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 	next:	;
 	}
 found:
+	}
 	up_read(&namespace_sem);
 	return visible;
 }
@@ -4198,3 +4258,710 @@ const struct proc_ns_operations mntns_operations = {
 	.install	= mntns_install,
 	.owner		= mntns_owner,
 };
+
+
+/*
+ * New mount API (fsopen/fsconfig/fsmount/fspick/open_tree/move_mount)
+ * backport for downstream 4.19 — syscall layer on top of the existing
+ * fs_context core (Android-4.19 backport) and the classic VFS mount
+ * machinery. Userspace ABI matches upstream 5.2+.
+ *
+ * Detached mounts live in a private "anonymous" mount namespace marked
+ * by seq == 0; dissolve_on_fput() removes them if the fd is dropped
+ * without move_mount(). FMODE_NEED_UNMOUNT triggers that path.
+ */
+#define is_anon_ns(ns)	((ns)->seq == 0)
+
+void dissolve_on_fput(struct vfsmount *mnt)
+{
+	struct mnt_namespace *ns;
+	mntdbg_print("FSAPI: dissolve_on_fput enter\n");
+	namespace_lock();
+	lock_mount_hash();
+	ns = real_mount(mnt)->mnt_ns;
+	if (ns) {
+		if (is_anon_ns(ns))
+			umount_tree(real_mount(mnt), UMOUNT_CONNECTED);
+		else
+			ns = NULL;
+	}
+	unlock_mount_hash();
+	namespace_unlock();
+	if (ns)
+		free_mnt_ns(ns);
+}
+
+/*
+ * Create a kernel mount representation for a new, prepared superblock
+ * (specified by fs_fd) and attach to an open_tree-like file descriptor.
+ */
+SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
+		unsigned int, attr_flags)
+{
+	struct mnt_namespace *ns;
+	struct fsctx_file *fsf;
+	struct fs_context *fc;
+	struct file *file;
+	struct path newmount;
+	struct mount *mnt;
+	struct fd f;
+	unsigned int mnt_flags = 0;
+	long ret;
+
+	if (!may_mount())
+		return -EPERM;
+
+	if ((flags & ~(FSMOUNT_CLOEXEC)) != 0)
+		return -EINVAL;
+
+	if (attr_flags & ~(MOUNT_ATTR_RDONLY |
+			   MOUNT_ATTR_NOSUID |
+			   MOUNT_ATTR_NODEV |
+			   MOUNT_ATTR_NOEXEC |
+			   MOUNT_ATTR__ATIME |
+			   MOUNT_ATTR_NODIRATIME))
+		return -EINVAL;
+
+	if (attr_flags & MOUNT_ATTR_RDONLY)
+		mnt_flags |= MNT_READONLY;
+	if (attr_flags & MOUNT_ATTR_NOSUID)
+		mnt_flags |= MNT_NOSUID;
+	if (attr_flags & MOUNT_ATTR_NODEV)
+		mnt_flags |= MNT_NODEV;
+	if (attr_flags & MOUNT_ATTR_NOEXEC)
+		mnt_flags |= MNT_NOEXEC;
+	if (attr_flags & MOUNT_ATTR_NODIRATIME)
+		mnt_flags |= MNT_NODIRATIME;
+
+	switch (attr_flags & MOUNT_ATTR__ATIME) {
+	case MOUNT_ATTR_STRICTATIME:
+		break;
+	case MOUNT_ATTR_NOATIME:
+		mnt_flags |= MNT_NOATIME;
+		break;
+	case MOUNT_ATTR_RELATIME:
+		mnt_flags |= MNT_RELATIME;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mntdbg_print("FSAPI: fsmount called\n");
+	f = fdget(fs_fd);
+	if (!f.file)
+		return -EBADF;
+
+	ret = -EINVAL;
+	if (f.file->f_op != &fscontext_fops)
+		goto err_fsfd;
+
+	fsf = f.file->private_data;
+	fc = fsf->fc;
+
+	ret = mutex_lock_interruptible(&fsf->uapi_mutex);
+	if (ret < 0)
+		goto err_fsfd;
+
+	/* There must be a valid superblock or we can't mount it */
+	ret = -EINVAL;
+	if (!fc->root)
+		goto err_unlock;
+
+	ret = -EPERM;
+	if (mount_too_revealing(fc->root->d_sb, &mnt_flags)) {
+		pr_warn("VFS: Mount too revealing\n");
+		goto err_unlock;
+	}
+
+	ret = -EBUSY;
+	if (fsf->phase != FSCTX_PHASE_MOUNTED)
+		goto err_unlock;
+
+	ret = -EPERM;
+	if ((fc->sb_flags & SB_MANDLOCK) && !may_mandlock())
+		goto err_unlock;
+
+	newmount.mnt = vfs_create_mount(fc);
+	if (IS_ERR(newmount.mnt)) {
+		ret = PTR_ERR(newmount.mnt);
+		goto err_unlock;
+	}
+	mntdbg_print("FSAPI: fsmount vfsmnt ok\n");
+	newmount.dentry = dget(fc->root);
+#ifdef CONFIG_KDP_NS
+	kdp_assign_mnt_flags(newmount.mnt, mnt_flags);
+#else
+	newmount.mnt->mnt_flags = mnt_flags;
+#endif
+
+	/* Park the mount in a private anonymous namespace */
+	ns = alloc_mnt_ns(current->nsproxy->mnt_ns->user_ns);
+	if (IS_ERR(ns)) {
+		ret = PTR_ERR(ns);
+		goto err_path;
+	}
+	ns->seq = 0;
+	mnt = real_mount(newmount.mnt);
+	mnt->mnt_ns = ns;
+	ns->root = mnt;
+	ns->mounts = 1;
+	list_add_tail(&ns->list, &mnt->mnt_list);
+	mntget(newmount.mnt);
+	mntdbg_print("FSAPI: fsmount anon-ns ok cnt=%u\n", mnt_get_count(mnt));
+
+	/* Attach to an apparent O_PATH fd with a note that we need to unmount
+	 * it, not just simply put it. dentry_open() takes over the path refs;
+	 * on success the mount lives solely via the file.
+	 */
+	file = dentry_open(&newmount, O_PATH, fc->cred);
+	if (IS_ERR(file)) {
+		dissolve_on_fput(newmount.mnt);
+		ret = PTR_ERR(file);
+		goto err_path;
+	}
+	file->f_mode |= FMODE_NEED_UNMOUNT;
+	mntdbg_print("FSAPI: fsmount fd ok cnt=%u\n", mnt_get_count(mnt));
+
+	ret = get_unused_fd_flags((flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0);
+	if (ret >= 0)
+		fd_install(ret, file);
+	else
+		fput(file);
+
+err_path:
+	path_put(&newmount);
+err_unlock:
+	mutex_unlock(&fsf->uapi_mutex);
+err_fsfd:
+	fdput(f);
+	return ret;
+}
+
+/*
+ * Move a mount between two points in the current mount namespace, or
+ * install a detached mount (from fsmount/open_tree CLONE) into it.
+ */
+static int do_move_mount(struct path *old_path, struct path *new_path)
+{
+	struct mnt_namespace *ns;
+	struct mount *p;
+	struct mount *old;
+	struct mount *parent;
+	struct mountpoint *mp, *old_mp;
+	struct path parent_path;
+	int err;
+	bool attached;
+
+	mp = lock_mount(new_path);
+	if (IS_ERR(mp))
+		return PTR_ERR(mp);
+
+	old = real_mount(old_path->mnt);
+	p = real_mount(new_path->mnt);
+	parent = old->mnt_parent;
+	attached = mnt_has_parent(old);
+	old_mp = old->mnt_mp;
+	ns = old->mnt_ns;
+
+	err = -EINVAL;
+	/* The mountpoint must be in our namespace. */
+	if (!check_mnt(p))
+		goto out;
+
+	/* The thing moved must be mounted... */
+	if (!is_mounted(old_path->mnt))
+		goto out;
+
+	/* ... and either ours or the root of anon namespace */
+	if (!(attached ? check_mnt(old) : is_anon_ns(ns)))
+		goto out;
+
+#ifdef CONFIG_KDP_NS
+	if (old->mnt->mnt_flags & MNT_LOCKED)
+#else
+	if (old->mnt.mnt_flags & MNT_LOCKED)
+#endif
+		goto out;
+
+	if (old_path->dentry != old_path->mnt->mnt_root)
+		goto out;
+
+	if (d_is_dir(new_path->dentry) !=
+	    d_is_dir(old_path->dentry))
+		goto out;
+	/*
+	 * Don't move a mount residing in a shared parent.
+	 */
+	if (attached && IS_MNT_SHARED(parent))
+		goto out;
+	/*
+	 * Don't move a mount tree containing unbindable mounts to a destination
+	 * mount which is shared.
+	 */
+	if (IS_MNT_SHARED(p) && tree_contains_unbindable(old))
+		goto out;
+	err = -ELOOP;
+	for (; mnt_has_parent(p); p = p->mnt_parent)
+		if (p == old)
+			goto out;
+
+	mntdbg_print("FSAPI: do_move_mount attach attached=%d\n", attached);
+	err = attach_recursive_mnt(old, real_mount(new_path->mnt), mp,
+				   attached ? &parent_path : NULL);
+	mntdbg_print("FSAPI: do_move_mount attach ret=%d\n", err);
+	if (err)
+		goto out;
+
+	/* if the mount is moved, it should no longer be expire
+	 * automatically */
+	list_del_init(&old->mnt_expire);
+	if (attached)
+		put_mountpoint(old_mp);
+out:
+	unlock_mount(mp);
+	if (!err) {
+		if (attached)
+			mntput_no_expire(parent);
+		else
+			free_mnt_ns(ns);
+	}
+	return err;
+}
+
+/*
+ * Move a mount from one place to another. In combination with
+ * fsopen()/fsmount() this is used to install a new mount and in
+ * combination with open_tree(OPEN_TREE_CLONE | AT_RECURSIVE) it can be
+ * used to copy a mount subtree.
+ */
+SYSCALL_DEFINE5(move_mount,
+		int, from_dfd, const char __user *, from_pathname,
+		int, to_dfd, const char __user *, to_pathname,
+		unsigned int, flags)
+{
+	struct path from_path, to_path;
+	struct file *from_file = NULL;
+	unsigned int lflags;
+	int ret = 0;
+
+	if (!may_mount())
+		return -EPERM;
+
+	if (flags & ~MOVE_MOUNT__MASK)
+		return -EINVAL;
+
+	lflags = 0;
+	if (flags & MOVE_MOUNT_F_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
+	if (flags & MOVE_MOUNT_F_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
+	if (flags & MOVE_MOUNT_F_EMPTY_PATH)	lflags |= LOOKUP_EMPTY;
+
+	mntdbg_print("FSAPI: move_mount called flags=%x\n", flags);
+	ret = user_path_at(from_dfd, from_pathname, lflags, &from_path);
+	if (ret < 0)
+		return ret;
+
+	/* If the from-path comes from an fsmount() O_PATH fd, remember the
+	 * file so we can clear its implicit-unmount mark on success.
+	 */
+	if (flags & MOVE_MOUNT_F_EMPTY_PATH) {
+		from_file = fget(from_dfd);
+		if (from_file && !(from_file->f_mode & FMODE_NEED_UNMOUNT)) {
+			fput(from_file);
+			from_file = NULL;
+		}
+	}
+
+	lflags = 0;
+	if (flags & MOVE_MOUNT_T_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
+	if (flags & MOVE_MOUNT_T_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
+	if (flags & MOVE_MOUNT_T_EMPTY_PATH)	lflags |= LOOKUP_EMPTY;
+
+	ret = user_path_at(to_dfd, to_pathname, lflags, &to_path);
+	if (ret < 0)
+		goto out_from;
+
+	ret = do_move_mount(&from_path, &to_path);
+	if (ret == 0 && from_file)
+		from_file->f_mode &= ~FMODE_NEED_UNMOUNT;
+
+	path_put(&to_path);
+out_from:
+	path_put(&from_path);
+	/* fput last: a still-marked file dissolves the detached mount;
+	 * the path ref must already be gone by then.
+	 */
+	if (from_file)
+		fput(from_file);
+	return ret;
+}
+
+/*
+ * Give the caller an O_PATH fd on a path in the mount tree, optionally
+ * cloning that path into a detached mount subtree first.
+ */
+SYSCALL_DEFINE3(open_tree, int, dfd, const char __user *, filename, unsigned, flags)
+{
+	struct file *file;
+	struct path path;
+	int lookup_flags = LOOKUP_AUTOMOUNT | LOOKUP_FOLLOW;
+	bool detached = flags & OPEN_TREE_CLONE;
+	int error;
+	int fd;
+
+	BUILD_BUG_ON(OPEN_TREE_CLOEXEC != O_CLOEXEC);
+
+	if (flags & ~(AT_EMPTY_PATH |
+		      AT_NO_AUTOMOUNT |
+		      AT_SYMLINK_NOFOLLOW |
+		      AT_RECURSIVE |
+		      OPEN_TREE_CLONE |
+		      OPEN_TREE_CLOEXEC))
+		return -EINVAL;
+
+	if ((flags & (AT_EMPTY_PATH | OPEN_TREE_CLONE)) ==
+	    (AT_EMPTY_PATH | OPEN_TREE_CLONE))
+		return -EINVAL;
+
+	if (flags & AT_NO_AUTOMOUNT)
+		lookup_flags &= ~LOOKUP_AUTOMOUNT;
+	if (flags & AT_SYMLINK_NOFOLLOW)
+		lookup_flags &= ~LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
+	if (detached && !may_mount())
+		return -EPERM;
+
+	mntdbg_print("FSAPI: open_tree called flags=%x\n", flags);
+	fd = get_unused_fd_flags(flags & O_CLOEXEC);
+	if (fd < 0)
+		return fd;
+
+	error = user_path_at(dfd, filename, lookup_flags, &path);
+	if (error)
+		goto out_fd;
+
+	if (detached) {
+		struct mount *mnt, *p;
+		struct mnt_namespace *ns = NULL;
+		struct user_namespace *user_ns =
+			current->nsproxy->mnt_ns->user_ns;
+		bool recursive = flags & AT_RECURSIVE;
+
+		ns = alloc_mnt_ns(user_ns);
+		if (IS_ERR(ns)) {
+			error = PTR_ERR(ns);
+			ns = NULL;
+			goto out_path;
+		}
+		ns->seq = 0;
+
+		namespace_lock();
+		if (recursive)
+			mnt = copy_tree(real_mount(path.mnt), path.dentry,
+					CL_COPY_UNBINDABLE | CL_EXPIRE);
+		else
+			mnt = clone_mnt(real_mount(path.mnt), path.dentry,
+					CL_PRIVATE);
+		if (IS_ERR(mnt)) {
+			namespace_unlock();
+			free_mnt_ns(ns);
+			error = PTR_ERR(mnt);
+			goto out_path;
+		}
+
+		lock_mount_hash();
+		for (p = mnt; p; p = next_mnt(p, mnt)) {
+			p->mnt_ns = ns;
+			ns->mounts++;
+		}
+		ns->root = mnt;
+		list_add_tail(&ns->list, &mnt->mnt_list);
+#ifdef CONFIG_KDP_NS
+		mntget(mnt->mnt);
+#else
+		mntget(&mnt->mnt);
+#endif
+		unlock_mount_hash();
+		namespace_unlock();
+
+		mntput(path.mnt);
+#ifdef CONFIG_KDP_NS
+		path.mnt = mnt->mnt;
+#else
+		path.mnt = &mnt->mnt;
+#endif
+	}
+
+	file = dentry_open(&path, O_PATH, current_cred());
+	if (IS_ERR(file)) {
+		if (detached)
+			dissolve_on_fput(path.mnt);
+		error = PTR_ERR(file);
+		goto out_path;
+	}
+
+	if (detached)
+		file->f_mode |= FMODE_NEED_UNMOUNT;
+
+	/* dentry_open() took its own refs on the path; drop ours. */
+	fd_install(fd, file);
+	path_put(&path);
+	return fd;
+
+out_path:
+	path_put(&path);
+out_fd:
+	put_unused_fd(fd);
+	return error;
+}
+
+/* --- mntdbg: dump a (possibly frozen) task's stack text-words ------------- */
+DECLARE_PER_CPU(int, mntdbg_gic_stage);
+DECLARE_PER_CPU(unsigned long, kdp_uh_stage);
+static int mntdbg_target = -1;
+
+static void mntdbg_scan(struct seq_file *m, unsigned long *low,
+			unsigned long *high, const char *tag)
+{
+	unsigned long *p;
+	char sym[KSYM_SYMBOL_LEN];
+	unsigned long stext = (unsigned long)_stext;
+	unsigned long etext = (unsigned long)_etext;
+
+	for (p = low; p < high; p++) {
+		unsigned long a = READ_ONCE(*p);
+		if (a >= stext && a < etext) {
+			sprint_symbol(sym, a);
+			seq_printf(m, "%s+%04lx %s\n", tag,
+				   (unsigned long)((char *)p - (char *)low), sym);
+		}
+	}
+}
+
+static int mntdbg_show(struct seq_file *m, void *v)
+{
+	struct task_struct *t;
+	unsigned long *base;
+	int cpu;
+
+	rcu_read_lock();
+	t = pid_task(find_vpid(mntdbg_target), PIDTYPE_PID);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+	if (!t) {
+		seq_puts(m, "no task\n");
+		return 0;
+	}
+
+	cpu = task_cpu(t);
+	seq_printf(m, "task=%s pid=%d cpu=%d state=%lx oncpu=%d preempt=%x gicstage=%x uhstage=%lx stack=%p eos=%p\n",
+		   t->comm, t->pid, cpu, (unsigned long)t->state,
+		   t->on_cpu, task_thread_info(t)->preempt_count,
+		   per_cpu(mntdbg_gic_stage, cpu),
+		   per_cpu(kdp_uh_stage, cpu),
+		   task_stack_page(t), end_of_stack(t));
+
+	mntdbg_scan(m, (unsigned long *)task_stack_page(t),
+		    (unsigned long *)((char *)task_stack_page(t) + THREAD_SIZE), "ts");
+
+	base = per_cpu(irq_stack_ptr, cpu);
+	if (base)
+		mntdbg_scan(m, base, base + IRQ_STACK_SIZE / sizeof(long), "is");
+
+	put_task_struct(t);
+	return 0;
+}
+
+static int mntdbg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mntdbg_show, NULL);
+}
+
+static ssize_t mntdbg_write(struct file *f, const char __user *u,
+			    size_t len, loff_t *off)
+{
+	char buf[16];
+	if (len >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, u, len))
+		return -EFAULT;
+	buf[len] = 0;
+	if (buf[0] == 'v') {
+		if (kstrtoint(buf + 1, 0, &mntdbg_loglevel))
+			return -EINVAL;
+		return len;
+	}
+	if (kstrtoint(buf, 0, &mntdbg_target))
+		return -EINVAL;
+	return len;
+}
+
+static const struct file_operations mntdbg_fops = {
+	.open	= mntdbg_open,
+	.read	= seq_read,
+	.write	= mntdbg_write,
+	.llseek	= seq_lseek,
+	.release = single_release,
+};
+
+extern void ramoops_direct_write(const char *buf, unsigned int len);
+
+static void mntdbg_emit(const char *fmt, ...)
+{
+	char buf[160];
+	va_list ap;
+	int n;
+
+	va_start(ap, fmt);
+	n = vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	if (n > 0)
+		ramoops_direct_write(buf, n < (int)sizeof(buf) ? n : sizeof(buf));
+}
+
+static void mntdbg_pstack(int cpu, unsigned long *low, unsigned long *high,
+			  const char *tag)
+{
+	unsigned long *p;
+	char sym[KSYM_SYMBOL_LEN];
+	unsigned long stext = (unsigned long)_stext;
+	unsigned long etext = (unsigned long)_etext;
+
+	for (p = low; p < high; p++) {
+		unsigned long a = READ_ONCE(*p);
+		if (a >= stext && a < etext) {
+			sprint_symbol(sym, a);
+			mntdbg_emit("MNTDBG %s+%04lx %s\n", tag,
+			       (unsigned long)((char *)p - (char *)low), sym);
+		}
+	}
+}
+
+#include <linux/kernel_stat.h>
+
+static u64 mntdbg_cpustat(int cpu)
+{
+	struct kernel_cpustat *k = &kcpustat_cpu(cpu);
+	u64 s = 0;
+	int i;
+	for (i = 0; i < NR_STATS; i++)
+		s += k->cpustat[i];
+	return s;
+}
+
+static int mntdbg_watch(void *arg)
+{
+	static int stuck[NR_CPUS];
+	static int miss[NR_CPUS];
+	static u64 laststat[NR_CPUS];
+
+	while (!kthread_should_stop()) {
+		int c;
+		msleep(300);
+		for_each_online_cpu(c) {
+			int s = per_cpu(mntdbg_gic_stage, c);
+			unsigned long u = per_cpu(kdp_uh_stage, c);
+			u64 st = mntdbg_cpustat(c);
+			bool frozen;
+
+			if (st == laststat[c])
+				miss[c]++;
+			else
+				miss[c] = 0;
+			laststat[c] = st;
+			/* frozen tick stats + someone actually running => wedge
+			 * (idle cpu also freezes stats but has curr==swapper) */
+			frozen = (miss[c] >= 4);
+
+			if (s || u || frozen) {
+				struct task_struct *t = NULL, *p;
+				unsigned long *b;
+
+				rcu_read_lock();
+				for_each_process(p) {
+					if (task_cpu(p) == c && p->on_cpu &&
+					    p != &init_task) {
+						t = p;
+						get_task_struct(t);
+						break;
+					}
+				}
+				rcu_read_unlock();
+				if (!t) {
+					stuck[c] = 0;
+					continue;
+				}
+				if (++stuck[c] == 1)
+					mntdbg_emit("MNTDBG SUSPECT cpu%d t=%llu stage=%x uhstage=%lx miss=%d\n",
+						    c, sched_clock() >> 20, s, u, miss[c]);
+				if (stuck[c] == 4) {
+					mntdbg_emit("MNTDBG WEDGE cpu%d t=%llu stage=%x uhstage=%lx miss=%d task=%s pid=%d state=%lx\n",
+					       c, sched_clock() >> 20, s, u, miss[c], t->comm, t->pid,
+					       (unsigned long)t->state);
+					mntdbg_pstack(c,
+						(unsigned long *)task_stack_page(t),
+						(unsigned long *)((char *)task_stack_page(t) + THREAD_SIZE),
+						"ts");
+					b = per_cpu(irq_stack_ptr, c);
+					if (b)
+						mntdbg_pstack(c, b,
+							b + IRQ_STACK_SIZE / sizeof(long), "is");
+					stuck[c] = -1000000000;
+				}
+				put_task_struct(t);
+			} else if (stuck[c] > 0)
+				stuck[c] = 0;
+		}
+	}
+	return 0;
+}
+
+static int __init mntdbg_proc_init(void)
+{
+	proc_create("mntdbg", 0600, NULL, &mntdbg_fops);
+	kthread_run(mntdbg_watch, NULL, "mntdbg_watch");
+	return 0;
+}
+late_initcall(mntdbg_proc_init);
+
+/* uH secure-world log lives at 0xB0200000 (256KB, DRAM survives warm boot).
+ * Dump printable tail to pmsg so we can see what uH did before a wedge. */
+#define UH_LOG_PHYS 0xB0200000UL
+#define UH_LOG_SIZE 0x40000UL
+static int __init mntdbg_uhlog_dump(void)
+{
+	char *base = (char *)phys_to_virt(UH_LOG_PHYS);
+	char *end = base + UH_LOG_SIZE;
+	char *p, *s;
+	char line[120];
+	int n = 0;
+
+	/* find last non-zero 1K block */
+	p = end;
+	while (p > base) {
+		char *q;
+		for (q = p - 1; q >= p - 1024 && q >= base; q--)
+			if (*q) { s = p; goto found; }
+		p -= 1024;
+	}
+	return 0;
+found:
+	/* scan back ~8KB from tail for start of printable text */
+	p = s - 8192;
+	if (p < base) p = base;
+	mntdbg_emit("UHLOG tail around +%lx\n", (unsigned long)(s - base));
+	for (; p < s && n < 40; ) {
+		int i;
+		for (i = 0; i < (int)sizeof(line) - 1 && p < s; i++, p++)
+			line[i] = (*p >= 32 && *p < 127) ? *p : ((*p == '\n' || *p == '\t') ? *p : '.');
+		line[i] = 0;
+		if (i > 20) {
+			mntdbg_emit("UHLOG %s\n", line);
+			n++;
+		}
+	}
+	return 0;
+}
+late_initcall(mntdbg_uhlog_dump);
