@@ -518,6 +518,17 @@ static struct ramoops_context oops_cxt = {
 	},
 };
 
+/* debug: write straight into pmsg prz, bypassing console_sem/logbuf —
+ * survives the panic-time console dump (separate ring). */
+void ramoops_direct_write(const char *buf, unsigned int len)
+{
+	if (oops_cxt.mprz)
+		persistent_ram_write(oops_cxt.mprz, buf, len);
+	else if (oops_cxt.cprz)
+		persistent_ram_write(oops_cxt.cprz, buf, len);
+}
+EXPORT_SYMBOL(ramoops_direct_write);
+
 static void ramoops_free_przs(struct ramoops_context *cxt)
 {
 	int i;

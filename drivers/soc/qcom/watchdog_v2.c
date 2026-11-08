@@ -848,6 +848,11 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 		  "watchdog bark: dumping backtraces and task state\n");
 	trigger_all_cpu_backtrace();
 	show_state();
+	/* The task dump above floods the pstore console buffer and rolls
+	 * the alive-mask lines away; print the verdict again at the tail
+	 * so the post-mortem record keeps the stuck cpu's identity. */
+	if (wdog_dd->do_ipi_ping)
+		dump_cpu_alive_mask(wdog_dd);
 	panic("watchdog bark");
 
 	msm_trigger_wdog_bite();

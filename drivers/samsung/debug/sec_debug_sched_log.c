@@ -39,6 +39,8 @@ struct sec_debug_log *secdbg_log __read_mostly;
 phys_addr_t secdbg_paddr;
 size_t secdbg_size;
 
+#define SECDBG_LOG_MAGIC	0x534442474c4f4731ULL	/* "SDBGLOG1" */
+
 static int __init sec_dbg_setup(char *str)
 {
 	size_t size = (size_t)memparse(str, &str);
@@ -604,11 +606,40 @@ static int __init sec_debug_sched_log_init(void)
 	return 0;
 }
 #else
+static void sec_debug_dump_preserved_log(struct sec_debug_log *vaddr)
+{
+	int cpu, n;
+
+	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
+		unsigned int idx = vaddr->sched[cpu].idx;
+
+		for (n = 0; n < 16; n++) {
+			struct sched_buf *b =
+				&vaddr->sched[cpu].buf[(idx - n) & (SCHED_LOG_MAX - 1)];
+
+			pr_err("PREV-SCHED cpu%d [%u] time=%llu comm=%s pid=%d prev=%s prev_pid=%d prev_state=%d\n",
+			       cpu, (idx - n) & (SCHED_LOG_MAX - 1),
+			       b->time, b->comm, b->pid, b->prev_comm,
+			       b->prev_pid, b->prev_state);
+		}
+		for (n = 0; n < 8; n++) {
+			struct timer_buf *b =
+				&vaddr->timer[cpu].buf[(vaddr->timer[cpu].idx - n) & (SCHED_LOG_MAX - 1)];
+
+			pr_err("PREV-TMR cpu%d time=%llu type=%u fn=%p pid=%d\n",
+			       cpu, b->time, b->type, b->fn, b->pid);
+		}
+	}
+	pr_err("PREV last_pet=%llu last_ns=%lld\n",
+	       vaddr->last_pet, (s64)atomic64_read(&vaddr->last_ns));
+}
+
 static int __init sec_debug_sched_log_init(void)
 {
 	size_t i;
 	struct sec_debug_log *vaddr;
 	size_t size;
+	u64 *magicp;
 
 	if (secdbg_paddr == 0 || secdbg_size == 0) {
 		pr_info("sec debug buffer not provided. Using kmalloc..\n");
@@ -629,6 +660,17 @@ static int __init sec_debug_sched_log_init(void)
 	if ((!vaddr) || (sizeof(struct sec_debug_log) > size)) {
 		pr_err("ERROR! init failed!\n");
 		return -EFAULT;
+	}
+
+	/* Persistent region: keep the previous boot's rings when the magic
+	 * survives, so a wedged/hung boot can be inspected after the reset
+	 * instead of being wiped by the recovery kernel's init. */
+	magicp = (u64 *)((char *)vaddr + size - sizeof(u64));
+	if (secdbg_paddr && *magicp == SECDBG_LOG_MAGIC) {
+		secdbg_log = vaddr;
+		pr_info("preserving previous sec-debug log buffer\n");
+		sec_debug_dump_preserved_log(vaddr);
+		return 0;
 	}
 
 	memset_io(vaddr->sched, 0x0, sizeof(vaddr->sched));
@@ -683,6 +725,9 @@ static int __init sec_debug_sched_log_init(void)
 #endif
 
 	secdbg_log = vaddr;
+
+	if (secdbg_paddr)
+		*magicp = SECDBG_LOG_MAGIC;
 
 	pr_info("init done\n");
 
