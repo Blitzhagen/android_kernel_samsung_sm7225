@@ -49,6 +49,9 @@ struct pid_namespace {
 
 extern struct pid_namespace init_pid_ns;
 
+/* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
+#define MAX_PID_NS_LEVEL 32
+
 #define PIDNS_ADDING (1U << 31)
 
 #ifdef CONFIG_PID_NS

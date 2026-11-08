@@ -2194,6 +2194,11 @@ static __latent_entropy struct task_struct *copy_process(
 	retval = copy_signal(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_sighand;
+	/* Signal handling: if CLONE_CLEAR_SIGHAND is set, reset all
+	 * handlers to SIG_DFL (clone3() only). This must happen after
+	 * copy_sighand() since it rewrites the freshly copied handlers. */
+	if (clone_flags & CLONE_CLEAR_SIGHAND)
+		flush_signal_handlers(p, 0);
 	retval = copy_mm(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_signal;
@@ -2641,6 +2646,170 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 #endif
 {
 	return _do_fork(clone_flags, newsp, 0, parent_tidptr, child_tidptr, tls);
+}
+#endif
+
+#ifdef __ARCH_WANT_SYS_CLONE3
+
+noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
+					      struct clone_args __user *uargs,
+					      size_t usize)
+{
+	int err;
+	struct clone_args args;
+
+	BUILD_BUG_ON(offsetofend(struct clone_args, tls) !=
+		     CLONE_ARGS_SIZE_VER0);
+	BUILD_BUG_ON(offsetofend(struct clone_args, set_tid_size) !=
+		     CLONE_ARGS_SIZE_VER1);
+	BUILD_BUG_ON(offsetofend(struct clone_args, cgroup) !=
+		     CLONE_ARGS_SIZE_VER2);
+	BUILD_BUG_ON(sizeof(struct clone_args) != CLONE_ARGS_SIZE_VER2);
+
+	if (unlikely(usize > PAGE_SIZE))
+		return -E2BIG;
+	if (unlikely(usize < CLONE_ARGS_SIZE_VER0))
+		return -EINVAL;
+
+	err = copy_struct_from_user(&args, sizeof(args), uargs, usize);
+	if (err)
+		return err;
+
+	if (unlikely(args.set_tid_size > MAX_PID_NS_LEVEL))
+		return -EINVAL;
+
+	if (unlikely(!args.set_tid && args.set_tid_size > 0))
+		return -EINVAL;
+
+	if (unlikely(args.set_tid && args.set_tid_size == 0))
+		return -EINVAL;
+
+	/*
+	 * Verify that higher 32bits of exit_signal are unset and that
+	 * it is a valid signal
+	 */
+	if (unlikely((args.exit_signal & ~((u64)CSIGNAL)) ||
+		     !valid_signal(args.exit_signal)))
+		return -EINVAL;
+
+	if ((args.flags & CLONE_INTO_CGROUP) &&
+	    (args.cgroup > INT_MAX || usize < CLONE_ARGS_SIZE_VER2))
+		return -EINVAL;
+
+	*kargs = (struct kernel_clone_args){
+		.flags		= args.flags,
+		.pidfd		= u64_to_user_ptr(args.pidfd),
+		.child_tid	= u64_to_user_ptr(args.child_tid),
+		.parent_tid	= u64_to_user_ptr(args.parent_tid),
+		.exit_signal	= args.exit_signal,
+		.stack		= args.stack,
+		.stack_size	= args.stack_size,
+		.tls		= args.tls,
+		.set_tid_size	= args.set_tid_size,
+		.cgroup		= args.cgroup,
+	};
+
+	return 0;
+}
+
+/**
+ * clone3_stack_valid - check and prepare stack
+ * @kargs: kernel clone args
+ *
+ * Verify that the stack arguments userspace gave us are sane.
+ * In addition, set the stack direction for userspace since it's easy for us to
+ * determine.
+ */
+static inline bool clone3_stack_valid(struct kernel_clone_args *kargs)
+{
+	if (kargs->stack == 0) {
+		if (kargs->stack_size > 0)
+			return false;
+	} else {
+		if (kargs->stack_size == 0)
+			return false;
+
+		if (!access_ok(VERIFY_WRITE, (void __user *)kargs->stack,
+			       kargs->stack_size))
+			return false;
+
+#if !defined(CONFIG_STACK_GROWSUP) && !defined(CONFIG_IA64)
+		kargs->stack += kargs->stack_size;
+#endif
+	}
+
+	return true;
+}
+
+static bool clone3_args_valid(struct kernel_clone_args *kargs)
+{
+	/* Verify that no unknown flags are passed along. */
+	if (kargs->flags &
+	    ~(CLONE_LEGACY_FLAGS | CLONE_CLEAR_SIGHAND | CLONE_INTO_CGROUP))
+		return false;
+
+	/*
+	 * - make the CLONE_DETACHED bit reuseable for clone3
+	 * - make the CSIGNAL bits reuseable for clone3
+	 */
+	if (kargs->flags & (CLONE_DETACHED | CSIGNAL))
+		return false;
+
+	if ((kargs->flags & (CLONE_SIGHAND | CLONE_CLEAR_SIGHAND)) ==
+	    (CLONE_SIGHAND | CLONE_CLEAR_SIGHAND))
+		return false;
+
+	if ((kargs->flags & (CLONE_THREAD | CLONE_PARENT)) &&
+	    kargs->exit_signal)
+		return false;
+
+	if (!clone3_stack_valid(kargs))
+		return false;
+
+	return true;
+}
+
+/**
+ * clone3 - create a new process with specific properties
+ * @uargs: argument structure
+ * @size:  size of @uargs
+ *
+ * clone3() is the extensible successor to clone()/clone2().
+ * It takes a struct as argument that is versioned by its size.
+ *
+ * Return: On success, a positive PID for the child process.
+ *         On error, a negative errno number.
+ */
+SYSCALL_DEFINE2(clone3, struct clone_args __user *, uargs, size_t, size)
+{
+	int err;
+	struct kernel_clone_args kargs;
+	int __user *parent_tidptr;
+
+	err = copy_clone_args_from_user(&kargs, uargs, size);
+	if (err)
+		return err;
+
+	if (!clone3_args_valid(&kargs))
+		return -EINVAL;
+
+	/*
+	 * set_tid and CLONE_INTO_CGROUP are not implemented by this
+	 * kernel. -EOPNOTSUPP signals a missing feature rather than an
+	 * invalid argument so userspace can fall back to older
+	 * interfaces (e.g. cg_attach after spawn).
+	 */
+	if (kargs.set_tid_size > 0 ||
+	    (kargs.flags & CLONE_INTO_CGROUP))
+		return -EOPNOTSUPP;
+
+	/* _do_fork() reports the pidfd through parent_tidptr. */
+	parent_tidptr = (kargs.flags & CLONE_PIDFD) ?
+			kargs.pidfd : kargs.parent_tid;
+
+	return _do_fork(kargs.flags | (kargs.exit_signal & CSIGNAL),
+			kargs.stack, kargs.stack_size,
+			parent_tidptr, kargs.child_tid, kargs.tls);
 }
 #endif
 

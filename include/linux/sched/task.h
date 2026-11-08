@@ -74,6 +74,29 @@ extern void do_group_exit(int);
 extern void exit_files(struct task_struct *);
 extern void exit_itimers(struct signal_struct *);
 
+/*
+ * This is the lower bound of the set of cloning flags that can be
+ * specified via the clone() syscall. In addition, CLONE_NEWTIME,
+ * CLONE_CLEAR_SIGHAND and CLONE_INTO_CGROUP can only be passed via
+ * clone3().
+ */
+#define CLONE_LEGACY_FLAGS 0xffffffffULL
+
+struct kernel_clone_args {
+	u64 flags;
+	int __user *pidfd;
+	int __user *child_tid;
+	int __user *parent_tid;
+	u32 exit_signal;
+	unsigned long stack;
+	unsigned long stack_size;
+	unsigned long tls;
+	pid_t *set_tid;
+	/* Number of elements in *set_tid */
+	size_t set_tid_size;
+	int cgroup;
+};
+
 extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
 extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);

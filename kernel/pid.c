@@ -42,6 +42,8 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/idr.h>
+#include <linux/fdtable.h>
+#include <linux/file.h>
 
 struct pid init_struct_pid = {
 	.count 		= ATOMIC_INIT(1),
@@ -520,6 +522,34 @@ SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 	fd = ret ?: pidfd_create(p);
 	put_pid(p);
 	return fd;
+}
+
+/**
+ * pidfd_get_pid() - Get a task's pid.
+ * @fd: The pidfd file descriptor.
+ * @flags: The flags associated with the pidfd file descriptor.
+ *
+ * Return: On success, returns a struct pid (with a reference taken).
+ *         On failure, returns an error pointer.
+ */
+struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
+{
+	struct fd f;
+	struct pid *pid;
+
+	f = fdget(fd);
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op == &pidfd_fops) {
+		pid = get_pid(f.file->private_data);
+		*flags = f.file->f_flags;
+	} else {
+		pid = ERR_PTR(-EBADF);
+	}
+
+	fdput(f);
+	return pid;
 }
 
 void __init pid_idr_init(void)
