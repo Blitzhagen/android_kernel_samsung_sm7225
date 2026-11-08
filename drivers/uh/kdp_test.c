@@ -68,7 +68,7 @@ static bool hyp_check_page_ro(u64 va)
 	u64 par = 0;
 
 	raw_spin_lock_irqsave(&par_lock, flags);
-	uh_call(UH_APP_KDP, TEST_GET_PAR, (unsigned long)va, KDP_PA_WRITE, 0, 0);
+	uh_call_staged(UH_APP_KDP, TEST_GET_PAR, (unsigned long)va, KDP_PA_WRITE, 0, 0);
 	par = *ha1;
 	raw_spin_unlock_irqrestore(&par_lock, flags);
 
@@ -369,9 +369,9 @@ static int __init kdp_test_init(void)
 		return -1;
 
 #ifdef CONFIG_RUSTUH_KDP
-	uh_call(UH_APP_KDP, TEST_INIT, va, 0, 0, 0);
+	uh_call_staged(UH_APP_KDP, TEST_INIT, va, 0, 0, 0);
 #else
-	uh_call(UH_APP_KDP, TEST_GET_RO, va, 0, 0, 1);
+	uh_call_staged(UH_APP_KDP, TEST_GET_RO, va, 0, 0, 1);
 #endif
 
 	ha1 = (u64 *)va;
@@ -382,9 +382,9 @@ static int __init kdp_test_init(void)
 static void __exit kdp_test_exit(void)
 {
 #ifdef CONFIG_RUSTUH_KDP
-	uh_call(UH_APP_KDP, TEST_EXIT, (u64)ha1, 0, 0, 0);
+	uh_call_staged(UH_APP_KDP, TEST_EXIT, (u64)ha1, 0, 0, 0);
 #else
-	uh_call(UH_APP_KDP, TEST_GET_RO, (u64)ha1, 0, 0, 0);
+	uh_call_staged(UH_APP_KDP, TEST_GET_RO, (u64)ha1, 0, 0, 0);
 #endif
 	free_page((unsigned long)ha1);
 

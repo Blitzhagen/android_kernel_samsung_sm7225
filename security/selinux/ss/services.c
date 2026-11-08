@@ -2237,7 +2237,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 		state->ss->sidtab = newsidtab;
 		security_load_policycaps(state);
 #if (defined CONFIG_KDP_CRED && defined CONFIG_SAMSUNG_PRODUCT_SHIP)
-		uh_call(UH_APP_KDP, PROTECT_SELINUX_VAR, (u64)&ss_initialized, 1, 0, 0);
+		uh_call_staged(UH_APP_KDP, PROTECT_SELINUX_VAR, (u64)&ss_initialized, 1, 0, 0);
 #else
 		ss_initialized = 1; // SEC_SELINUX_PORTING_COMMON Change to use RKP
 #endif

@@ -52,7 +52,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	}
 
 	if (rkp_started)
-		uh_call(UH_APP_RKP, RKP_PGD_RO, (u64)ret, 0, 0, 0);
+		uh_call_staged(UH_APP_RKP, RKP_PGD_RO, (u64)ret, 0, 0, 0);
 
 	return ret;
 #else
@@ -67,7 +67,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 #ifdef CONFIG_RKP
 	if (rkp_started)
-		uh_call(UH_APP_RKP, RKP_PGD_RWX, (u64)pgd, 0, 0, 0);
+		uh_call_staged(UH_APP_RKP, RKP_PGD_RWX, (u64)pgd, 0, 0, 0);
 
 	/* if pgd memory come from read only buffer, the put it back */
 	if (is_rkp_ro_buffer((u64)pgd)) {

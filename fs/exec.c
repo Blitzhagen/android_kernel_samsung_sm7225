@@ -1055,7 +1055,7 @@ static int exec_mmap(struct mm_struct *mm)
 	vmacache_flush(tsk);
 #ifdef CONFIG_KDP_CRED
 	if(kdp_enable)
-		uh_call(UH_APP_KDP, SET_CRED_PGD, (u64)current_cred(), (u64)mm->pgd, 0, 0);
+		uh_call_staged(UH_APP_KDP, SET_CRED_PGD, (u64)current_cred(), (u64)mm->pgd, 0, 0);
 #endif
 	task_unlock(tsk);
 	if (old_mm) {
@@ -2050,7 +2050,7 @@ SYSCALL_DEFINE3(execve,
 		return error;
 
 	if(kdp_enable) {
-		uh_call(UH_APP_KDP, MARK_PPT, (u64)path->name, (u64)current, 0, 0);
+		uh_call_staged(UH_APP_KDP, MARK_PPT, (u64)path->name, (u64)current, 0, 0);
 		if (CHECK_ROOT_UID(current)) {
 			if (kdp_restrict_fork(path)) {
 				pr_warn("RKP_KDP Restricted making process. PID = %d(%s) PPID = %d(%s)\n",

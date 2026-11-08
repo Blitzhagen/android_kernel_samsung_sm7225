@@ -65,11 +65,11 @@ static ssize_t store_hdm_policy(struct device *dev,
 #if defined(CONFIG_ARCH_QCOM)
 	case HDM_HYP_CALL:
 		pr_info("%s HDM_HYP_CALL\n", __func__);
-		uh_call(UH_APP_HDM, 9, 0, p, 0, 0);
+		uh_call_staged(UH_APP_HDM, 9, 0, p, 0, 0);
 		break;
 	case HDM_HYP_CALLP:
 		pr_info("%s HDM_HYP_CALLP\n", __func__);
-		uh_call(UH_APP_HDM, 2, 0, p, 0, 0);
+		uh_call_staged(UH_APP_HDM, 2, 0, p, 0, 0);
 		break;
 #endif
 	default:
