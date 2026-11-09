@@ -4305,8 +4305,24 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3_event_buffer *evt)
 void dwc3_bh_work(struct work_struct *w)
 {
 	struct dwc3 *dwc = container_of(w, struct dwc3, bh_work);
+	int ret;
 
-	pm_runtime_get_sync(dwc->dev);
+	/*
+	 * The work may have been queued before the suspend path disabled
+	 * the irq and cut clocks/GDSC, or runtime resume may fail. A core
+	 * register access while the block is unclocked stalls the bus and
+	 * wedges the CPU without any panic (observed as watchdog bark).
+	 * Bail out in that case; pending events are replayed once the
+	 * irq re-arms after resume.
+	 */
+	if (atomic_read(&dwc->in_lpm))
+		return;
+
+	ret = pm_runtime_get_sync(dwc->dev);
+	if (ret < 0 || atomic_read(&dwc->in_lpm)) {
+		pm_runtime_put_noidle(dwc->dev);
+		return;
+	}
 	dwc3_thread_interrupt(dwc->irq, dwc->ev_buf);
 	pm_runtime_put(dwc->dev);
 }
