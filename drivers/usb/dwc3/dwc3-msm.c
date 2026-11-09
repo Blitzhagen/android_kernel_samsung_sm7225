@@ -3138,7 +3138,13 @@ void dwc3_max_speed_setting(int speed);
 static void dwc3_resume_work(struct work_struct *w)
 {
 	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm, resume_work);
-	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	struct dwc3 *dwc;
+
+	if (!mdwc->dwc3) {
+		dev_err(mdwc->dev, "%s: dwc3 core not probed yet\n", __func__);
+		return;
+	}
+	dwc = platform_get_drvdata(mdwc->dwc3);
 #ifdef CONFIG_USB_USE_EXTCON
 	union extcon_property_value val;
 	unsigned int extcon_id;
@@ -3584,7 +3590,16 @@ int dwc_msm_vbus_event(bool enable)
 	struct dwc3_msm *mdwc;
 	struct dwc3 *dwc;
 
+	if (msm_dwc3 == NULL) {
+		pr_info("%s(): msm_dwc3 is not initialized.\n", __func__);
+		return 1;
+	}
+
 	mdwc = dev_get_drvdata(msm_dwc3);
+	if (mdwc == NULL || mdwc->dwc3 == NULL) {
+		pr_info("%s(): mdwc is not initialized.\n", __func__);
+		return 1;
+	}
 	dwc = platform_get_drvdata(mdwc->dwc3);
 
 	if(!enable)

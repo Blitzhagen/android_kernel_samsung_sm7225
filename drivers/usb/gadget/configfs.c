@@ -189,6 +189,8 @@ int dwc3_gadget_get_cmply_link_state_wrapper(void)
 
 	if (android_device && !IS_ERR(android_device)) {
 		dev = dev_get_drvdata(android_device);
+		if (!dev)
+			return ret;
 		cdev = &dev->cdev;
 		if (cdev) {
 		 	gadget = cdev->gadget;
@@ -2027,6 +2029,8 @@ static void android_device_destroy(struct gadget_info *gi)
 	attrs = android_usb_attributes;
 	while ((attr = *attrs++))
 		device_remove_file(gi->dev, attr);
+	if (android_device == gi->dev)
+		android_device = NULL;
 	device_destroy(gi->dev->class, gi->dev->devt);
 	gi->dev = NULL;
 }

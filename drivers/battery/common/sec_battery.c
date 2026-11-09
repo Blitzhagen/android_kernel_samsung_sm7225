@@ -1359,7 +1359,13 @@ static bool sec_bat_get_cable_type(
 			int cable_source_type)
 {
 	bool ret = false;
-	int cable_type = battery->cable_type;
+	int cable_type;
+
+	if (!battery || !battery->pdata) {
+		pr_err("%s: battery or pdata is null\n", __func__);
+		return false;
+	}
+	cable_type = battery->cable_type;
 
 	if (cable_source_type & SEC_BATTERY_CABLE_SOURCE_CALLBACK) {
 		if (battery->pdata->check_cable_callback)
