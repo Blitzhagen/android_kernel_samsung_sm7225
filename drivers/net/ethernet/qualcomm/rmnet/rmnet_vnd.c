@@ -386,9 +386,14 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 		      struct rmnet_endpoint *ep)
 {
+	struct rmnet_priv *priv;
+
 	if (id >= RMNET_MAX_LOGICAL_EP || !ep->egress_dev)
 		return -EINVAL;
 
+	priv = netdev_priv(ep->egress_dev);
+	if (priv->real_dev)
+		netdev_upper_dev_unlink(priv->real_dev, ep->egress_dev);
 	ep->egress_dev = NULL;
 	port->nr_rmnet_devs--;
 	return 0;
