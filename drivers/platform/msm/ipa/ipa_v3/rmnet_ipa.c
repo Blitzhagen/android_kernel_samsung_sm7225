@@ -2298,6 +2298,44 @@ static int get_ipa_rmnet_dts_configuration(struct platform_device *pdev,
 }
 
 struct ipa3_rmnet_context ipa3_rmnet_ctx;
+
+/* Mainline-style "modem" sysfs attribute group on the IPA platform
+ * device: ModemManager reads <netdev>/device/modem/{tx,rx}_endpoint_id
+ * to feed its automatic QMI DPM port opening.
+ */
+static ssize_t tx_endpoint_id_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int ep = ipa3_get_ep_mapping(IPA_CLIENT_APPS_WAN_PROD);
+
+	if (ep == IPA_EP_NOT_ALLOCATED)
+		return -ENODEV;
+	return sysfs_emit(buf, "%u\n", ep);
+}
+static DEVICE_ATTR_RO(tx_endpoint_id);
+
+static ssize_t rx_endpoint_id_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int ep = ipa3_get_ep_mapping(IPA_CLIENT_APPS_WAN_CONS);
+
+	if (ep == IPA_EP_NOT_ALLOCATED)
+		return -ENODEV;
+	return sysfs_emit(buf, "%u\n", ep);
+}
+static DEVICE_ATTR_RO(rx_endpoint_id);
+
+static struct attribute *ipa_modem_attrs[] = {
+	&dev_attr_tx_endpoint_id.attr,
+	&dev_attr_rx_endpoint_id.attr,
+	NULL,
+};
+
+static const struct attribute_group ipa_modem_attr_group = {
+	.name = "modem",
+	.attrs = ipa_modem_attrs,
+};
+
 static int ipa3_wwan_probe(struct platform_device *pdev);
 struct platform_device *m_pdev;
 
@@ -2504,6 +2542,12 @@ static int ipa3_wwan_probe(struct platform_device *pdev)
 	}
 
 	IPAWANDBG("IPA-WWAN devices (%s) initialization ok :>>>>\n", dev->name);
+
+	/* Expose modem endpoint ids for ModemManager's DPM port setup */
+	if (ipa3_get_pdev())
+		sysfs_create_group(&ipa3_get_pdev()->kobj,
+			&ipa_modem_attr_group);
+
 	if (ret) {
 		IPAWANERR("default configuration failed rc=%d\n",
 				ret);
@@ -2571,6 +2615,9 @@ static int ipa3_wwan_remove(struct platform_device *pdev)
 		netif_napi_del(&(rmnet_ipa3_ctx->wwan_priv->napi));
 	mutex_unlock(&rmnet_ipa3_ctx->pipe_handle_guard);
 	IPAWANDBG("rmnet_ipa unregister_netdev started\n");
+	if (ipa3_get_pdev())
+		sysfs_remove_group(&ipa3_get_pdev()->kobj,
+			&ipa_modem_attr_group);
 	unregister_netdev(IPA_NETDEV());
 	IPAWANDBG("rmnet_ipa unregister_netdev completed\n");
 	ipa3_wwan_deregister_netdev_pm_client();
