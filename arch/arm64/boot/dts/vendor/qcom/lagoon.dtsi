@@ -3605,7 +3605,12 @@
 		qcom,platform-type = <1>; /* MSM platform */
 		qcom,ee = <0>;
 		qcom,use-ipa-tethering-bridge;
-		qcom,modem-cfg-emb-pipe-flt;
+		/* gts7xl: disabled — modem firmware MPSS.HI.2.5.1 does NOT
+		 * program the AP-side IPA filter tables itself. With this
+		 * flag the AP skips installing the Q6 UL rules on
+		 * APPS_WAN_PROD and never sends fltr_installed_notif,
+		 * leaving the embedded data path dead both ways. */
+		/* qcom,modem-cfg-emb-pipe-flt; */
 		qcom,ipa-wdi2;
 		qcom,ipa-wdi2_over_gsi;
 		qcom,use-ipa-pm;
