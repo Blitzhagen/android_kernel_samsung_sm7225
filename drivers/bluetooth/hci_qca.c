@@ -1259,6 +1259,27 @@ static void qca_uart_unmask_cts(struct hci_uart *hu)
 	hu->tty->driver->ops->tiocmset(hu->tty, TIOCM_RTS, 0);
 }
 
+/* The WCN3991 NVM selects RxDwakeup: the chip's deep-sleep detector
+ * only reacts to UART line activity at 38.4 kbaud — the QTI HAL does
+ * "flow off, 38.4k, send 0x00, restore baud, flow on". A plain fd at
+ * operating speed is invisible to it. */
+static void qca_rxd_wakeup(struct hci_uart *hu)
+{
+	speed_t ospeed;
+
+	if (!hu->tty || !hu->tty->ops->write)
+		return;
+	ospeed = hu->tty->termios.c_ospeed;
+	if (!ospeed)
+		ospeed = 3200000;
+	hci_uart_set_baudrate(hu, 38400);
+	msleep(5);
+	hu->tty->ops->write(hu->tty, "\x00", 1);
+	msleep(20);
+	hci_uart_set_baudrate(hu, ospeed);
+	msleep(10);
+}
+
 static int qca_setup(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
@@ -1364,6 +1385,9 @@ static int qca_setup(struct hci_uart *hu)
 						       irqflags);
 				set_bit(STATE_IN_BAND_SLEEP_ENABLED,
 					&qca->flags);
+				/* Physical wake first: the sleeping chip
+				 * cannot see fd bytes at speed. */
+				qca_rxd_wakeup(hu);
 			}
 		}
 		ret = qca_send_reset(hdev);
