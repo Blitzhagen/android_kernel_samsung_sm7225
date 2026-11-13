@@ -23,8 +23,11 @@
 #define EDL_PATCH_CMD_LEN		(1)
 #define EDL_PATCH_VER_REQ_CMD		(0x19)
 #define EDL_PATCH_TLV_REQ_CMD		(0x1E)
+#define EDL_GET_BUILD_INFO_CMD		(0x20)
 #define EDL_NVM_ACCESS_SET_REQ_CMD	(0x01)
 #define MAX_SIZE_PER_TLV_SEGMENT	(243)
+#define QCA_DISABLE_LOGGING		(0xFC17)
+#define QCA_DISABLE_LOGGING_SUB_OP	(0x14)
 
 #define EDL_CMD_REQ_RES_EVT		(0x00)
 #define EDL_PATCH_VER_RES_EVT		(0x19)
@@ -39,6 +42,9 @@
 
 #define QCA_WCN3990_POWERON_PULSE	0xFC
 #define QCA_WCN3990_POWEROFF_PULSE	0xC0
+
+#define QCA_WCN3991_SOC_ID		(0x40014320)
+#define QCA_FW_BUILD_VER_LEN		255
 
 enum qca_bardrate {
 	QCA_BAUDRATE_115200 	= 0,
@@ -138,8 +144,12 @@ enum qca_btsoc_type {
 
 int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
-		   enum qca_btsoc_type soc_type, u32 soc_ver);
-int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
+		   enum qca_btsoc_type soc_type, u32 soc_ver, u32 soc_id);
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version, u32 *soc_id);
+int qca_send_reset(struct hci_dev *hdev);
+int qca_send_edl_cmd(struct hci_dev *hdev, u16 opcode, u8 plen,
+		     const void *param);
+int qca_read_fw_build_info(struct hci_dev *hdev);
 
 #else
 
@@ -149,12 +159,30 @@ static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdad
 }
 
 static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
-				 enum qca_btsoc_type soc_type, u32 soc_ver)
+				 enum qca_btsoc_type soc_type, u32 soc_ver,
+				 u32 soc_id)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+				       u32 *soc_id)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_send_reset(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_send_edl_cmd(struct hci_dev *hdev, u16 opcode,
+				   u8 plen, const void *param)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_read_fw_build_info(struct hci_dev *hdev)
 {
 	return -EOPNOTSUPP;
 }

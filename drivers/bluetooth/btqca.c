@@ -24,10 +24,11 @@
 #include <net/bluetooth/hci_core.h>
 
 #include "btqca.h"
+#include "hci_uart.h"
 
 #define VERSION "0.1"
 
-int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version, u32 *soc_id)
 {
 	struct sk_buff *skb;
 	struct edl_event_hdr *edl;
@@ -47,7 +48,12 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
 		return err;
 	}
 
-	if (skb->len != sizeof(*edl) + sizeof(*ver)) {
+	/* WCN399x parts may answer with the version inside a command
+	 * complete event: rtype is then the command opcode (0x19) and the
+	 * version payload is preceded by a status byte, making the
+	 * response one byte longer than the ROME layout. */
+	if (skb->len != sizeof(*edl) + sizeof(*ver) &&
+	    skb->len != sizeof(*edl) + sizeof(*ver) + 1) {
 		bt_dev_err(hdev, "QCA Version size mismatch len %d", skb->len);
 		err = -EILSEQ;
 		goto out;
@@ -61,14 +67,23 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
 	}
 
 	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
-	    edl->rtype != EDL_APP_VER_RES_EVT) {
+	    (edl->rtype != EDL_APP_VER_RES_EVT &&
+	     edl->rtype != EDL_PATCH_VER_REQ_CMD)) {
 		bt_dev_err(hdev, "QCA Wrong packet received %d %d", edl->cresp,
 			   edl->rtype);
 		err = -EIO;
 		goto out;
 	}
 
-	ver = (struct rome_version *)(edl->data);
+	if (edl->rtype == EDL_PATCH_VER_REQ_CMD) {
+		if (skb->len != sizeof(*edl) + sizeof(*ver) + 1) {
+			err = -EILSEQ;
+			goto out;
+		}
+		ver = (struct rome_version *)(edl->data + 1);
+	} else {
+		ver = (struct rome_version *)(edl->data);
+	}
 
 	BT_DBG("%s: Product:0x%08x", hdev->name, le32_to_cpu(ver->product_id));
 	BT_DBG("%s: Patch  :0x%08x", hdev->name, le16_to_cpu(ver->patch_ver));
@@ -81,6 +96,8 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
 	 */
 	*soc_version = (le32_to_cpu(ver->soc_id) << 16) |
 			(le16_to_cpu(ver->rome_ver) & 0x0000ffff);
+	if (soc_id)
+		*soc_id = le32_to_cpu(ver->soc_id);
 	if (*soc_version == 0)
 		err = -EILSEQ;
 
@@ -93,37 +110,116 @@ out:
 }
 EXPORT_SYMBOL_GPL(qca_read_soc_version);
 
-static int qca_send_reset(struct hci_dev *hdev)
+int qca_send_reset(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
-	int err;
+	int err, retries = 5;
 
 	bt_dev_dbg(hdev, "QCA HCI_RESET");
 
-	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
+	/* After NVM download the controller reboots into the new firmware.
+	 * A reset sent while it is still booting is silently dropped, so
+	 * retry a few times. The host baud rate stays at the NVM-programmed
+	 * speed — switching it here would only desync the IBS handshake. */
+	do {
+		skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL,
+				     HCI_INIT_TIMEOUT);
+		if (!IS_ERR(skb))
+			break;
 		err = PTR_ERR(skb);
-		bt_dev_err(hdev, "QCA Reset failed (%d)", err);
-		return err;
-	}
+		if (err != -ETIMEDOUT || --retries <= 0) {
+			bt_dev_err(hdev, "QCA Reset failed (%d)", err);
+			return err;
+		}
+		bt_dev_warn(hdev, "QCA HCI_RESET timeout, retrying");
+		msleep(300);
+	} while (retries > 0);
 
 	kfree_skb(skb);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(qca_send_reset);
+
+/* Send a small vendor-specific EDL-era command and wait for its
+ * command-complete. Used for the post-NVM commands the Android QTI
+ * HAL issues (add-on feature list, enhanced controller log etc.)
+ * before the final HCI reset boots the downloaded firmware. Errors
+ * are returned to the caller but are expected to be treated as
+ * non-fatal. */
+int qca_send_edl_cmd(struct hci_dev *hdev, u16 opcode, u8 plen,
+		     const void *param)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, opcode, plen, (void *)param,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_send_edl_cmd);
+
+int qca_read_fw_build_info(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	struct edl_event_hdr *edl;
+	char cmd, build_label[QCA_FW_BUILD_VER_LEN];
+	int build_lbl_len, err = 0;
+
+	bt_dev_dbg(hdev, "QCA read fw build info");
+
+	cmd = EDL_GET_BUILD_INFO_CMD;
+	skb = __hci_cmd_sync_ev(hdev, EDL_PATCH_CMD_OPCODE, EDL_PATCH_CMD_LEN,
+				&cmd, 0, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		bt_dev_err(hdev, "Reading QCA fw build info failed (%d)",
+			   err);
+		return err;
+	}
+
+	edl = (struct edl_event_hdr *)(skb->data);
+	if (!edl) {
+		bt_dev_err(hdev, "QCA read fw build info with no header");
+		err = -EILSEQ;
+		goto out;
+	}
+
+	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
+	    edl->rtype != EDL_GET_BUILD_INFO_CMD) {
+		bt_dev_err(hdev, "QCA Wrong packet received %d %d",
+			   edl->cresp, edl->rtype);
+		err = -EIO;
+		goto out;
+	}
+
+	build_lbl_len = edl->data[0];
+	if (build_lbl_len <= QCA_FW_BUILD_VER_LEN - 1) {
+		memcpy(build_label, edl->data + 1, build_lbl_len);
+		build_label[build_lbl_len] = '\0';
+		bt_dev_info(hdev, "QCA fw build info: %s", build_label);
+	}
+
+out:
+	kfree_skb(skb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(qca_read_fw_build_info);
 
 static void qca_tlv_check_data(struct rome_config *config,
-				const struct firmware *fw)
+				u8 *fw_data, bool wcn3991)
 {
 	const u8 *data;
 	u32 type_len;
 	u16 tag_id, tag_len;
-	int idx, length;
+	int idx, length, i;
 	struct tlv_type_hdr *tlv;
 	struct tlv_type_patch *tlv_patch;
 	struct tlv_type_nvm *tlv_nvm;
 
-	tlv = (struct tlv_type_hdr *)fw->data;
+	tlv = (struct tlv_type_hdr *)fw_data;
 
 	type_len = le32_to_cpu(tlv->type_len);
 	length = (type_len >> 8) & 0x00ffffff;
@@ -170,9 +266,32 @@ static void qca_tlv_check_data(struct rome_config *config,
 		break;
 
 	case TLV_TYPE_NVM:
-		idx = 0;
 		data = tlv->data;
-		while (idx < length) {
+		/* Samsung NVM files carry a small preamble before the
+		 * tag records. Locate the real tag area by finding a
+		 * start offset that yields a chain of at least two
+		 * plausible records. */
+		for (idx = -1, i = 0; i < 64 && idx < 0; i += 2) {
+			int probe = i, ok = 0;
+
+			while (probe + 12 <= length) {
+				tlv_nvm = (struct tlv_type_nvm *)(data + probe);
+				tag_id = le16_to_cpu(tlv_nvm->tag_id);
+				tag_len = le16_to_cpu(tlv_nvm->tag_len);
+				if (!tag_id || tag_id > 0x100 ||
+				    probe + 12 + tag_len > length)
+					break;
+				ok++;
+				probe += 12 + tag_len;
+			}
+			if (ok >= 2)
+				idx = i;
+		}
+		if (idx < 0) {
+			BT_ERR("QCA NVM tag area not found");
+			break;
+		}
+		while (idx + 12 <= length) {
 			tlv_nvm = (struct tlv_type_nvm *)(data + idx);
 
 			tag_id = le16_to_cpu(tlv_nvm->tag_id);
@@ -181,22 +300,31 @@ static void qca_tlv_check_data(struct rome_config *config,
 			/* Update NVM tags as needed */
 			switch (tag_id) {
 			case EDL_TAG_ID_HCI:
-				/* HCI transport layer parameters
-				 * enabling software inband sleep
-				 * onto controller side.
+				/* HCI transport layer parameters.
+				 * On WCN3991 (new NVM format, as verified in the
+				 * QTI userspace HAL) the baudrate enum lives at
+				 * data[1] and data[0] must be left alone; on older
+				 * chips data[0] bit7 enables in-band sleep and the
+				 * baudrate sits at data[2].
 				 */
-				tlv_nvm->data[0] |= 0x80;
-
-				/* UART Baud Rate */
-				tlv_nvm->data[2] = config->user_baud_rate;
+				if (wcn3991) {
+					tlv_nvm->data[1] = config->user_baud_rate;
+				} else {
+					tlv_nvm->data[0] |= 0x80;
+					tlv_nvm->data[2] = config->user_baud_rate;
+				}
 
 				break;
 
 			case EDL_TAG_ID_DEEP_SLEEP:
 				/* Sleep enable mask
 				 * enabling deep sleep feature on controller.
+				 * New NVM format: SIBS flag is data[1] bit0.
 				 */
-				tlv_nvm->data[0] |= 0x01;
+				if (wcn3991)
+					tlv_nvm->data[1] |= 0x01;
+				else
+					tlv_nvm->data[0] |= 0x01;
 
 				break;
 			}
@@ -236,7 +364,12 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 		return err;
 	}
 
-	if (skb->len != sizeof(*edl) + sizeof(*tlv_resp)) {
+	/* WCN399x parts may ack each segment with a command complete
+	 * event instead of a vendor specific TLV download event: the
+	 * response is then just cresp + command echo without a result
+	 * byte. */
+	if (skb->len != sizeof(*edl) + sizeof(*tlv_resp) &&
+	    skb->len != sizeof(*edl)) {
 		bt_dev_err(hdev, "QCA TLV response size mismatch");
 		err = -EILSEQ;
 		goto out;
@@ -249,12 +382,32 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 		goto out;
 	}
 
-	tlv_resp = (struct tlv_seg_resp *)(edl->data);
+	if (edl->cresp != EDL_CMD_REQ_RES_EVT) {
+		bt_dev_err(hdev, "QCA TLV with error stat 0x%x rtype 0x%x",
+			   edl->cresp, edl->rtype);
+		err = -EIO;
+		goto out;
+	}
 
-	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
-	    edl->rtype != EDL_TVL_DNLD_RES_EVT || tlv_resp->result != 0x00) {
-		bt_dev_err(hdev, "QCA TLV with error stat 0x%x rtype 0x%x (0x%x)",
-			   edl->cresp, edl->rtype, tlv_resp->result);
+	if (edl->rtype == EDL_PATCH_TLV_REQ_CMD) {
+		if (skb->len != sizeof(*edl)) {
+			err = -EILSEQ;
+			goto out;
+		}
+	} else if (edl->rtype == EDL_TVL_DNLD_RES_EVT) {
+		if (skb->len != sizeof(*edl) + sizeof(*tlv_resp)) {
+			err = -EILSEQ;
+			goto out;
+		}
+		tlv_resp = (struct tlv_seg_resp *)(edl->data);
+		if (tlv_resp->result != 0x00) {
+			bt_dev_err(hdev, "QCA TLV with error stat 0x%x rtype 0x%x (0x%x)",
+				   edl->cresp, edl->rtype, tlv_resp->result);
+			err = -EIO;
+		}
+	} else {
+		bt_dev_err(hdev, "QCA TLV with error stat 0x%x rtype 0x%x",
+			   edl->cresp, edl->rtype);
 		err = -EIO;
 	}
 
@@ -265,10 +418,11 @@ out:
 }
 
 static int qca_download_firmware(struct hci_dev *hdev,
-				  struct rome_config *config)
+				  struct rome_config *config, bool wcn3991)
 {
 	const struct firmware *fw;
 	const u8 *segment;
+	u8 *data;
 	int ret, remain, i = 0;
 
 	bt_dev_info(hdev, "QCA Downloading %s", config->fwname);
@@ -280,10 +434,17 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		return ret;
 	}
 
-	qca_tlv_check_data(config, fw);
-
-	segment = fw->data;
+	/* qca_tlv_check_data() patches the NVM buffer, so work on a
+	 * writable copy instead of the const firmware image. */
+	data = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	remain = fw->size;
+	release_firmware(fw);
+	if (!data)
+		return -ENOMEM;
+
+	qca_tlv_check_data(config, data, wcn3991);
+
+	segment = data;
 	while (remain > 0) {
 		int segsize = min(MAX_SIZE_PER_TLV_SEGMENT, remain);
 
@@ -302,7 +463,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		segment += segsize;
 	}
 
-	release_firmware(fw);
+	kfree(data);
 
 	return ret;
 }
@@ -332,13 +493,22 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 EXPORT_SYMBOL_GPL(qca_set_bdaddr_rome);
 
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
-		   enum qca_btsoc_type soc_type, u32 soc_ver)
+		   enum qca_btsoc_type soc_type, u32 soc_ver, u32 soc_id)
 {
 	struct rome_config config;
+	bool wcn3991;
 	int err;
 	u8 rom_ver;
 
 	bt_dev_dbg(hdev, "QCA setup on UART");
+
+	/* WCN3991 (Cherokee) parts report the same soc_type as WCN3990
+	 * but answer EDL commands with command complete events, select
+	 * the 'u' NVM variant and need SoC logging disabled before the
+	 * controller reboots into the downloaded firmware. Identify
+	 * them by their SoC ID.
+	 */
+	wcn3991 = soc_id == QCA_WCN3991_SOC_ID;
 
 	config.user_baud_rate = baudrate;
 
@@ -357,7 +527,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 			 "qca/rampatch_%08x.bin", soc_ver);
 	}
 
-	err = qca_download_firmware(hdev, &config);
+	err = qca_download_firmware(hdev, &config, wcn3991);
 	if (err < 0) {
 		bt_dev_err(hdev, "QCA Failed to download patch (%d)", err);
 		return err;
@@ -370,25 +540,23 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	config.type = TLV_TYPE_NVM;
 	if (soc_type == QCA_WCN3990)
 		snprintf(config.fwname, sizeof(config.fwname),
-			 "qca/crnv%02x.bin", rom_ver);
+			 wcn3991 ? "qca/crnv%02xu.bin" : "qca/crnv%02x.bin",
+			 rom_ver);
 	else
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/nvm_%08x.bin", soc_ver);
 
-	err = qca_download_firmware(hdev, &config);
+	err = qca_download_firmware(hdev, &config, wcn3991);
 	if (err < 0) {
 		bt_dev_err(hdev, "QCA Failed to download NVM (%d)", err);
 		return err;
 	}
 
-	/* Perform HCI reset */
-	err = qca_send_reset(hdev);
-	if (err < 0) {
-		bt_dev_err(hdev, "QCA Failed to run HCI_RESET (%d)", err);
-		return err;
-	}
-
-	bt_dev_info(hdev, "QCA setup on UART is completed");
+	/* The controller now reboots into the downloaded firmware. The
+	 * caller enables in-band sleep handling and performs the HCI
+	 * reset — the NVM config arms controller-side IBS, so commands
+	 * sent before the host state machine engages would be lost. */
+	bt_dev_info(hdev, "QCA firmware download completed");
 
 	return 0;
 }

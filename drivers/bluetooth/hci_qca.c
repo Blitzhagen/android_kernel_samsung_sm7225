@@ -40,6 +40,8 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
+#include <linux/tty.h>
+#include <linux/tty_driver.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -55,6 +57,7 @@
 
 /* Controller states */
 #define STATE_IN_BAND_SLEEP_ENABLED	1
+#define STATE_EDL_PHASE			2
 
 #define IBS_WAKE_RETRANS_TIMEOUT_MS	100
 #define IBS_TX_IDLE_TIMEOUT_MS		2000
@@ -105,6 +108,10 @@ struct qca_data {
 	struct work_struct ws_rx_vote_off;
 	struct work_struct ws_tx_vote_off;
 	unsigned long flags;
+
+	/* EDL-phase RX filter (WCN3991 boot/crash log on the wire) */
+	u8 edl_buf[HCI_MAX_EVENT_SIZE];
+	u8 edl_len;
 
 	/* For debugging purpose */
 	u64 ibs_sent_wacks;
@@ -168,6 +175,20 @@ struct qca_serdev {
 
 static int qca_power_setup(struct hci_uart *hu, bool on);
 static void qca_power_shutdown(struct hci_uart *hu);
+
+/* Devices attached through the N_HCI ldisc (btattach) have no serdev.
+ * The SM7225/gts7xl BT controller on ttyHS0 is a WCN3990, so fall back
+ * to that instead of dereferencing a NULL serdev. */
+static enum qca_btsoc_type qca_soc_type(struct hci_uart *hu)
+{
+	struct qca_serdev *qcadev;
+
+	if (!hu->serdev)
+		return QCA_WCN3990;
+
+	qcadev = serdev_device_get_drvdata(hu->serdev);
+	return qcadev->btsoc_type;
+}
 
 static void __serial_clock_on(struct tty_struct *tty)
 {
@@ -274,6 +295,9 @@ static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
 
 	/* Assign HCI_IBS type */
 	skb_put_u8(skb, cmd);
+
+	BT_INFO("qca-tx ibs 0x%x tx_state %d rx_state %d\n", cmd,
+		qca->tx_ibs_state, qca->rx_ibs_state);
 
 	skb_queue_tail(&qca->txq, skb);
 
@@ -892,6 +916,64 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
+	print_hex_dump(KERN_INFO, "qca-rx ", DUMP_PREFIX_OFFSET,
+		       16, 1, data, count, false);
+
+	if (test_bit(STATE_EDL_PHASE, &qca->flags)) {
+		/* While in EDL the WCN3991 interleaves a firmware boot /
+		 * crash log on the UART: 0x02- and 0x10-typed records plus
+		 * IBS bytes. Feeding them to the H4 parser desyncs frame
+		 * reassembly (a fake ACL header swallows the following
+		 * bytes, including genuine events). In EDL the only valid
+		 * inbound traffic is HCI events, so scan byte-wise and
+		 * forward complete 0x04-frames only.
+		 */
+		const u8 *p = data;
+		int i = 0, n;
+
+		while (i < count) {
+			int want;
+
+			if (!qca->edl_len) {
+				if (p[i] != HCI_EVENT_PKT) {
+					i++;
+					continue;
+				}
+				qca->edl_buf[qca->edl_len++] = p[i++];
+				continue;
+			}
+			/* Resync: an impossible event length means the
+			 * stored header is dump noise, drop one byte. */
+			if (qca->edl_len >= 3 &&
+			    3 + qca->edl_buf[2] > sizeof(qca->edl_buf)) {
+				memmove(qca->edl_buf, qca->edl_buf + 1,
+					--qca->edl_len);
+				continue;
+			}
+			want = qca->edl_len < 3 ? 3 : 3 + qca->edl_buf[2];
+			n = want - qca->edl_len;
+			if (n > count - i)
+				n = count - i;
+			memcpy(qca->edl_buf + qca->edl_len, p + i, n);
+			qca->edl_len += n;
+			i += n;
+			if (qca->edl_len >= 3 &&
+			    qca->edl_len == 3 + qca->edl_buf[2]) {
+				qca->rx_skb = h4_recv_buf(hu->hdev,
+					qca->rx_skb, qca->edl_buf,
+					qca->edl_len, qca_recv_pkts,
+					ARRAY_SIZE(qca_recv_pkts));
+				qca->edl_len = 0;
+				if (IS_ERR(qca->rx_skb)) {
+					int err = PTR_ERR(qca->rx_skb);
+					qca->rx_skb = NULL;
+					return err;
+				}
+			}
+		}
+		return count;
+	}
+
 	qca->rx_skb = h4_recv_buf(hu->hdev, qca->rx_skb, data, count,
 				  qca_recv_pkts, ARRAY_SIZE(qca_recv_pkts));
 	if (IS_ERR(qca->rx_skb)) {
@@ -952,7 +1034,6 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct qca_data *qca = hu->priv;
 	struct sk_buff *skb;
-	struct qca_serdev *qcadev;
 	u8 cmd[] = { 0x01, 0x48, 0xFC, 0x01, 0x00 };
 
 	if (baudrate > QCA_BAUDRATE_3200000)
@@ -969,8 +1050,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	/* Disabling hardware flow control is mandatory while
 	 * sending change baudrate request to wcn3990 SoC.
 	 */
-	qcadev = serdev_device_get_drvdata(hu->serdev);
-	if (qcadev->btsoc_type == QCA_WCN3990)
+	if (qca_soc_type(hu) == QCA_WCN3990)
 		hci_uart_set_flow_control(hu, true);
 
 	/* Assign commands to change baudrate and packet type. */
@@ -988,7 +1068,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	schedule_timeout(msecs_to_jiffies(BAUDRATE_SETTLE_TIMEOUT_MS));
 	set_current_state(TASK_RUNNING);
 
-	if (qcadev->btsoc_type == QCA_WCN3990)
+	if (qca_soc_type(hu) == QCA_WCN3990)
 		hci_uart_set_flow_control(hu, false);
 
 	return 0;
@@ -1061,10 +1141,7 @@ static unsigned int qca_get_speed(struct hci_uart *hu,
 
 static int qca_check_speeds(struct hci_uart *hu)
 {
-	struct qca_serdev *qcadev;
-
-	qcadev = serdev_device_get_drvdata(hu->serdev);
-	if (qcadev->btsoc_type == QCA_WCN3990) {
+	if (qca_soc_type(hu) == QCA_WCN3990) {
 		if (!qca_get_speed(hu, QCA_INIT_SPEED) &&
 		    !qca_get_speed(hu, QCA_OPER_SPEED))
 			return -EINVAL;
@@ -1127,11 +1204,13 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	 * Without this, we will have RTS and CTS synchronization
 	 * issues.
 	 */
-	serdev_device_close(hu->serdev);
-	ret = serdev_device_open(hu->serdev);
-	if (ret) {
-		bt_dev_err(hu->hdev, "failed to open port");
-		return ret;
+	if (hu->serdev) {
+		serdev_device_close(hu->serdev);
+		ret = serdev_device_open(hu->serdev);
+		if (ret) {
+			bt_dev_err(hu->hdev, "failed to open port");
+			return ret;
+		}
 	}
 
 	hci_uart_set_flow_control(hu, false);
@@ -1139,16 +1218,40 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	return 0;
 }
 
+/* The WCN3991 drops its RTS output while in in-band sleep, so with
+ * CRTSCTS honoured the host TX FIFO is gated forever and the IBS
+ * wake byte never reaches the wire. The chip wakes on RX line
+ * activity (RxDwakeup): run the port with CTS masked but RTS
+ * asserted, the same way the Android QTI HAL drives the port.
+ */
+static void qca_uart_unmask_cts(struct hci_uart *hu)
+{
+	struct ktermios ktermios;
+
+	if (hu->serdev) {
+		serdev_device_set_flow_control(hu->serdev, false);
+		serdev_device_set_rts(hu->serdev, true);
+		return;
+	}
+	if (!hu->tty || !hu->tty->driver->ops->tiocmset)
+		return;
+
+	ktermios = hu->tty->termios;
+	ktermios.c_cflag &= ~CRTSCTS;
+	tty_set_termios(hu->tty, &ktermios);
+
+	hu->tty->driver->ops->tiocmset(hu->tty, TIOCM_RTS, 0);
+}
+
 static int qca_setup(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
 	struct qca_data *qca = hu->priv;
 	unsigned int speed, qca_baudrate = QCA_BAUDRATE_115200;
-	struct qca_serdev *qcadev;
+	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 	int ret;
 	int soc_ver = 0;
-
-	qcadev = serdev_device_get_drvdata(hu->serdev);
+	u32 soc_id = 0;
 
 	ret = qca_check_speeds(hu);
 	if (ret)
@@ -1157,13 +1260,25 @@ static int qca_setup(struct hci_uart *hu)
 	/* Patch downloading has to be done without IBS mode */
 	clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
 
-	if (qcadev->btsoc_type == QCA_WCN3990) {
+	if (soc_type == QCA_WCN3990) {
+		/* The WCN3991 EDL UART mixes HCI events with IBS bytes and
+		 * a firmware boot log / crash dump (0x02/0x10 records). The
+		 * dump's fake ACL headers would swallow real events, so the
+		 * whole download runs behind the EDL RX filter. Drop any
+		 * half-assembled garbage frame first. */
+		kfree_skb(qca->rx_skb);
+		qca->rx_skb = NULL;
+		qca->edl_len = 0;
+		set_bit(STATE_EDL_PHASE, &qca->flags);
+	}
+
+	if (soc_type == QCA_WCN3990) {
 		bt_dev_info(hdev, "setting up wcn3990");
 		ret = qca_wcn3990_init(hu);
 		if (ret)
 			return ret;
 
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, &soc_id);
 		if (ret)
 			return ret;
 	} else {
@@ -1181,19 +1296,64 @@ static int qca_setup(struct hci_uart *hu)
 		qca_baudrate = qca_get_baudrate_value(speed);
 	}
 
-	if (qcadev->btsoc_type != QCA_WCN3990) {
+	if (soc_type != QCA_WCN3990) {
 		/* Get QCA version information */
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, &soc_id);
 		if (ret)
 			return ret;
 	}
 
 	bt_dev_info(hdev, "QCA controller version 0x%08x", soc_ver);
 	/* Setup patch / NVM configurations */
-	ret = qca_uart_setup(hdev, qca_baudrate, qcadev->btsoc_type, soc_ver);
+	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, soc_ver, soc_id);
 	if (!ret) {
+		if (soc_id == QCA_WCN3991_SOC_ID) {
+			/* The chip drops its RTS output when it enters
+			 * in-band sleep right after the NVM download, which
+			 * gates host TX if CRTSCTS is honoured — the EDL
+			 * commands below would never reach the wire. Run
+			 * CTS-masked/RTS-asserted like the Android HAL and
+			 * keep the vendor's ~85 ms post-NVM timing so the
+			 * chip is still in EDL when they arrive. */
+			qca_uart_unmask_cts(hu);
+			msleep(85);
+			/* The Android QTI HAL issues these vendor commands
+			 * raw while the chip is still in EDL, before the
+			 * HCI reset boots the firmware: GetBuildInfo,
+			 * GetAddOnFeatureList (0xfc1d), EnableEnhControllerLog
+			 * (0xfc17 sub 0x14). No IBS handshake in EDL —
+			 * verified working byte-exact on this hardware. */
+			qca_read_fw_build_info(hdev);
+			qca_send_edl_cmd(hdev, 0xfc1d, 0, NULL);
+			qca_send_edl_cmd(hdev, 0xfc17, 2, "\x14\x01");
+		}
+		ret = qca_send_reset(hdev);
+		if (ret && soc_id == QCA_WCN3991_SOC_ID) {
+			/* The dump can be emitted in chunks gated by host
+			 * traffic; a first reset may still race its tail —
+			 * retry a few times before giving up. */
+			int retry;
+
+			for (retry = 0; retry < 4 && ret; retry++) {
+				msleep(1500);
+				ret = qca_send_reset(hdev);
+			}
+		}
+		clear_bit(STATE_EDL_PHASE, &qca->flags);
+		qca->edl_len = 0;
+		if (soc_id == QCA_WCN3991_SOC_ID) {
+			/* Only the freshly booted application firmware
+			 * performs in-band sleep: arm the host state
+			 * machine now and unmask CTS so the sleeping
+			 * chip cannot gate host TX. */
+			qca_uart_unmask_cts(hu);
+			set_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+		}
 		set_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
-		qca_debugfs_init(hdev);
+		if (!ret && soc_id == QCA_WCN3991_SOC_ID)
+			qca_read_fw_build_info(hdev);
+		if (!ret)
+			qca_debugfs_init(hdev);
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
 		ret = 0;
@@ -1216,7 +1376,9 @@ static struct hci_uart_proto qca_proto = {
 	.name		= "QCA",
 	.manufacturer	= 29,
 	.init_speed	= 115200,
-	.oper_speed	= 3000000,
+	/* WCN3991 runs at 3.2 Mbaud like the Android QTI HAL — the
+	 * NVM tag 17 file default is already 0x11 (3.2M). */
+	.oper_speed	= 3200000,
 	.open		= qca_open,
 	.close		= qca_close,
 	.flush		= qca_flush,
@@ -1244,7 +1406,8 @@ static void qca_power_shutdown(struct hci_uart *hu)
 
 	host_set_baudrate(hu, 2400);
 	hci_uart_set_flow_control(hu, true);
-	serdev_device_write_buf(serdev, &cmd, sizeof(cmd));
+	if (serdev)
+		serdev_device_write_buf(serdev, &cmd, sizeof(cmd));
 	hci_uart_set_flow_control(hu, false);
 	qca_power_setup(hu, false);
 }
@@ -1286,6 +1449,11 @@ static int qca_power_setup(struct hci_uart *hu, bool on)
 	struct regulator_bulk_data *vreg_bulk;
 	struct qca_serdev *qcadev;
 	int i, num_vregs, ret = 0;
+
+	/* ldisc-attached devices have no serdev regulators; power is
+	 * managed externally via /dev/btpower. */
+	if (!hu->serdev)
+		return 0;
 
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 	if (!qcadev || !qcadev->bt_power || !qcadev->bt_power->vreg_data ||
