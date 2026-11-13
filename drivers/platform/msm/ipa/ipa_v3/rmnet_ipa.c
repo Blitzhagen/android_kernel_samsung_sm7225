@@ -1190,11 +1190,25 @@ static int __ipa_wwan_close(struct net_device *dev)
 static int ipa3_wwan_stop(struct net_device *dev)
 {
 	struct ipa3_wwan_private *wwan_ptr = netdev_priv(dev);
+	int ep_idx;
 
 	IPAWANDBG("[%s]\n", dev->name);
 	__ipa_wwan_close(dev);
-	if (ipa3_rmnet_res.ipa_napi_enable)
+	if (ipa3_rmnet_res.ipa_napi_enable) {
+		/*
+		 * Force an in-flight WAN poll out of its polling loop
+		 * before disabling NAPI. ipa_rx_poll() can otherwise
+		 * reschedule itself endlessly (pending GSI IRQ or
+		 * unreplenished descriptors) and deadlock
+		 * napi_disable() with RTNL held.
+		 */
+		ep_idx = ipa3_get_ep_mapping(IPA_CLIENT_APPS_WAN_CONS);
+		if (ep_idx != IPA_EP_NOT_ALLOCATED &&
+		    ipa3_ctx->ep[ep_idx].sys)
+			atomic_set(&ipa3_ctx->ep[ep_idx].sys->
+				curr_polling_state, 0);
 		napi_disable(&(wwan_ptr->napi));
+	}
 	netif_stop_queue(dev);
 	return 0;
 }
@@ -4926,7 +4940,19 @@ static void ipa3_wwan_msg_free_cb(void *buff, u32 len, u32 type)
 
 static int ipa3_rmnet_poll(struct napi_struct *napi, int budget)
 {
+	struct ipa3_wwan_private *wwan_ptr =
+		container_of(napi, struct ipa3_wwan_private, napi);
 	int rcvd_pkts = 0;
+
+	/*
+	 * ipa_rx_poll() may keep reporting a full budget while the WAN
+	 * channel has a pending GSI IRQ or cannot replenish its
+	 * descriptors. If the interface is going down we must not let
+	 * the poll reschedule itself, otherwise napi_disable() in
+	 * ipa3_wwan_stop() spins forever while holding RTNL.
+	 */
+	if (wwan_ptr->device_status != WWAN_DEVICE_ACTIVE)
+		return 0;
 
 	rcvd_pkts = ipa_rx_poll(rmnet_ipa3_ctx->ipa3_to_apps_hdl,
 					NAPI_WEIGHT);

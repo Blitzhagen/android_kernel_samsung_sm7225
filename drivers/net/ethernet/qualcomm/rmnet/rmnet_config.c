@@ -378,8 +378,16 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (!dev)
 		return -ENODEV;
 
-	real_dev = __dev_get_by_index(dev_net(dev),
-				      nla_get_u32(tb[IFLA_LINK]));
+	/* rmnet_newlink() requires IFLA_LINK (the real device); changelink
+	 * must not blindly dereference it — iproute2 omits it on
+	 * `ip link set dev <vnd> type rmnet ...`, which used to NULL-deref
+	 * with RTNL held and wedge the whole network stack.
+	 */
+	if (tb[IFLA_LINK])
+		real_dev = __dev_get_by_index(dev_net(dev),
+					      nla_get_u32(tb[IFLA_LINK]));
+	else
+		real_dev = priv->real_dev;
 
 	if (!real_dev || !rmnet_is_real_dev_registered(real_dev))
 		return -ENODEV;
