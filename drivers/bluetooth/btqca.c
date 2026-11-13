@@ -153,7 +153,7 @@ int qca_send_edl_cmd(struct hci_dev *hdev, u16 opcode, u8 plen,
 	struct sk_buff *skb;
 
 	skb = __hci_cmd_sync(hdev, opcode, plen, (void *)param,
-			     HCI_INIT_TIMEOUT);
+			     msecs_to_jiffies(400));
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 	kfree_skb(skb);
