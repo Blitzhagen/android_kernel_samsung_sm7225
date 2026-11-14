@@ -1936,7 +1936,67 @@ static int ipa3_wwan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			mux_index = ipa3_find_mux_channel_index(
 				ext_ioctl_data.u.rmnet_mux_val.mux_id);
 			if (mux_index < MAX_NUM_OF_MUX_CHANNEL) {
-				IPAWANDBG("already setup mux(%d)\n", mux_id);
+				/* ndo_do_ioctl runs under RTNL */
+				if (__dev_get_by_name(&init_net,
+					rmnet_ipa3_ctx->mux_channel[mux_index]
+					.vchannel_name)) {
+					IPAWANDBG("already setup mux(%d)\n",
+						mux_id);
+					return rc;
+				}
+				/* stale entry: the netdev this mux id was
+				 * bound to is gone (e.g. rild's rmnet_dataN
+				 * torn down while an MM qmapmux link takes
+				 * over the same mux id). Drop the dead IPA
+				 * registration and retarget to the new device.
+				 */
+				mutex_lock(&rmnet_ipa3_ctx->
+					add_mux_channel_lock);
+				if (rmnet_ipa3_ctx->mux_channel[mux_index]
+					.ul_flt_reg &&
+					ipa3_deregister_intf(rmnet_ipa3_ctx->
+						mux_channel[mux_index]
+						.vchannel_name))
+					IPAWANERR(
+					"stale mux(%d) dereg failed\n",
+						mux_id);
+				ext_ioctl_data.u.rmnet_mux_val.vchannel_name
+					[IFNAMSIZ - 1] = '\0';
+				strlcpy(rmnet_ipa3_ctx->mux_channel[mux_index]
+					.vchannel_name,
+					ext_ioctl_data.u.rmnet_mux_val
+					.vchannel_name,
+					sizeof(rmnet_ipa3_ctx->
+						mux_channel[mux_index]
+						.vchannel_name));
+				rmnet_ipa3_ctx->mux_channel[mux_index]
+					.ul_flt_reg = false;
+				if (rmnet_ipa3_ctx->num_q6_rules != 0 ||
+					rmnet_ipa3_ctx->ipa_config_is_apq) {
+					IPAWANERR_RL(
+					"dev(%s) register to IPA\n",
+						rmnet_ipa3_ctx->
+						mux_channel[mux_index]
+						.vchannel_name);
+					rc = ipa3_wwan_register_to_ipa(
+						mux_index);
+					if (rc < 0) {
+						IPAWANERR(
+						"device %s reg IPA failed\n",
+							rmnet_ipa3_ctx->
+							mux_channel[mux_index]
+							.vchannel_name);
+						mutex_unlock(&rmnet_ipa3_ctx->
+							add_mux_channel_lock);
+						return -ENODEV;
+					}
+					rmnet_ipa3_ctx->mux_channel[mux_index]
+						.ul_flt_reg = true;
+				}
+				rmnet_ipa3_ctx->mux_channel[mux_index]
+					.mux_channel_set = true;
+				mutex_unlock(&rmnet_ipa3_ctx->
+					add_mux_channel_lock);
 				return rc;
 			}
 			mutex_lock(&rmnet_ipa3_ctx->add_mux_channel_lock);
@@ -2339,9 +2399,30 @@ static ssize_t rx_endpoint_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(rx_endpoint_id);
 
+/* The WWAN data link is an embedded IPA pipe (no external physical
+ * port): ModemManager only enables its embedded datapath handling
+ * (QMI DPM open-port + WDA set-data-format endpoint TLV) when these
+ * attributes exist.
+ */
+static ssize_t endpoint_type_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "embedded\n");
+}
+static DEVICE_ATTR_RO(endpoint_type);
+
+static ssize_t endpoint_interface_num_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%u\n", 1);
+}
+static DEVICE_ATTR_RO(endpoint_interface_num);
+
 static struct attribute *ipa_modem_attrs[] = {
 	&dev_attr_tx_endpoint_id.attr,
 	&dev_attr_rx_endpoint_id.attr,
+	&dev_attr_endpoint_type.attr,
+	&dev_attr_endpoint_interface_num.attr,
 	NULL,
 };
 
