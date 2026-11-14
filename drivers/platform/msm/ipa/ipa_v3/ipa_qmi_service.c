@@ -199,10 +199,26 @@ static void ipa3_handle_install_filter_rule_req(struct qmi_handle *qmi_handle,
 		ipa3_install_fltr_rule_resp_msg_data_v01_ei,
 		&resp);
 
-	if (rc < 0)
+	if (rc < 0) {
 		IPAWANERR("install filter rules failed\n");
-	else
-		IPAWANDBG("Replied to install filter request\n");
+		return;
+	}
+	IPAWANDBG("Replied to install filter request\n");
+
+	/* The modem pushed a new set of UL filter rules. Channels are
+	 * registered at ADD_MUX_CHANNEL time regardless of rule state
+	 * (tethered/MM calls never get a rule push but still need their
+	 * demux), so when rules DO arrive (embedded/rild calls) the
+	 * already-registered channels must be re-registered to pick up
+	 * the new ext properties. This is what
+	 * ipa3_wwan_update_mux_channel_prop() was designed for — it was
+	 * dead code until now.
+	 */
+	IPAWANERR("rules pushed (spec_len=%u ex_len=%u), re-registering\n",
+		rule_req->filter_spec_list_len,
+		rule_req->filter_spec_ex_list_len);
+	rc = ipa3_wwan_update_mux_channel_prop();
+	IPAWANERR("re-register result %d\n", rc);
 }
 
 static void ipa3_handle_filter_installed_notify_req(

@@ -1971,28 +1971,25 @@ static int ipa3_wwan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 						.vchannel_name));
 				rmnet_ipa3_ctx->mux_channel[mux_index]
 					.ul_flt_reg = false;
-				if (rmnet_ipa3_ctx->num_q6_rules != 0 ||
-					rmnet_ipa3_ctx->ipa_config_is_apq) {
-					IPAWANERR_RL(
+				IPAWANERR_RL(
 					"dev(%s) register to IPA\n",
 						rmnet_ipa3_ctx->
 						mux_channel[mux_index]
 						.vchannel_name);
-					rc = ipa3_wwan_register_to_ipa(
+				rc = ipa3_wwan_register_to_ipa(
 						mux_index);
-					if (rc < 0) {
-						IPAWANERR(
-						"device %s reg IPA failed\n",
-							rmnet_ipa3_ctx->
-							mux_channel[mux_index]
-							.vchannel_name);
-						mutex_unlock(&rmnet_ipa3_ctx->
-							add_mux_channel_lock);
-						return -ENODEV;
-					}
-					rmnet_ipa3_ctx->mux_channel[mux_index]
-						.ul_flt_reg = true;
+				if (rc < 0) {
+					IPAWANERR(
+					"device %s reg IPA failed\n",
+						rmnet_ipa3_ctx->
+						mux_channel[mux_index]
+						.vchannel_name);
+					mutex_unlock(&rmnet_ipa3_ctx->
+						add_mux_channel_lock);
+					return -ENODEV;
 				}
+				rmnet_ipa3_ctx->mux_channel[mux_index]
+					.ul_flt_reg = true;
 				rmnet_ipa3_ctx->mux_channel[mux_index]
 					.mux_channel_set = true;
 				mutex_unlock(&rmnet_ipa3_ctx->
@@ -2033,32 +2030,33 @@ static int ipa3_wwan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			/* check if UL filter rules coming*/
 			v_name =
 				ext_ioctl_data.u.rmnet_mux_val.vchannel_name;
-			if (rmnet_ipa3_ctx->num_q6_rules != 0 ||
-					(rmnet_ipa3_ctx->ipa_config_is_apq)) {
-				mux_mutex_ptr =
-					&rmnet_ipa3_ctx->add_mux_channel_lock;
-				IPAWANERR_RL("dev(%s) register to IPA\n",
+			/* Register unconditionally: the rx demux properties
+			 * (IPA_FLT_META_DATA mux match) are self-contained
+			 * and do not need the modem-pushed UL filter rules.
+			 * Embedded calls (Samsung RIL) get a
+			 * QMI_IPA_INSTALL_FILTER_RULE push before the iface
+			 * exists so num_q6_rules is non-zero here, but
+			 * tethered calls (ModemManager) never trigger that
+			 * push — waiting for it would leave the vchannel
+			 * without a demux rule and all DL frames would fall
+			 * into the default exception path on rmnet_ipa0.
+			 */
+			mux_mutex_ptr =
+				&rmnet_ipa3_ctx->add_mux_channel_lock;
+			IPAWANERR_RL("dev(%s) register to IPA (q6_rules=%d)\n",
+				v_name, rmnet_ipa3_ctx->num_q6_rules);
+			rc = ipa3_wwan_register_to_ipa(
+					rmnet_ipa3_ctx->rmnet_index);
+			if (rc < 0) {
+				IPAWANERR("device %s reg IPA failed\n",
 					v_name);
-				rc = ipa3_wwan_register_to_ipa(
-						rmnet_ipa3_ctx->rmnet_index);
-				if (rc < 0) {
-					IPAWANERR("device %s reg IPA failed\n",
-						v_name);
-					mutex_unlock(mux_mutex_ptr);
-					return -ENODEV;
-				}
-				mux_channel[rmnet_index].mux_channel_set =
-					true;
-				mux_channel[rmnet_index].ul_flt_reg =
-					true;
-			} else {
-				IPAWANDBG("dev(%s) haven't registered to IPA\n",
-					v_name);
-				mux_channel[rmnet_index].mux_channel_set =
-					true;
-				mux_channel[rmnet_index].ul_flt_reg =
-					false;
+				mutex_unlock(mux_mutex_ptr);
+				return -ENODEV;
 			}
+			mux_channel[rmnet_index].mux_channel_set =
+				true;
+			mux_channel[rmnet_index].ul_flt_reg =
+				true;
 			rmnet_ipa3_ctx->rmnet_index++;
 			mutex_unlock(&rmnet_ipa3_ctx->add_mux_channel_lock);
 			break;
