@@ -112,6 +112,7 @@ struct qca_data {
 	/* EDL-phase RX filter (WCN3991 boot/crash log on the wire) */
 	u8 edl_buf[HCI_MAX_EVENT_SIZE];
 	u8 edl_len;
+	unsigned long edl_last_rx;
 
 	/* For debugging purpose */
 	u64 ibs_sent_wacks;
@@ -920,6 +921,7 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 		       16, 1, data, count, false);
 
 	if (test_bit(STATE_EDL_PHASE, &qca->flags)) {
+		qca->edl_last_rx = jiffies;
 		/* While in EDL the WCN3991 interleaves a firmware boot /
 		 * crash log on the UART: 0x02- and 0x10-typed records plus
 		 * IBS bytes. Feeding them to the H4 parser desyncs frame
@@ -975,16 +977,23 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 			i += n;
 			if (qca->edl_len >= 3 &&
 			    qca->edl_len == 3 + qca->edl_buf[2]) {
-				qca->rx_skb = h4_recv_buf(hu->hdev,
-					qca->rx_skb, qca->edl_buf,
-					qca->edl_len, qca_recv_pkts,
-					ARRAY_SIZE(qca_recv_pkts));
-				qca->edl_len = 0;
-				if (IS_ERR(qca->rx_skb)) {
-					int err = PTR_ERR(qca->rx_skb);
-					qca->rx_skb = NULL;
-					return err;
+				/* Event code 0x00 does not exist — dump
+				 * bytes forming fake 0x04-headers get
+				 * dropped here instead of reaching the
+				 * command waiter. */
+				if (qca->edl_buf[1]) {
+					qca->rx_skb = h4_recv_buf(hu->hdev,
+						qca->rx_skb, qca->edl_buf,
+						qca->edl_len, qca_recv_pkts,
+						ARRAY_SIZE(qca_recv_pkts));
+					if (IS_ERR(qca->rx_skb)) {
+						int err = PTR_ERR(qca->rx_skb);
+						qca->rx_skb = NULL;
+						qca->edl_len = 0;
+						return err;
+					}
 				}
+				qca->edl_len = 0;
 			}
 		}
 		return count;
@@ -1345,72 +1354,31 @@ static int qca_setup(struct hci_uart *hu)
 	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, soc_ver, soc_id);
 	if (!ret) {
 		if (soc_id == QCA_WCN3991_SOC_ID) {
-			int err;
-			unsigned long irqflags;
-
-			/* The chip drops its RTS output when it enters
-			 * in-band sleep right after the NVM download, which
-			 * gates host TX if CRTSCTS is honoured — the EDL
-			 * commands below would never reach the wire. Run
-			 * CTS-masked/RTS-asserted like the Android HAL and
-			 * keep the vendor's ~85 ms post-NVM timing so the
-			 * chip is still in EDL when they arrive. */
+			/* CTS-masked/RTS-asserted like the Android HAL —
+			 * the chip drops RTS in sleep which would gate TX.
+			 * The optional EDL vendor cmds (0xfc1d/0xfc17)
+			 * are skipped: they only probe features and burn
+			 * the tight ~100-300 ms post-NVM window. */
 			qca_uart_unmask_cts(hu);
-			msleep(85);
-			/* The Android QTI HAL issues these vendor commands
-			 * raw while the chip is still in EDL, before the
-			 * HCI reset boots the firmware: GetBuildInfo,
-			 * GetAddOnFeatureList (0xfc1d), EnableEnhControllerLog
-			 * (0xfc17 sub 0x14). No IBS handshake in EDL —
-			 * verified working byte-exact on this hardware. */
-			err = qca_read_fw_build_info(hdev);
-			if (!err)
-				err = qca_send_edl_cmd(hdev, 0xfc1d, 0, NULL);
-			if (!err)
-				err = qca_send_edl_cmd(hdev, 0xfc17, 2,
-						     "\x14\x01");
-			if (err) {
-				/* The NVM boot already handed the chip to
-				 * the app firmware: in-band sleep is live
-				 * and EDL is gone. Arm the host handshake
-				 * now so even the first reset is sent
-				 * through it; restart the tx side ASLEEP. */
-				clear_bit(STATE_EDL_PHASE, &qca->flags);
-				qca->edl_len = 0;
-				spin_lock_irqsave(&qca->hci_ibs_lock,
-						  irqflags);
-				qca->tx_ibs_state = HCI_IBS_TX_ASLEEP;
-				qca->rx_ibs_state = HCI_IBS_RX_ASLEEP;
-				spin_unlock_irqrestore(&qca->hci_ibs_lock,
-						       irqflags);
-				set_bit(STATE_IN_BAND_SLEEP_ENABLED,
-					&qca->flags);
-				/* Physical wake first: the sleeping chip
-				 * cannot see fd bytes at speed. */
-				qca_rxd_wakeup(hu);
-			}
+			qca_read_fw_build_info(hdev);
 		}
 		ret = qca_send_reset(hdev);
 		if (ret && soc_id == QCA_WCN3991_SOC_ID) {
-			/* The NVM already booted the chip into the app
-			 * firmware — in-band sleep is live now, so a raw
-			 * reset can never reach it. Drop the EDL filter,
-			 * arm the host IBS handshake and retry through it.
-			 * tx_ibs_state must restart ASLEEP or the first
-			 * command goes out raw and is ignored again. */
-			int retry;
+			/* Chip already left EDL for the app firmware:
+			 * IBS is live — arm the handshake, restart the
+			 * tx side ASLEEP, and retry through it. */
 			unsigned long irqflags;
+			int retry;
 
 			clear_bit(STATE_EDL_PHASE, &qca->flags);
 			qca->edl_len = 0;
-			qca_uart_unmask_cts(hu);
 			spin_lock_irqsave(&qca->hci_ibs_lock, irqflags);
 			qca->tx_ibs_state = HCI_IBS_TX_ASLEEP;
 			qca->rx_ibs_state = HCI_IBS_RX_ASLEEP;
 			spin_unlock_irqrestore(&qca->hci_ibs_lock, irqflags);
 			set_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
-			for (retry = 0; retry < 6 && ret; retry++) {
-				msleep(1500);
+			for (retry = 0; retry < 3 && ret; retry++) {
+				qca_rxd_wakeup(hu);
 				ret = qca_send_reset(hdev);
 			}
 		}
