@@ -2314,6 +2314,9 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 		rc = -EINVAL;
 		goto end;
 	}
+	CAM_ERR(CAM_CRM, "ADDREQ-DIAG dev %s dev_hdl %x req %lld tbl_pd %d dev_bit %d",
+		device->dev_info.name, add_req->dev_hdl, add_req->req_id,
+		tbl->pd, device->dev_bit);
 	/*
 	 * Go through request table and add
 	 * request id to proper table
@@ -2356,9 +2359,10 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 	slot->state = CRM_REQ_STATE_PENDING;
 	slot->req_ready_map |= (1 << device->dev_bit);
 
-	CAM_DBG(CAM_CRM, "idx %d dev_hdl %x req_id %lld pd %d ready_map %x",
-		idx, add_req->dev_hdl, add_req->req_id, tbl->pd,
-		slot->req_ready_map);
+	CAM_ERR(CAM_CRM, "ADDREQ-MARK idx %d dev %s req %lld map %x mask %x st->%s",
+		idx, device->dev_info.name, add_req->req_id, slot->req_ready_map,
+		tbl->dev_mask,
+		(slot->req_ready_map == tbl->dev_mask) ? "RDY" : "PEND");
 
 	trace_cam_req_mgr_add_req(link, idx, add_req, tbl, device);
 

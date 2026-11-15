@@ -4691,6 +4691,31 @@ handle_fatal_error:
 	}
 
 	if (fatal_err_detected) {
+		void __iomem *mb = soc_info->reg_map[0].mem_base;
+
+		CAM_ERR(CAM_ISP, "CSID-DIAG cfg0 %x cfg1 %x capctrl %x",
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_cfg0_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_cfg1_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_capture_ctrl_addr));
+		CAM_ERR(CAM_ISP,
+			"CSID-DIAG pkts %u ecc %u crcerr %u misr %x %x %x %x",
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_total_pkts_rcvd_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_stats_ecc_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_total_crc_err_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_lane0_misr_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_lane1_misr_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_lane2_misr_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_lane3_misr_addr));
+		CAM_ERR(CAM_ISP,
+			"CSID-DIAG unmap %x %x short %x %x long %x %x ftr %x",
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_cap_unmap_long_pkt_hdr_0_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_cap_unmap_long_pkt_hdr_1_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_captured_short_pkt_0_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_captured_short_pkt_1_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_captured_long_pkt_0_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_captured_long_pkt_1_addr),
+			cam_io_r_mb(mb + csi2_reg->csid_csi2_rx_captured_long_pkt_ftr_addr));
+
 		cam_ife_csid_halt_csi2(csid_hw);
 		cam_csid_handle_hw_err_irq(csid_hw,
 			CAM_ISP_HW_ERROR_CSID_FATAL, irq_status);
