@@ -22,8 +22,8 @@
 struct ps5169_data *redrv_data;
 struct device *redriver_device;
 
-#define EQ0 0x20
-#define EQ1 0x06
+#define EQ0 0x40
+#define EQ1 0x20
 
 static char REDRV_MODE_Print[6][19] = {
 	{"WORK_MODE"},
