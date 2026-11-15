@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/fs.h>
 #include <soc/qcom/scm.h>
 #include <uapi/media/cam_isp.h>
 #include "cam_smmu_api.h"

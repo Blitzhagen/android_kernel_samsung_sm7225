@@ -5,6 +5,8 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
+#include <linux/file.h>
 
 #include "cam_mem_mgr.h"
 #include "cam_packet_util.h"
@@ -82,6 +84,84 @@ int cam_packet_util_validate_packet(struct cam_packet *packet,
 			(size_t)packet->header.size, sum_cmd_desc,
 			sum_io_cfgs, sum_patch_desc);
 		return -EINVAL;
+	}
+
+	/* CAMX packet capture: dump every validated packet (all devices:
+	 * sensor/csiphy/eeprom/actuator/isp/icp) + cmd_buf payloads and
+	 * io_cfg tables to /tmp/camdump. Temporary capture tooling. */
+	{
+		static uint32_t dump_pkt_count;
+		struct file *fp;
+		loff_t pos;
+		uint32_t di;
+		char name[160];
+		struct cam_cmd_buf_desc *dd;
+
+		if (dump_pkt_count < 600) {
+			snprintf(name, sizeof(name),
+				"/tmp/camdump/pkt_%08x_%llu.bin",
+				packet->header.op_code,
+				packet->header.request_id);
+			fp = filp_open(name, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+			if (!IS_ERR(fp)) {
+				pos = 0;
+				kernel_write(fp, packet,
+					packet->header.size, &pos);
+				filp_close(fp, NULL);
+			}
+			if (packet->num_io_configs) {
+				snprintf(name, sizeof(name),
+					"/tmp/camdump/io_%08x_%llu.bin",
+					packet->header.op_code,
+					packet->header.request_id);
+				fp = filp_open(name,
+					O_WRONLY | O_CREAT | O_TRUNC, 0600);
+				if (!IS_ERR(fp)) {
+					pos = 0;
+					kernel_write(fp,
+						(uint8_t *)&packet->payload +
+						packet->io_configs_offset,
+						sum_io_cfgs, &pos);
+					filp_close(fp, NULL);
+				}
+			}
+			dd = (struct cam_cmd_buf_desc *)((uint8_t *)
+				&packet->payload + packet->cmd_buf_offset);
+			for (di = 0; di < packet->num_cmd_buf; di++) {
+				uint32_t *cpu_addr = NULL;
+				size_t blen = 0;
+
+				if (!dd[di].length ||
+					cam_packet_util_get_cmd_mem_addr(
+						dd[di].mem_handle,
+						&cpu_addr, &blen))
+					continue;
+				snprintf(name, sizeof(name),
+					"/tmp/camdump/cmd_%08x_%llu_%u_meta%x.bin",
+					packet->header.op_code,
+					packet->header.request_id,
+					di, dd[di].meta_data);
+				fp = filp_open(name,
+					O_WRONLY | O_CREAT | O_TRUNC, 0600);
+				if (IS_ERR(fp))
+					continue;
+				pos = 0;
+				kernel_write(fp, &dd[di], sizeof(dd[di]), &pos);
+				kernel_write(fp,
+					(uint8_t *)cpu_addr + dd[di].offset,
+					dd[di].length, &pos);
+				filp_close(fp, NULL);
+			}
+			dump_pkt_count++;
+			CAM_INFO(CAM_UTIL,
+				"PKTDUMP req %llu op 0x%x cmd_bufs %u io %u patches %u count %u",
+				packet->header.request_id,
+				packet->header.op_code,
+				packet->num_cmd_buf,
+				packet->num_io_configs,
+				packet->num_patches,
+				dump_pkt_count);
+		}
 	}
 
 	return 0;
