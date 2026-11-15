@@ -4749,6 +4749,16 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 	if (on) {
 		dev_info(mdwc->dev, "%s: turn on host\n", __func__);
 
+		/*
+		 * Give the VBUS-powered peripheral time to finish its own
+		 * power-on before PHY init and link training. The Samsung
+		 * notify chain drives VBUS and raises the host event within
+		 * ~20ms; starting the port then races the device-side
+		 * reset/link partner and can leave it in a broken warm-reset
+		 * loop until re-attached.
+		 */
+		msleep(500);
+
 		mdwc->hs_phy->flags |= PHY_HOST_MODE;
 		pm_runtime_get_sync(mdwc->dev);
 		dbg_event(0xFF, "StrtHost gync",
